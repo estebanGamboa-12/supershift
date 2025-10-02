@@ -5,7 +5,6 @@ import {
   addMonths,
   eachDayOfInterval,
   endOfMonth,
-  endOfWeek,
   format,
   isSameMonth,
   isToday,
@@ -15,24 +14,25 @@ import {
 } from "date-fns"
 import { es } from "date-fns/locale"
 import { useMemo, useState } from "react"
+import { motion } from "framer-motion"
 import type { ShiftEvent, ShiftType } from "@/types/shifts"
 
-const WEEK_STARTS_ON = 1
+const WEEK_STARTS_ON = 1 // lunes
 
 const typeColor: Record<ShiftType, string> = {
-  WORK: "bg-blue-100 text-blue-700 border-blue-300",
-  REST: "bg-slate-100 text-slate-600 border-slate-300",
-  NIGHT: "bg-violet-100 text-violet-700 border-violet-300",
-  VACATION: "bg-orange-100 text-orange-700 border-orange-300",
-  CUSTOM: "bg-sky-100 text-sky-700 border-sky-300",
+  WORK: "#2563eb",
+  REST: "#64748b",
+  NIGHT: "#7c3aed",
+  VACATION: "#f97316",
+  CUSTOM: "#0ea5e9",
 }
 
 type CalendarSlot = { start: Date }
 
-type Props = {
+type CalendarViewProps = {
   shifts: ShiftEvent[]
   onSelectEvent: (shift: ShiftEvent) => void
-  onSelectSlot?: (slot: CalendarSlot) => void
+  onSelectSlot?: (slotInfo: CalendarSlot) => void
   onDeleteEvent?: (shift: ShiftEvent) => void
   className?: string
 }
@@ -43,21 +43,20 @@ export default function CalendarView({
   onSelectSlot,
   onDeleteEvent,
   className = "",
-}: Props) {
+}: CalendarViewProps) {
   const [currentDate, setCurrentDate] = useState(() => new Date())
 
+  // Calculamos 6 filas SIEMPRE (42 días)
   const calendarDays = useMemo(() => {
     const monthStart = startOfMonth(currentDate)
-    const monthEnd = endOfMonth(currentDate)
     const calendarStart = startOfWeek(monthStart, { weekStartsOn: WEEK_STARTS_ON })
-    const calendarEnd = endOfWeek(monthEnd, { weekStartsOn: WEEK_STARTS_ON })
-    return eachDayOfInterval({ start: calendarStart, end: calendarEnd })
+    return Array.from({ length: 42 }, (_, i) => addDays(calendarStart, i))
   }, [currentDate])
 
   const eventsByDay = useMemo(() => {
     const map = new Map<string, ShiftEvent[]>()
     shifts.forEach((shift) => {
-      const key = format(shift.start, "yyyy-MM-dd")
+      const key = format(new Date(shift.date), "yyyy-MM-dd")
       const events = map.get(key) ?? []
       events.push(shift)
       map.set(key, events)
@@ -65,110 +64,136 @@ export default function CalendarView({
     return map
   }, [shifts])
 
-  const weekRef = useMemo(() => startOfWeek(new Date(), { weekStartsOn: WEEK_STARTS_ON }), [])
-  const weekdays = useMemo(
-    () =>
-      Array.from({ length: 7 }, (_, i) =>
-        format(addDays(weekRef, i), "EEEEEE", { locale: es })
-      ),
-    [weekRef]
-  )
+  const weekdays = useMemo(() => {
+    const weekRef = startOfWeek(new Date(), { weekStartsOn: WEEK_STARTS_ON })
+    return Array.from({ length: 7 }, (_, i) =>
+      format(addDays(weekRef, i), "EEEEEE", { locale: es })
+    )
+  }, [])
 
-  function handlePrev() {
-    setCurrentDate((d) => subMonths(d, 1))
+  function handlePrevMonth() {
+    setCurrentDate((date) => subMonths(date, 1))
   }
-  function handleNext() {
-    setCurrentDate((d) => addMonths(d, 1))
+
+  function handleNextMonth() {
+    setCurrentDate((date) => addMonths(date, 1))
   }
+
   function handleToday() {
     setCurrentDate(new Date())
   }
 
+  function handleDayClick(day: Date) {
+    onSelectSlot?.({ start: day })
+  }
+
+  const containerClassName = [
+    "flex h-full w-full flex-col overflow-hidden rounded-2xl bg-white text-slate-900 shadow-lg",
+    className,
+  ]
+    .filter(Boolean)
+    .join(" ")
+
   return (
-    <div className={`flex flex-col bg-white text-slate-900 ${className}`}>
-      {/* Header */}
-      <header className="flex justify-between items-center border-b px-4 py-3 bg-white sticky top-0 z-10">
-        <div className="flex gap-2">
-          <button onClick={handlePrev} className="btn-nav">Ant.</button>
-          <button onClick={handleToday} className="btn-today">Hoy</button>
-          <button onClick={handleNext} className="btn-nav">Sig.</button>
+    <div className={containerClassName}>
+      {/* Toolbar */}
+      <header className="flex flex-col gap-4 border-b border-slate-200/70 bg-white px-4 py-3 sm:flex-row sm:items-center sm:justify-between">
+        <div className="inline-flex items-center gap-2">
+          <button
+            onClick={handlePrevMonth}
+            className="rounded-full border border-slate-200 bg-white px-3 py-1 text-xs font-semibold text-slate-600 hover:border-blue-300 hover:text-blue-600"
+          >
+            Ant.
+          </button>
+          <button
+            onClick={handleToday}
+            className="rounded-full border border-transparent bg-blue-600 px-4 py-1.5 text-xs font-semibold text-white shadow-sm hover:bg-blue-700"
+          >
+            Hoy
+          </button>
+          <button
+            onClick={handleNextMonth}
+            className="rounded-full border border-slate-200 bg-white px-3 py-1 text-xs font-semibold text-slate-600 hover:border-blue-300 hover:text-blue-600"
+          >
+            Sig.
+          </button>
         </div>
-        <div className="text-right">
-          <h2 className="font-semibold text-slate-800">
+        <div className="flex flex-col items-start gap-1 sm:items-end">
+          <span className="text-sm font-semibold text-slate-700 sm:text-base">
             {format(currentDate, "MMMM yyyy", { locale: es })}
-          </h2>
-          <p className="text-xs text-slate-400 uppercase">Vista mensual</p>
+          </span>
+          <p className="text-xs uppercase tracking-[0.3em] text-slate-400">
+            Vista mensual
+          </p>
         </div>
       </header>
 
       {/* Weekdays */}
-      <div className="grid grid-cols-7 text-center text-xs font-semibold border-b bg-slate-50">
-        {weekdays.map((d) => (
-          <div key={d} className="py-2">{d}</div>
+      <div className="grid grid-cols-7 gap-px border-b border-slate-200 bg-slate-50 text-[11px] font-semibold uppercase tracking-wide text-slate-500 sm:text-xs">
+        {weekdays.map((day) => (
+          <div key={day} className="bg-white py-2 text-center">
+            {day}
+          </div>
         ))}
       </div>
 
-      {/* Grid days */}
-      <div className="grid grid-cols-7 flex-1">
-        {calendarDays.map((day) => {
-          const key = format(day, "yyyy-MM-dd")
-          const events = eventsByDay.get(key) ?? []
-          const isCurrMonth = isSameMonth(day, currentDate)
-          const isCurrDay = isToday(day)
+      {/* Calendar grid */}
+      <div className="flex-1 bg-slate-100/60">
+        <div className="grid grid-cols-7 grid-rows-6 gap-px h-full">
+          {calendarDays.map((day) => {
+            const key = format(day, "yyyy-MM-dd")
+            const dayEvents = eventsByDay.get(key) ?? []
+            const isCurrentMonth = isSameMonth(day, currentDate)
+            const isCurrentDay = isToday(day)
 
-          return (
-            <div
-              key={key}
-              className={`min-h-[120px] sm:min-h-[140px] border p-1 flex flex-col cursor-pointer ${
-                isCurrMonth ? "bg-white" : "bg-slate-50"
-              }`}
-              onClick={() => onSelectSlot?.({ start: day })}
-            >
-              <div className="flex justify-between items-center mb-1">
-                <span
-                  className={`h-7 w-7 flex items-center justify-center rounded-full text-sm font-semibold ${
-                    isCurrDay
-                      ? "bg-blue-600 text-white"
-                      : "text-slate-600"
-                  }`}
-                >
-                  {format(day, "d")}
-                </span>
-              </div>
-              <div className="flex flex-col gap-1 flex-1 overflow-hidden">
-                {events.length === 0 ? (
-                  <span className="text-[10px] text-slate-400">Sin turnos</span>
-                ) : (
-                  events.slice(0, 3).map((shift) => (
-                    <button
+            return (
+              <motion.div
+                key={key}
+                onClick={() => handleDayClick(day)}
+                whileHover={{ scale: 1.01 }}
+                className={`flex flex-col border bg-white p-2 text-xs ${
+                  isCurrentMonth ? "text-slate-700" : "text-slate-400 bg-slate-50"
+                }`}
+              >
+                {/* Número del día */}
+                <div className="mb-1 flex items-center justify-between">
+                  <span
+                    className={`flex h-7 w-7 items-center justify-center rounded-full text-sm font-semibold ${
+                      isCurrentDay ? "bg-blue-600 text-white" : ""
+                    }`}
+                  >
+                    {format(day, "d")}
+                  </span>
+                </div>
+
+                {/* Eventos */}
+                <div className="flex flex-col gap-1 overflow-hidden">
+                  {dayEvents.map((shift) => (
+                    <motion.button
                       key={shift.id}
+                      whileHover={{ scale: 1.02 }}
+                      whileTap={{ scale: 0.97 }}
                       onClick={(e) => {
                         e.stopPropagation()
                         onSelectEvent(shift)
                       }}
-                      className={`rounded px-2 py-0.5 text-[10px] font-semibold border truncate ${typeColor[shift.type]}`}
+                      className="truncate rounded-lg px-2 py-1 text-left text-[11px] font-medium shadow-sm"
+                      style={{ backgroundColor: `${typeColor[shift.type]}30` }}
                     >
-                      {shift.type}{shift.note ? ` - ${shift.note}` : ""}
-                    </button>
-                  ))
-                )}
-                {events.length > 3 && (
-                  <span className="text-[10px] text-blue-600">+{events.length - 3} más</span>
-                )}
-              </div>
-            </div>
-          )
-        })}
+                      <span className="font-semibold">{shift.type}</span>
+                      {shift.note && (
+                        <p className="truncate text-[10px] text-slate-700">
+                          {shift.note}
+                        </p>
+                      )}
+                    </motion.button>
+                  ))}
+                </div>
+              </motion.div>
+            )
+          })}
+        </div>
       </div>
     </div>
   )
-}
-
-/* Tailwind helpers */
-const btnBase = "px-3 py-1 rounded text-xs font-semibold shadow-sm transition"
-const btnBlue = "bg-blue-600 text-white hover:bg-blue-700"
-const btnGray = "border border-slate-200 bg-white text-slate-600 hover:border-blue-300 hover:text-blue-600"
-
-function Button({ children, className, ...props }: any) {
-  return <button {...props} className={`${btnBase} ${className}`}>{children}</button>
 }

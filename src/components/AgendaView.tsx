@@ -3,6 +3,7 @@
 import { format, isToday } from "date-fns"
 import { es } from "date-fns/locale"
 import type { ShiftEvent, ShiftType } from "@/types/shifts"
+import { motion } from "framer-motion"
 
 const typeColor: Record<ShiftType, string> = {
   WORK: "bg-blue-100 text-blue-700 border-blue-300",
@@ -19,11 +20,22 @@ type Props = {
 
 export default function AgendaView({ shifts, onSelectEvent }: Props) {
   return (
-    <div className="divide-y divide-slate-200 bg-white text-slate-900">
+    <motion.div
+      initial={{ opacity: 0, y: 20 }}
+      animate={{ opacity: 1, y: 0 }}
+      transition={{ duration: 0.4 }}
+      className="divide-y divide-slate-200 bg-white text-slate-900"
+    >
       {shifts.map((shift) => {
         const isCurrDay = isToday(shift.start)
         return (
-          <div key={shift.id} className="p-3 flex flex-col gap-1">
+          <motion.div
+            key={shift.id}
+            initial={{ opacity: 0, x: -20 }}
+            animate={{ opacity: 1, x: 0 }}
+            transition={{ duration: 0.3 }}
+            className="p-3 flex flex-col gap-1"
+          >
             <span className={`text-sm font-semibold ${isCurrDay ? "text-blue-600" : "text-slate-700"}`}>
               {format(shift.start, "EEEE, d 'de' MMMM", { locale: es })}
             </span>
@@ -33,9 +45,9 @@ export default function AgendaView({ shifts, onSelectEvent }: Props) {
             >
               {shift.type} {shift.note && `- ${shift.note}`}
             </button>
-          </div>
+          </motion.div>
         )
       })}
-    </div>
+    </motion.div>
   )
 }

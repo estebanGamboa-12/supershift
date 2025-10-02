@@ -228,7 +228,7 @@ export default function Home() {
                 </div>
               </div>
 
-              <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
+              <div className="grid gap-4 md:grid-cols-2">
                 <article className="group relative overflow-hidden rounded-3xl border border-white/5 bg-gradient-to-br from-slate-900 via-slate-950 to-slate-950 p-6 shadow-2xl shadow-blue-500/10">
                   <div
                     className="absolute inset-0 -z-10 opacity-30 blur-2xl transition duration-500 group-hover:opacity-60"
@@ -272,24 +272,31 @@ export default function Home() {
                   )}
                 </article>
 
-                <article className="rounded-3xl border border-white/5 bg-white/5 p-6 backdrop-blur">
-                  <p className="text-xs font-semibold uppercase tracking-wide text-white/60">
-                    {format(new Date(), "MMMM yyyy")}
-                  </p>
-                  <p className="mt-4 text-3xl font-semibold">{currentMonthShifts.length}</p>
-                  <p className="mt-2 text-sm text-white/60">Turnos en el mes actual</p>
-                </article>
-
-                <article className="rounded-3xl border border-white/5 bg-white/5 p-6 backdrop-blur">
-                  <p className="text-xs font-semibold uppercase tracking-wide text-white/60">Planificación total</p>
-                  <p className="mt-4 text-3xl font-semibold">{orderedShifts.length}</p>
-                  <p className="mt-2 text-sm text-white/60">Turnos programados en la agenda</p>
-                </article>
-
-                <article className="rounded-3xl border border-white/5 bg-white/5 p-6 backdrop-blur">
-                  <p className="text-xs font-semibold uppercase tracking-wide text-white/60">Tipos activos</p>
-                  <p className="mt-4 text-3xl font-semibold">{activeShiftTypes}</p>
-                  <p className="mt-2 text-sm text-white/60">Variantes de turno en tu planificación</p>
+                <article className="flex flex-col gap-4 rounded-3xl border border-white/5 bg-white/5 p-6 backdrop-blur">
+                  <div>
+                    <p className="text-xs font-semibold uppercase tracking-wide text-white/60">
+                      Salud de la planificación
+                    </p>
+                    <p className="mt-2 text-sm text-white/60">
+                      Un vistazo rápido a tus próximos turnos y carga mensual.
+                    </p>
+                  </div>
+                  <dl className="grid gap-4 sm:grid-cols-2">
+                    <div className="rounded-2xl border border-white/10 bg-slate-950/40 p-4">
+                      <dt className="text-xs uppercase tracking-wide text-white/50">
+                        {format(new Date(), "MMMM yyyy")}
+                      </dt>
+                      <dd className="mt-2 text-2xl font-semibold">{currentMonthShifts.length}</dd>
+                      <p className="mt-1 text-xs text-white/50">Turnos en este mes</p>
+                    </div>
+                    <div className="rounded-2xl border border-white/10 bg-slate-950/40 p-4">
+                      <dt className="text-xs uppercase tracking-wide text-white/50">Visión global</dt>
+                      <dd className="mt-2 text-2xl font-semibold">{orderedShifts.length}</dd>
+                      <p className="mt-1 text-xs text-white/50">
+                        {activeShiftTypes} tipos activos
+                      </p>
+                    </div>
+                  </dl>
                 </article>
               </div>
             </div>
@@ -298,7 +305,7 @@ export default function Home() {
           <main className="flex-1 overflow-y-auto">
             <div className="mx-auto w-full max-w-7xl space-y-10 px-4 py-10 sm:px-6 lg:px-10 xl:px-12">
               <div className="grid gap-6 lg:grid-cols-12">
-                <section className="space-y-6 lg:col-span-8">
+                <section className="space-y-6 lg:col-span-9">
                   <div className="rounded-3xl border border-white/10 bg-white/5 p-4 shadow-xl shadow-blue-500/10 sm:p-6">
                     <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
                       <div>
@@ -326,7 +333,7 @@ export default function Home() {
                       </div>
                     </div>
 
-                    <div className="mt-6 hidden min-h-[560px] rounded-2xl border border-white/5 bg-slate-950/50 p-4 shadow-inner md:block">
+                    <div className="mt-6 hidden min-h-[640px] rounded-2xl border border-white/5 bg-slate-950/50 p-4 shadow-inner md:block">
                       <CalendarView
                         shifts={orderedShifts}
                         onSelectEvent={setSelectedShift}
@@ -379,7 +386,7 @@ export default function Home() {
                   </div>
                 </section>
 
-                <aside className="space-y-6 lg:col-span-4">
+                <aside className="space-y-6 lg:col-span-3">
                   <AddShiftForm
                     onAdd={handleAddShift}
                     selectedDate={selectedDateFromCalendar}

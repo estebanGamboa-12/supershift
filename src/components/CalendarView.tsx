@@ -10,6 +10,7 @@ import { format, parse, startOfWeek, getDay } from "date-fns"
 import { es } from "date-fns/locale"
 import "react-big-calendar/lib/css/react-big-calendar.css"
 import { useEffect, useMemo, useState } from "react"
+import type { MouseEvent } from "react"
 import type { ShiftEvent } from "@/types/shifts"
 import type { ToolbarProps, View } from "react-big-calendar"
 
@@ -23,6 +24,8 @@ const localizer = dateFnsLocalizer({
   locales,
 })
 
+type CalendarEvent = RBCEvent & { resource: ShiftEvent }
+
 export default function CalendarView({
   shifts,
   onSelectEvent,
@@ -34,10 +37,17 @@ export default function CalendarView({
   onSelectSlot?: (slotInfo: SlotInfo) => void
   onDeleteEvent?: (shift: ShiftEvent) => void
 }) {
-  const events = shifts.map((s) => ({
-    ...s,
-    title: s.note ? `${s.type} - ${s.note}` : s.type,
-  }))
+  const events = useMemo<CalendarEvent[]>(
+    () =>
+      shifts.map((shift) => ({
+        title: shift.note ? `${shift.type} - ${shift.note}` : shift.type,
+        start: shift.start,
+        end: shift.end,
+        allDay: true,
+        resource: shift,
+      })),
+    [shifts],
+  )
 
   const typeColor: Record<ShiftEvent["type"], string> = {
     WORK: "#2563eb",
@@ -47,19 +57,25 @@ export default function CalendarView({
     CUSTOM: "#0ea5e9",
   }
 
-  function renderEvent(event: ShiftEvent) {
-    const handleDelete = (e: React.MouseEvent<HTMLButtonElement>) => {
+  function renderEvent(event: CalendarEvent) {
+    const shift = event.resource
+
+    if (!shift) {
+      return null
+    }
+
+    const handleDelete = (e: MouseEvent<HTMLButtonElement>) => {
       e.stopPropagation()
-      onDeleteEvent?.(event)
+      onDeleteEvent?.(shift)
     }
 
     return (
       <div className="flex items-start justify-between gap-2 text-[11px] sm:text-xs">
         <div className="flex-1">
-          <span className="font-semibold tracking-wide">{event.type}</span>
-          {event.note && (
+          <span className="font-semibold tracking-wide">{shift.type}</span>
+          {shift.note && (
             <p className="mt-0.5 text-[10px] leading-snug opacity-90 sm:text-[11px]">
-              {event.note}
+              {shift.note}
             </p>
           )}
         </div>
@@ -105,7 +121,7 @@ export default function CalendarView({
 
   const calendarHeight = isMobile ? 520 : 640
 
-  const Toolbar = (toolbarProps: ToolbarProps<ShiftEvent>) => {
+  const Toolbar = (toolbarProps: ToolbarProps<CalendarEvent>) => {
     const { label, localizer, onNavigate, onView: changeView } = toolbarProps
     const viewOptions = availableViews
 
@@ -183,20 +199,30 @@ export default function CalendarView({
           day: "Día",
           agenda: "Agenda",
         }}
-        eventPropGetter={(event: ShiftEvent) => ({
-          style: {
-            backgroundColor: typeColor[event.type],
-            color: "white",
-            borderRadius: "10px",
-            padding: "6px 8px",
-            border: "1px solid rgba(255,255,255,0.25)",
-          },
-        })}
+        eventPropGetter={(event: CalendarEvent) => {
+          const shift = event.resource
+          const backgroundColor = shift ? typeColor[shift.type] : "#2563eb"
+
+          return {
+            style: {
+              backgroundColor,
+              color: "white",
+              borderRadius: "10px",
+              padding: "6px 8px",
+              border: "1px solid rgba(255,255,255,0.25)",
+            },
+          }
+        }}
         components={{
-          event: ({ event }) => renderEvent(event as ShiftEvent),
+          event: ({ event }) => renderEvent(event as CalendarEvent),
           toolbar: (props) => <Toolbar {...props} />,
         }}
-        onSelectEvent={(event: RBCEvent) => onSelectEvent(event as ShiftEvent)}
+        onSelectEvent={(event: RBCEvent) => {
+          const calendarEvent = event as CalendarEvent
+          if (calendarEvent.resource) {
+            onSelectEvent(calendarEvent.resource)
+          }
+        }}
         selectable
         onSelectSlot={onSelectSlot}
       />

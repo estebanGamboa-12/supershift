@@ -57,28 +57,25 @@ export default function AddShiftForm({ onAdd, selectedDate, onDateConsumed }: Pr
   }
 
   return (
-    <div className="overflow-hidden rounded-3xl border border-white/10 bg-gradient-to-br from-slate-900/70 via-slate-950/80 to-slate-950/90 shadow-2xl shadow-blue-500/10 backdrop-blur">
-      <div className="border-b border-white/10 px-6 py-5">
-        <div className="flex items-start justify-between gap-4">
-          <div>
-            <h2 className="text-lg font-semibold text-white">Añadir turno manualmente</h2>
-            <p className="text-sm text-white/60">
-              Selecciona una fecha, el tipo de turno y deja una nota opcional para recordatorios o incidencias.
-            </p>
-          </div>
-          <span className="hidden rounded-full border border-white/10 px-3 py-1 text-xs uppercase tracking-wide text-white/50 sm:inline-flex">
-            Entrada rápida
-          </span>
-        </div>
-        <div className="mt-4 inline-flex items-center gap-2 rounded-2xl border border-blue-400/20 bg-blue-500/10 px-4 py-2 text-xs font-medium text-blue-100">
-          <span className="inline-flex h-1.5 w-1.5 rounded-full bg-blue-300" aria-hidden />
+    <div className="overflow-hidden rounded-2xl border border-white/10 bg-slate-900/70 shadow-lg backdrop-blur">
+      {/* Header */}
+      <div className="border-b border-white/10 px-5 py-4">
+        <h2 className="text-base font-semibold text-white">Añadir turno manualmente</h2>
+        <p className="text-xs text-white/60">
+          Selecciona una fecha, el tipo de turno y deja una nota opcional para recordatorios.
+        </p>
+        <div className="mt-3 inline-flex items-center gap-2 rounded-lg border border-blue-400/20 bg-blue-500/10 px-3 py-1 text-xs font-medium text-blue-100">
+          <span className="inline-flex h-1.5 w-1.5 rounded-full bg-blue-300" />
           {selectedDateLabel}
         </div>
       </div>
+
+      {/* Form */}
       <form
         onSubmit={handleSubmit}
-        className="grid gap-4 px-6 py-6 sm:grid-cols-2 sm:items-start md:grid-cols-4"
+        className="flex flex-col gap-4 px-5 py-5"
       >
+        {/* Fecha */}
         <label htmlFor="date" className="flex flex-col gap-1 text-sm text-white/70">
           Fecha
           <input
@@ -86,17 +83,18 @@ export default function AddShiftForm({ onAdd, selectedDate, onDateConsumed }: Pr
             type="date"
             value={date}
             onChange={(event) => setDate(event.target.value)}
-            className="rounded-xl border border-white/10 bg-slate-950/70 px-3 py-2 text-sm text-white placeholder:text-white/40 focus:border-blue-400 focus:outline-none focus:ring-2 focus:ring-blue-500/40"
+            className="rounded-lg border border-white/10 bg-slate-800 px-3 py-2 text-sm text-white placeholder:text-white/40 focus:border-blue-400 focus:outline-none focus:ring-2 focus:ring-blue-500/40"
           />
         </label>
 
+        {/* Tipo */}
         <label htmlFor="type" className="flex flex-col gap-1 text-sm text-white/70">
           Tipo de turno
           <select
             id="type"
             value={type}
             onChange={(event) => setType(event.target.value as ShiftType)}
-            className="rounded-xl border border-white/10 bg-slate-950/70 px-3 py-2 text-sm text-white focus:border-blue-400 focus:outline-none focus:ring-2 focus:ring-blue-500/40"
+            className="rounded-lg border border-white/10 bg-slate-800 px-3 py-2 text-sm text-white focus:border-blue-400 focus:outline-none focus:ring-2 focus:ring-blue-500/40"
           >
             {Object.entries(shiftTypeLabels).map(([value, label]) => (
               <option key={value} value={value}>
@@ -106,28 +104,30 @@ export default function AddShiftForm({ onAdd, selectedDate, onDateConsumed }: Pr
           </select>
         </label>
 
-        <label htmlFor="note" className="flex flex-col gap-1 text-sm text-white/70 md:col-span-2">
+        {/* Nota */}
+        <label htmlFor="note" className="flex flex-col gap-1 text-sm text-white/70">
           Nota (opcional)
           <textarea
             id="note"
             value={note}
             onChange={(event) => setNote(event.target.value)}
             placeholder="Añade detalles como incidencias, recordatorios o metas"
-            rows={2}
-            className="min-h-[2.5rem] resize-none rounded-xl border border-white/10 bg-slate-950/70 px-3 py-2 text-sm text-white placeholder:text-white/40 focus:border-blue-400 focus:outline-none focus:ring-2 focus:ring-blue-500/40"
+            rows={3}
+            className="resize-none rounded-lg border border-white/10 bg-slate-800 px-3 py-2 text-sm text-white placeholder:text-white/40 focus:border-blue-400 focus:outline-none focus:ring-2 focus:ring-blue-500/40"
           />
         </label>
 
-        <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between md:col-span-4">
+        {/* Botón */}
+        <div className="flex flex-col gap-2">
           {error && (
-            <span role="alert" className="text-sm text-red-300">
+            <span role="alert" className="text-sm text-red-400">
               {error}
             </span>
           )}
           <button
             type="submit"
             disabled={!date}
-            className="inline-flex w-full items-center justify-center gap-2 rounded-full bg-gradient-to-r from-blue-500 to-indigo-500 px-4 py-2 text-sm font-semibold text-white shadow-lg shadow-blue-500/30 transition hover:from-blue-400 hover:to-indigo-400 disabled:cursor-not-allowed disabled:opacity-50 focus:outline-none focus:ring-2 focus:ring-blue-400/60 sm:ml-auto sm:w-auto"
+            className="w-full rounded-lg bg-gradient-to-r from-blue-500 to-indigo-500 px-4 py-2 text-sm font-semibold text-white shadow-lg shadow-blue-500/30 transition hover:from-blue-400 hover:to-indigo-400 disabled:cursor-not-allowed disabled:opacity-50"
           >
             Guardar turno
           </button>
@@ -136,3 +136,4 @@ export default function AddShiftForm({ onAdd, selectedDate, onDateConsumed }: Pr
     </div>
   )
 }
+// Este componente permite al usuario añadir un turno manualmente seleccionando una fecha, tipo de turno y una nota opcional.

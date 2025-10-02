@@ -18,6 +18,13 @@ import MobileNavigation, { type MobileTab } from "@/components/dashboard/MobileN
 import MobileAddShiftSheet from "@/components/dashboard/MobileAddShiftSheet"
 import TeamSpotlight from "@/components/dashboard/TeamSpotlight"
 
+type ApiShift = {
+  id: number
+  date: string
+  type: ShiftType
+  note?: string | null
+}
+
 const SHIFT_TYPE_LABELS: Record<ShiftType, string> = {
   WORK: "Trabajo",
   REST: "Descanso",
@@ -158,6 +165,45 @@ export default function Home() {
       setIsMobileAddOpen(true)
     }
   }, [selectedDateFromCalendar])
+
+  useEffect(() => {
+    let isMounted = true
+
+    const loadShiftsFromApi = async () => {
+      try {
+        const response = await fetch("/api/shifts", { cache: "no-store" })
+        if (!response.ok) {
+          throw new Error(`Error al obtener los turnos: ${response.status}`)
+        }
+
+        const data: { shifts: ApiShift[] } = await response.json()
+        if (!isMounted) {
+          return
+        }
+
+        const mappedShifts: ShiftEvent[] = data.shifts.map((shift) => ({
+          id: shift.id,
+          date: shift.date,
+          type: shift.type,
+          start: new Date(shift.date),
+          end: new Date(shift.date),
+          ...(shift.note != null ? { note: shift.note } : {}),
+        }))
+
+        setShifts(sortByDate(mappedShifts))
+        nextIdRef.current =
+          mappedShifts.reduce((max, shift) => Math.max(max, shift.id), 0) + 1
+      } catch (error) {
+        console.error("No se pudieron cargar los turnos desde la API", error)
+      }
+    }
+
+    void loadShiftsFromApi()
+
+    return () => {
+      isMounted = false
+    }
+  }, [sortByDate])
 
   const handleOpenMobileAdd = useCallback(() => {
     setActiveMobileTab("calendar")

@@ -166,11 +166,10 @@ export default function Home() {
                 <button
                   type="button"
                   key={item.label}
-                  className={`group flex w-full flex-col gap-1 rounded-2xl border px-4 py-3 text-left transition ${
-                    index === 0
+                  className={`group flex w-full flex-col gap-1 rounded-2xl border px-4 py-3 text-left transition ${index === 0
                       ? "border-blue-500/40 bg-gradient-to-r from-blue-500/20 to-transparent text-white shadow-lg shadow-blue-500/10"
                       : "border-transparent bg-white/5 text-white/70 hover:border-white/10 hover:bg-white/10 hover:text-white"
-                  }`}
+                    }`}
                 >
                   <span className="flex items-center gap-3 text-sm font-semibold">
                     <span className="grid h-8 w-8 place-items-center rounded-xl bg-white/10 text-lg">{item.icon}</span>
@@ -253,9 +252,8 @@ export default function Home() {
                           <span className="rounded-full border border-white/10 px-3 py-1 text-xs">
                             {daysUntilNextShift === 0
                               ? "Sucede hoy"
-                              : `En ${daysUntilNextShift} día${
-                                  daysUntilNextShift === 1 ? "" : "s"
-                                }`}
+                              : `En ${daysUntilNextShift} día${daysUntilNextShift === 1 ? "" : "s"
+                              }`}
                           </span>
                         )}
                       </div>
@@ -387,61 +385,15 @@ export default function Home() {
                 </section>
 
                 <aside className="space-y-6 lg:col-span-3">
+                  <RotationForm onGenerate={handleGenerateRotation} />
+
                   <AddShiftForm
                     onAdd={handleAddShift}
                     selectedDate={selectedDateFromCalendar}
                     onDateConsumed={() => setSelectedDateFromCalendar(null)}
                   />
-                  <RotationForm onGenerate={handleGenerateRotation} />
 
-                  <div className="rounded-3xl border border-white/10 bg-white/5 p-6 shadow-xl shadow-blue-500/10">
-                    <div className="flex items-center justify-between">
-                      <h3 className="text-lg font-semibold">Próximos turnos</h3>
-                      <span className="text-xs uppercase tracking-wide text-white/50">Top 5</span>
-                    </div>
-                    <p className="mt-1 text-sm text-white/60">
-                      Visualiza las cinco próximas jornadas en tu calendario.
-                    </p>
-                    <ul className="mt-5 space-y-4">
-                      {upcomingShifts.length ? (
-                        upcomingShifts.map((shift) => (
-                          <li
-                            key={shift.id}
-                            className="group relative overflow-hidden rounded-2xl border border-white/5 bg-slate-950/50 px-4 py-4 shadow-inner"
-                          >
-                            <div
-                              className="absolute left-0 top-0 h-full w-1 bg-gradient-to-b from-blue-400 via-indigo-400 to-transparent"
-                              aria-hidden
-                            />
-                            <div className="flex items-start justify-between gap-4 pl-3">
-                              <div>
-                                <p className="font-medium text-white">
-                                  {format(new Date(shift.date), "EEEE d 'de' MMMM")}
-                                </p>
-                                <p className="text-sm text-white/60">
-                                  {SHIFT_TYPE_LABELS[shift.type] ?? shift.type}
-                                </p>
-                                {shift.note && (
-                                  <p className="mt-2 text-xs text-white/50">{shift.note}</p>
-                                )}
-                              </div>
-                              <button
-                                type="button"
-                                onClick={() => setSelectedShift(shift)}
-                                className="rounded-full border border-white/10 bg-white/5 px-3 py-1 text-xs font-semibold text-white/70 transition hover:border-blue-300 hover:text-blue-100"
-                              >
-                                Ver
-                              </button>
-                            </div>
-                          </li>
-                        ))
-                      ) : (
-                        <li className="rounded-2xl border border-dashed border-white/10 bg-slate-950/40 px-4 py-6 text-sm text-white/60">
-                          No hay turnos próximos. Aprovecha el formulario para generar nuevos horarios.
-                        </li>
-                      )}
-                    </ul>
-                  </div>
+
                 </aside>
               </div>
             </div>
@@ -458,10 +410,10 @@ export default function Home() {
                 curr.map((sh) =>
                   sh.id === s.id
                     ? {
-                        ...s,
-                        start: new Date(s.date),
-                        end: new Date(s.date),
-                      }
+                      ...s,
+                      start: new Date(s.date),
+                      end: new Date(s.date),
+                    }
                     : sh
                 )
               )

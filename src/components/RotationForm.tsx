@@ -1,7 +1,6 @@
-'use client'
+"use client"
 
 import { useMemo, useState } from "react"
-import { motion } from "framer-motion"
 
 export default function RotationForm({
   onGenerate,
@@ -52,12 +51,9 @@ export default function RotationForm({
   }
 
   return (
-    <motion.form
+    <form
       onSubmit={handleSubmit}
-      initial={{ opacity: 0, y: 10 }}
-      animate={{ opacity: 1, y: 0 }}
-      transition={{ duration: 0.3 }}
-      className="flex flex-col gap-6 rounded-2xl border border-white/10 bg-slate-900/80 p-6 text-white shadow-xl max-w-lg w-full mx-auto"
+      className="flex w-full max-w-lg flex-col gap-6 rounded-2xl border border-white/10 bg-slate-900/80 p-6 text-white shadow-xl transition-all duration-300 hover:border-white/20"
     >
       {/* Título */}
       <header className="space-y-2 text-center">
@@ -125,7 +121,7 @@ export default function RotationForm({
       >
         Generar rotación
       </button>
-    </motion.form>
+    </form>
   )
 }
 // Este componente permite al usuario seleccionar una fecha de inicio y un modelo de ciclo (4x2, 5x3, 6x3).

@@ -119,14 +119,14 @@ export default function CalendarView({
     [isMobile]
   )
 
-  const calendarHeight = isMobile ? 520 : 640
+  const calendarHeight = isMobile ? 520 : 700
 
   const Toolbar = (toolbarProps: ToolbarProps<CalendarEvent>) => {
     const { label, localizer, onNavigate, onView: changeView } = toolbarProps
     const viewOptions = availableViews
 
     return (
-      <div className="rbc-toolbar flex flex-col gap-3 border-b border-slate-200 bg-slate-50 px-4 py-3 sm:flex-row sm:items-center sm:justify-between">
+      <div className="rbc-toolbar flex flex-col gap-3 border-b border-slate-200/70 bg-white/80 px-4 py-3 backdrop-blur sm:flex-row sm:items-center sm:justify-between">
         <div className="flex items-center justify-between gap-2 sm:justify-start">
           <div className="inline-flex items-center gap-2">
             <button
@@ -166,7 +166,7 @@ export default function CalendarView({
                 className={`rounded-full px-3 py-1 text-xs font-semibold uppercase tracking-wide transition ${
                   view === option
                     ? "bg-blue-600 text-white shadow"
-                    : "border border-slate-200 bg-white text-slate-600 hover:border-blue-300 hover:text-blue-600"
+                    : "border border-slate-200/70 bg-white text-slate-600 hover:border-blue-300 hover:text-blue-600"
                 }`}
               >
                 {(localizer.messages as Record<string, string>)[option] ?? option}
@@ -179,7 +179,7 @@ export default function CalendarView({
   }
 
   return (
-    <div className="overflow-hidden rounded-2xl border border-slate-100 bg-white shadow-sm">
+    <div className="overflow-hidden rounded-3xl border border-slate-200/70 bg-white/90 shadow-xl ring-1 ring-black/5 backdrop-blur">
       <Calendar
         localizer={localizer}
         events={events}

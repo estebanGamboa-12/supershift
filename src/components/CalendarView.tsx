@@ -31,11 +31,13 @@ export default function CalendarView({
   onSelectEvent,
   onSelectSlot,
   onDeleteEvent,
+  className = "",
 }: {
   shifts: ShiftEvent[]
   onSelectEvent: (shift: ShiftEvent) => void
   onSelectSlot?: (slotInfo: SlotInfo) => void
   onDeleteEvent?: (shift: ShiftEvent) => void
+  className?: string
 }) {
   const events = useMemo<CalendarEvent[]>(
     () =>
@@ -119,8 +121,6 @@ export default function CalendarView({
     [isMobile]
   )
 
-  const calendarHeight = isMobile ? 520 : 700
-
   const Toolbar = (toolbarProps: ToolbarProps<CalendarEvent>) => {
     const { label, localizer, onNavigate, onView: changeView } = toolbarProps
     const viewOptions = availableViews
@@ -178,8 +178,15 @@ export default function CalendarView({
     )
   }
 
+  const containerClassName = [
+    "flex h-full w-full flex-col overflow-hidden rounded-3xl border border-slate-200/70 bg-white/90 text-slate-900 shadow-xl ring-1 ring-black/5 backdrop-blur",
+    className,
+  ]
+    .filter(Boolean)
+    .join(" ")
+
   return (
-    <div className="overflow-hidden rounded-3xl border border-slate-200/70 bg-white/90 shadow-xl ring-1 ring-black/5 backdrop-blur">
+    <div className={containerClassName}>
       <Calendar
         localizer={localizer}
         events={events}
@@ -188,7 +195,7 @@ export default function CalendarView({
         view={view}
         onView={(nextView) => setView(nextView)}
         views={availableViews}
-        style={{ height: calendarHeight }}
+        style={{ height: "100%" }}
         popup
         messages={{
           next: "Sig.",

@@ -4,32 +4,87 @@
 
 body {
   font-family: system-ui, sans-serif;
-  background-color: rgb(2 6 23);
+  background-color: rgb(2 6 23); /* slate-950 */
   background-image: radial-gradient(circle at 20% 20%, rgba(30, 64, 175, 0.35), transparent 55%),
     radial-gradient(circle at 80% 0%, rgba(14, 165, 233, 0.2), transparent 55%),
     linear-gradient(180deg, rgba(15, 23, 42, 0.95), rgba(2, 6, 23, 1));
-  color: rgb(15 23 42);
+  color: rgb(15 23 42); /* slate-900 */
 }
 
 ::selection {
-  background: rgba(59, 130, 246, 0.35);
+  background: rgba(59, 130, 246, 0.35); /* blue-500/35 */
   color: rgb(15 23 42);
 }
 
+/* ====================== */
+/* 🎨 Estilos del Calendar */
+/* ====================== */
 .rbc-calendar {
   font-family: inherit;
+  background: white;
+  border-radius: 1rem;
+  box-shadow: 0 4px 30px rgba(0, 0, 0, 0.08);
+  border: 1px solid rgba(148, 163, 184, 0.15); /* slate-400/15 */
+  overflow: hidden;
 }
 
+/* Eventos */
 .rbc-event {
-  font-size: 0.75rem;
-  line-height: 1.1;
+  font-size: 0.8rem;
+  line-height: 1.2;
+  font-weight: 500;
+  border-radius: 0.75rem;
+  padding: 0.25rem 0.5rem;
+  transition: all 0.2s ease;
+}
+.rbc-event:hover {
+  filter: brightness(1.1);
+  cursor: pointer;
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.15);
 }
 
+/* Toolbar */
+.rbc-toolbar {
+  padding: 0.75rem 1rem;
+}
 .rbc-toolbar .rbc-toolbar-label {
   font-weight: 600;
-  color: rgb(51 65 85);
+  color: rgb(51 65 85); /* slate-700 */
+}
+.rbc-toolbar button {
+  border-radius: 9999px; /* pill */
+  padding: 0.25rem 0.75rem;
+  font-size: 0.75rem;
+  font-weight: 600;
+  border: 1px solid rgb(226 232 240); /* slate-200 */
+  background: white;
+  transition: all 0.2s ease;
+}
+.rbc-toolbar button:hover {
+  border-color: rgb(59 130 246); /* blue-500 */
+  color: rgb(37 99 235);
 }
 
+/* Grid líneas más suaves */
+.rbc-day-bg + .rbc-day-bg {
+  border-left: 1px solid rgba(148, 163, 184, 0.15); /* slate-400/15 */
+}
+.rbc-month-row + .rbc-month-row {
+  border-top: 1px solid rgba(148, 163, 184, 0.15);
+}
+
+/* Agenda */
+.rbc-agenda-view table.rbc-agenda-table {
+  font-size: 0.85rem;
+  border: none;
+}
+.rbc-agenda-view td,
+.rbc-agenda-view th {
+  border: none !important;
+  padding: 0.5rem 0.75rem;
+}
+
+/* Responsive */
 @media (max-width: 768px) {
   .rbc-time-header {
     font-size: 0.75rem;

@@ -1,19 +1,16 @@
 'use client'
 
-import { Calendar, dateFnsLocalizer, Event as RBCEvent } from "react-big-calendar"
+import {
+  Calendar,
+  dateFnsLocalizer,
+  Event as RBCEvent,
+  SlotInfo,
+} from "react-big-calendar"
 import { format, parse, startOfWeek, getDay } from "date-fns"
 import { es } from "date-fns/locale"
 import "react-big-calendar/lib/css/react-big-calendar.css"
 import { useEffect, useState } from "react"
-
-type ShiftEvent = {
-  id: number
-  date: string
-  type: "WORK" | "REST" | "NIGHT" | "VACATION" | "CUSTOM"
-  start: Date
-  end: Date
-  note?: string
-}
+import type { ShiftEvent } from "@/types/shifts"
 
 const locales = { es }
 
@@ -28,14 +25,51 @@ const localizer = dateFnsLocalizer({
 export default function CalendarView({
   shifts,
   onSelectEvent,
+  onSelectSlot,
+  onDeleteEvent,
 }: {
   shifts: ShiftEvent[]
   onSelectEvent: (shift: ShiftEvent) => void
+  onSelectSlot?: (slotInfo: SlotInfo) => void
+  onDeleteEvent?: (shift: ShiftEvent) => void
 }) {
   const events = shifts.map((s) => ({
     ...s,
     title: s.note ? `${s.type} - ${s.note}` : s.type,
   }))
+
+  const typeColor: Record<ShiftEvent["type"], string> = {
+    WORK: "#2563eb",
+    REST: "#64748b",
+    NIGHT: "#7c3aed",
+    VACATION: "#f97316",
+    CUSTOM: "#0ea5e9",
+  }
+
+  function renderEvent(event: ShiftEvent) {
+    const handleDelete = (e: React.MouseEvent<HTMLButtonElement>) => {
+      e.stopPropagation()
+      onDeleteEvent?.(event)
+    }
+
+    return (
+      <div className="flex items-start justify-between gap-2 text-xs">
+        <div className="flex-1">
+          <span className="font-semibold tracking-wide">{event.type}</span>
+          {event.note && <p className="text-[11px] leading-snug opacity-90">{event.note}</p>}
+        </div>
+        {onDeleteEvent && (
+          <button
+            type="button"
+            onClick={handleDelete}
+            className="rounded bg-white/20 px-1.5 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-white shadow hover:bg-white/30"
+          >
+            Borrar
+          </button>
+        )}
+      </div>
+    )
+  }
 
   // 📱 Detectar si es móvil para cambiar vista
   const [defaultView, setDefaultView] = useState<"month" | "agenda">("month")
@@ -56,6 +90,7 @@ export default function CalendarView({
         defaultView={defaultView}
         views={["month", "week", "day", "agenda"]}
         style={{ height: 500 }}
+        popup
         messages={{
           next: "Sig.",
           previous: "Ant.",
@@ -65,15 +100,21 @@ export default function CalendarView({
           day: "Día",
           agenda: "Agenda",
         }}
-        eventPropGetter={(event: ShiftEvent) => {
-          let bg = "blue"
-          if (event.type === "WORK") bg = "green"
-          if (event.type === "REST") bg = "gray"
-          if (event.type === "NIGHT") bg = "purple"
-          if (event.type === "VACATION") bg = "orange"
-          return { style: { backgroundColor: bg, color: "white", borderRadius: "6px", padding: "2px 4px" } }
+        eventPropGetter={(event: ShiftEvent) => ({
+          style: {
+            backgroundColor: typeColor[event.type],
+            color: "white",
+            borderRadius: "10px",
+            padding: "6px 8px",
+            border: "1px solid rgba(255,255,255,0.25)",
+          },
+        })}
+        components={{
+          event: ({ event }) => renderEvent(event as ShiftEvent),
         }}
         onSelectEvent={(event: RBCEvent) => onSelectEvent(event as ShiftEvent)}
+        selectable
+        onSelectSlot={onSelectSlot}
       />
     </div>
   )

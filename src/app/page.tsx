@@ -103,7 +103,7 @@ export default function Home() {
   const handleDateConsumed = useCallback(() => setPendingDate(null), [])
 
   return (
-    <div className="flex h-screen w-screen flex-col overflow-hidden bg-slate-950 text-white">
+    <div className="flex min-h-screen w-full flex-col overflow-hidden bg-slate-950 text-white">
       <header className="flex items-center justify-between border-b border-white/10 px-6 py-4">
         <div>
           <p className="text-xs uppercase tracking-[0.3em] text-blue-200 sm:text-[0.7rem]">Supershift</p>

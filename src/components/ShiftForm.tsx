@@ -9,7 +9,7 @@ type Props = {
 
 export default function ShiftForm({ onAddShift }: Props) {
   const [date, setDate] = useState("")
-  const [type, setType] = useState("WORK")
+  const [type, setType] = useState<ShiftType>("WORK")
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault()
@@ -32,7 +32,7 @@ export default function ShiftForm({ onAddShift }: Props) {
       />
       <select
         value={type}
-        onChange={(e) => setType(e.target.value)}
+        onChange={(e) => setType(e.target.value as ShiftType)}
         className="form-select border p-2 rounded"
       >
         <option value="WORK">WORK</option>

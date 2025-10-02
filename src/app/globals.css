@@ -5,3 +5,32 @@
 body {
   font-family: system-ui, sans-serif;
 }
+
+.rbc-calendar {
+  font-family: inherit;
+}
+
+.rbc-event {
+  font-size: 0.75rem;
+  line-height: 1.1;
+}
+
+.rbc-toolbar .rbc-toolbar-label {
+  font-weight: 600;
+  color: rgb(51 65 85);
+}
+
+@media (max-width: 768px) {
+  .rbc-time-header {
+    font-size: 0.75rem;
+  }
+
+  .rbc-agenda-view table.rbc-agenda-table {
+    font-size: 0.8rem;
+  }
+
+  .rbc-agenda-view table.rbc-agenda-table tbody > tr > td,
+  .rbc-agenda-view table.rbc-agenda-table thead > tr > th {
+    padding-block: 0.5rem;
+  }
+}

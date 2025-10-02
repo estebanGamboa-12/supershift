@@ -9,8 +9,9 @@ import {
 import { format, parse, startOfWeek, getDay } from "date-fns"
 import { es } from "date-fns/locale"
 import "react-big-calendar/lib/css/react-big-calendar.css"
-import { useEffect, useState } from "react"
+import { useEffect, useMemo, useState } from "react"
 import type { ShiftEvent } from "@/types/shifts"
+import type { ToolbarProps, View } from "react-big-calendar"
 
 const locales = { es }
 
@@ -53,10 +54,14 @@ export default function CalendarView({
     }
 
     return (
-      <div className="flex items-start justify-between gap-2 text-xs">
+      <div className="flex items-start justify-between gap-2 text-[11px] sm:text-xs">
         <div className="flex-1">
           <span className="font-semibold tracking-wide">{event.type}</span>
-          {event.note && <p className="text-[11px] leading-snug opacity-90">{event.note}</p>}
+          {event.note && (
+            <p className="mt-0.5 text-[10px] leading-snug opacity-90 sm:text-[11px]">
+              {event.note}
+            </p>
+          )}
         </div>
         {onDeleteEvent && (
           <button
@@ -71,25 +76,103 @@ export default function CalendarView({
     )
   }
 
-  // 📱 Detectar si es móvil para cambiar vista
-  const [defaultView, setDefaultView] = useState<"month" | "agenda">("month")
+  const [view, setView] = useState<View>("month")
+  const [isMobile, setIsMobile] = useState(false)
 
   useEffect(() => {
-    if (window.innerWidth < 768) {
-      setDefaultView("agenda") // en móvil usamos agenda
+    const handleResize = () => {
+      setIsMobile(window.innerWidth < 768)
     }
+
+    handleResize()
+    window.addEventListener("resize", handleResize)
+    return () => window.removeEventListener("resize", handleResize)
   }, [])
 
+  useEffect(() => {
+    setView((current) => {
+      if (isMobile) {
+        return current === "agenda" ? current : "agenda"
+      }
+      return current === "agenda" ? "month" : current
+    })
+  }, [isMobile])
+
+  const availableViews = useMemo<View[]>(
+    () => (isMobile ? ["agenda", "day"] : ["month", "week", "day", "agenda"]),
+    [isMobile]
+  )
+
+  const calendarHeight = isMobile ? 520 : 640
+
+  const Toolbar = (toolbarProps: ToolbarProps<ShiftEvent>) => {
+    const { label, localizer, onNavigate, onView: changeView } = toolbarProps
+    const viewOptions = availableViews
+
+    return (
+      <div className="rbc-toolbar flex flex-col gap-3 border-b border-slate-200 bg-slate-50 px-4 py-3 sm:flex-row sm:items-center sm:justify-between">
+        <div className="flex items-center justify-between gap-2 sm:justify-start">
+          <div className="inline-flex items-center gap-2">
+            <button
+              type="button"
+              onClick={() => onNavigate("PREV")}
+              className="rounded-full border border-slate-200 bg-white px-3 py-1 text-xs font-semibold text-slate-600 shadow-sm transition hover:border-blue-300 hover:text-blue-600"
+            >
+              {localizer.messages.previous ?? "Ant."}
+            </button>
+            <button
+              type="button"
+              onClick={() => onNavigate("TODAY")}
+              className="rounded-full border border-transparent bg-blue-600 px-4 py-1.5 text-xs font-semibold text-white shadow-sm transition hover:bg-blue-700"
+            >
+              {localizer.messages.today ?? "Hoy"}
+            </button>
+            <button
+              type="button"
+              onClick={() => onNavigate("NEXT")}
+              className="rounded-full border border-slate-200 bg-white px-3 py-1 text-xs font-semibold text-slate-600 shadow-sm transition hover:border-blue-300 hover:text-blue-600"
+            >
+              {localizer.messages.next ?? "Sig."}
+            </button>
+          </div>
+        </div>
+        <div className="flex flex-col gap-2 sm:items-end">
+          <span className="text-sm font-semibold text-slate-700 sm:text-base">{label}</span>
+          <div className="flex flex-wrap items-center gap-2">
+            {viewOptions.map((option) => (
+              <button
+                key={option}
+                type="button"
+                onClick={() => {
+                  setView(option)
+                  changeView(option)
+                }}
+                className={`rounded-full px-3 py-1 text-xs font-semibold uppercase tracking-wide transition ${
+                  view === option
+                    ? "bg-blue-600 text-white shadow"
+                    : "border border-slate-200 bg-white text-slate-600 hover:border-blue-300 hover:text-blue-600"
+                }`}
+              >
+                {(localizer.messages as Record<string, string>)[option] ?? option}
+              </button>
+            ))}
+          </div>
+        </div>
+      </div>
+    )
+  }
+
   return (
-    <div className="bg-white rounded shadow overflow-hidden">
+    <div className="overflow-hidden rounded-2xl border border-slate-100 bg-white shadow-sm">
       <Calendar
         localizer={localizer}
         events={events}
         startAccessor="start"
         endAccessor="end"
-        defaultView={defaultView}
-        views={["month", "week", "day", "agenda"]}
-        style={{ height: 500 }}
+        view={view}
+        onView={(nextView) => setView(nextView)}
+        views={availableViews}
+        style={{ height: calendarHeight }}
         popup
         messages={{
           next: "Sig.",
@@ -111,6 +194,7 @@ export default function CalendarView({
         })}
         components={{
           event: ({ event }) => renderEvent(event as ShiftEvent),
+          toolbar: (props) => <Toolbar {...props} />,
         }}
         onSelectEvent={(event: RBCEvent) => onSelectEvent(event as ShiftEvent)}
         selectable

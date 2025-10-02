@@ -104,24 +104,24 @@ export default function Home() {
 
   return (
     <div className="min-h-screen bg-slate-50">
-      <div className="relative overflow-hidden bg-gradient-to-r from-blue-600 via-indigo-600 to-sky-500 pb-24">
+      <div className="relative overflow-hidden bg-gradient-to-r from-blue-600 via-indigo-600 to-sky-500 pb-20">
         <div className="absolute inset-0 opacity-60 mix-blend-soft-light">
           <div className="absolute -top-24 -right-32 h-64 w-64 rounded-full bg-white/20 blur-3xl" />
           <div className="absolute top-10 left-12 h-48 w-48 rounded-full bg-white/20 blur-3xl" />
         </div>
-        <div className="relative mx-auto max-w-6xl px-6 py-12 text-white">
-          <h1 className="text-3xl font-semibold tracking-tight md:text-4xl">
+        <div className="relative mx-auto max-w-5xl px-4 py-14 text-white sm:px-6 lg:px-8">
+          <h1 className="text-3xl font-semibold tracking-tight text-center sm:text-left md:text-4xl">
             Planificador de turnos Supershift
           </h1>
-          <p className="mt-3 max-w-2xl text-base text-blue-50 md:text-lg">
+          <p className="mt-4 text-balance text-base text-blue-50 sm:max-w-2xl sm:text-lg">
             Organiza tus rotaciones laborales, añade notas personalizadas y mantén un registro claro
             de cada día. Genera ciclos automáticamente o crea turnos a medida para tu equipo.
           </p>
         </div>
       </div>
 
-      <div className="relative -mt-20 space-y-8 pb-12">
-        <div className="mx-auto grid max-w-6xl gap-6 px-6 lg:grid-cols-[1fr_380px]">
+      <div className="relative -mt-16 space-y-8 pb-12 sm:-mt-20">
+        <div className="mx-auto grid max-w-6xl gap-6 px-4 sm:px-6 lg:grid-cols-[minmax(0,1fr)_320px] lg:px-8">
           <div className="space-y-6">
             <div className="grid gap-6 lg:grid-cols-2">
               <RotationForm onGenerate={handleGenerate} />

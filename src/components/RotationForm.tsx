@@ -35,24 +35,27 @@ export default function RotationForm({
   }
 
   return (
-    <div className="overflow-hidden rounded-xl border border-slate-100 bg-white shadow">
-      <div className="flex items-center justify-between gap-4 border-b border-slate-100 px-5 py-4">
-        <div>
+    <div className="overflow-hidden rounded-2xl border border-slate-100 bg-white shadow-sm">
+      <div className="flex flex-col gap-4 border-b border-slate-100 px-5 py-4 sm:flex-row sm:items-center sm:justify-between">
+        <div className="space-y-1">
           <h2 className="text-lg font-semibold text-slate-800">Generador de rotaciones</h2>
           <p className="text-sm text-slate-500">
             Elige un modelo clásico (4x2, 5x3 o 6x3) y calcula automáticamente 60 días de turnos.
           </p>
         </div>
-        <div className="hidden text-right sm:block">
-          <p className="text-xs uppercase tracking-wide text-slate-400">Ciclo activo</p>
-          <p className="text-sm font-semibold text-slate-700">
+        <div className="w-full rounded-xl bg-blue-50 px-4 py-3 text-sm text-blue-700 sm:w-auto sm:text-right">
+          <p className="text-xs font-semibold uppercase tracking-wide text-blue-500">Ciclo activo</p>
+          <p className="font-semibold">
             {modelDescription.work} días de trabajo / {modelDescription.rest} de descanso
           </p>
-          <p className="text-xs text-slate-400">{modelDescription.totalDays} días por ciclo</p>
+          <p className="text-xs text-blue-500">{modelDescription.totalDays} días por ciclo</p>
         </div>
       </div>
 
-      <form onSubmit={handleSubmit} className="grid gap-4 px-5 py-4 sm:grid-cols-[1fr_auto_auto]">
+      <form
+        onSubmit={handleSubmit}
+        className="grid gap-4 px-5 py-5 sm:grid-cols-[minmax(0,1fr)_200px_auto] sm:items-end"
+      >
         <label className="flex flex-col gap-1 text-sm text-slate-600">
           Fecha de inicio
           <input

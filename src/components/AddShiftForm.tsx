@@ -44,15 +44,18 @@ export default function AddShiftForm({ onAdd, selectedDate, onDateConsumed }: Pr
   }
 
   return (
-    <div className="bg-white rounded-xl shadow border border-slate-100 overflow-hidden">
-      <div className="px-5 py-4 border-b border-slate-100">
+    <div className="overflow-hidden rounded-2xl border border-slate-100 bg-white shadow-sm">
+      <div className="border-b border-slate-100 px-5 py-4">
         <h2 className="text-lg font-semibold text-slate-800">Añadir turno manualmente</h2>
         <p className="text-sm text-slate-500">
           Selecciona una fecha, el tipo de turno y deja una nota opcional para recordatorios o
           incidencias.
         </p>
       </div>
-      <form onSubmit={handleSubmit} className="px-5 py-4 grid gap-4 md:grid-cols-4">
+      <form
+        onSubmit={handleSubmit}
+        className="grid gap-4 px-5 py-5 sm:grid-cols-2 sm:items-start md:grid-cols-4"
+      >
         <label className="flex flex-col gap-1 text-sm text-slate-600">
           Fecha
           <input
@@ -86,11 +89,11 @@ export default function AddShiftForm({ onAdd, selectedDate, onDateConsumed }: Pr
             className="rounded-lg border border-slate-200 px-3 py-2 text-slate-800 focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-200 resize-none"
           />
         </label>
-        <div className="md:col-span-4 flex flex-wrap items-center justify-between gap-3">
+        <div className="md:col-span-4 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
           {error && <span className="text-sm text-red-500">{error}</span>}
           <button
             type="submit"
-            className="ml-auto inline-flex items-center justify-center gap-2 rounded-lg bg-blue-600 px-4 py-2 text-sm font-semibold text-white shadow transition hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-300"
+            className="inline-flex w-full items-center justify-center gap-2 rounded-lg bg-blue-600 px-4 py-2 text-sm font-semibold text-white shadow transition hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-300 sm:ml-auto sm:w-auto"
           >
             Guardar turno
           </button>

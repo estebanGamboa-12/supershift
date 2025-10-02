@@ -1,17 +1,6 @@
 "use client"
 
-import {
-  addDays,
-  addMonths,
-  eachDayOfInterval,
-  endOfMonth,
-  format,
-  isSameMonth,
-  isToday,
-  startOfMonth,
-  startOfWeek,
-  subMonths,
-} from "date-fns"
+import { addDays, addMonths, format, isSameMonth, isToday, startOfMonth, startOfWeek, subMonths } from "date-fns"
 import { es } from "date-fns/locale"
 import { useMemo, useState } from "react"
 import { motion } from "framer-motion"
@@ -33,7 +22,6 @@ type CalendarViewProps = {
   shifts: ShiftEvent[]
   onSelectEvent: (shift: ShiftEvent) => void
   onSelectSlot?: (slotInfo: CalendarSlot) => void
-  onDeleteEvent?: (shift: ShiftEvent) => void
   className?: string
 }
 
@@ -41,7 +29,6 @@ export default function CalendarView({
   shifts,
   onSelectEvent,
   onSelectSlot,
-  onDeleteEvent,
   className = "",
 }: CalendarViewProps) {
   const [currentDate, setCurrentDate] = useState(() => new Date())

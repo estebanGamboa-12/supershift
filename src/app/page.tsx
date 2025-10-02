@@ -3,7 +3,7 @@
 import { useCallback, useEffect, useMemo, useState } from "react"
 import { format } from "date-fns"
 import shiftsData from "@/data/shifts.json"
-import CalendarView from "@/components/CalendarView"
+import CalendarView, { type CalendarSlot } from "@/components/CalendarView"
 import EditShiftModal from "@/components/EditShiftModal"
 import RotationForm from "@/components/RotationForm"
 import AddShiftForm from "@/components/AddShiftForm"
@@ -120,7 +120,7 @@ export default function Home() {
     setSelectedShift(null)
   }
 
-  const handleSlotSelection = useCallback((slot: { start: Date }) => {
+  const handleSlotSelection = useCallback((slot: CalendarSlot) => {
     setPendingDate(format(slot.start, "yyyy-MM-dd"))
   }, [])
 

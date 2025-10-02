@@ -1,5 +1,5 @@
 [
-  { "id": 1, "date": "2025-10-01", "type": "WORK" },
-  { "id": 2, "date": "2025-10-02", "type": "REST" },
-  { "id": 3, "date": "2025-10-03", "type": "NIGHT" }
+  { "id": 1, "date": "2025-10-01", "type": "WORK", "note": "Entrega de reporte mensual" },
+  { "id": 2, "date": "2025-10-02", "type": "REST", "note": "Recuperar horas de sueño" },
+  { "id": 3, "date": "2025-10-03", "type": "NIGHT", "note": "Cobertura guardia" }
 ]

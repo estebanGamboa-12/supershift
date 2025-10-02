@@ -1,8 +1,13 @@
 'use client'
 
 import { useState } from "react"
+import type { ShiftType } from "@/types/shifts"
 
-export default function ShiftForm({ onAddShift }: { onAddShift: (shift: any) => void }) {
+type Props = {
+  onAddShift: (shift: { date: string; type: ShiftType }) => void
+}
+
+export default function ShiftForm({ onAddShift }: Props) {
   const [date, setDate] = useState("")
   const [type, setType] = useState("WORK")
 

@@ -1,6 +1,6 @@
 "use client"
 
-import { useEffect, useState } from "react"
+import { useEffect, useMemo, useState } from "react"
 import type { ShiftType } from "@/types/shifts"
 
 type Props = {
@@ -23,6 +23,19 @@ export default function AddShiftForm({ onAdd, selectedDate, onDateConsumed }: Pr
   const [note, setNote] = useState("")
   const [error, setError] = useState("")
 
+  const selectedDateLabel = useMemo(() => {
+    if (!date) return "Selecciona una fecha para el turno"
+    try {
+      return new Date(date).toLocaleDateString("es-ES", {
+        weekday: "long",
+        day: "numeric",
+        month: "long",
+      })
+    } catch {
+      return "Selecciona una fecha válida"
+    }
+  }, [date])
+
   useEffect(() => {
     if (selectedDate) {
       setDate(selectedDate)
@@ -44,12 +57,23 @@ export default function AddShiftForm({ onAdd, selectedDate, onDateConsumed }: Pr
   }
 
   return (
-    <div className="overflow-hidden rounded-3xl border border-white/10 bg-slate-900/60 shadow-lg shadow-blue-500/5 backdrop-blur">
+    <div className="overflow-hidden rounded-3xl border border-white/10 bg-gradient-to-br from-slate-900/70 via-slate-950/80 to-slate-950/90 shadow-2xl shadow-blue-500/10 backdrop-blur">
       <div className="border-b border-white/10 px-6 py-5">
-        <h2 className="text-lg font-semibold text-white">Añadir turno manualmente</h2>
-        <p className="text-sm text-white/60">
-          Selecciona una fecha, el tipo de turno y deja una nota opcional para recordatorios o incidencias.
-        </p>
+        <div className="flex items-start justify-between gap-4">
+          <div>
+            <h2 className="text-lg font-semibold text-white">Añadir turno manualmente</h2>
+            <p className="text-sm text-white/60">
+              Selecciona una fecha, el tipo de turno y deja una nota opcional para recordatorios o incidencias.
+            </p>
+          </div>
+          <span className="hidden rounded-full border border-white/10 px-3 py-1 text-xs uppercase tracking-wide text-white/50 sm:inline-flex">
+            Entrada rápida
+          </span>
+        </div>
+        <div className="mt-4 inline-flex items-center gap-2 rounded-2xl border border-blue-400/20 bg-blue-500/10 px-4 py-2 text-xs font-medium text-blue-100">
+          <span className="inline-flex h-1.5 w-1.5 rounded-full bg-blue-300" aria-hidden />
+          {selectedDateLabel}
+        </div>
       </div>
       <form
         onSubmit={handleSubmit}
@@ -62,9 +86,7 @@ export default function AddShiftForm({ onAdd, selectedDate, onDateConsumed }: Pr
             type="date"
             value={date}
             onChange={(event) => setDate(event.target.value)}
-            className="rounded-xl border border-white/10 bg-slate-950/60 px-3 py-2 text-sm text-white
-                       placeholder:text-white/40 focus:border-blue-400 focus:outline-none focus:ring-2
-                       focus:ring-blue-500/40"
+            className="rounded-xl border border-white/10 bg-slate-950/70 px-3 py-2 text-sm text-white placeholder:text-white/40 focus:border-blue-400 focus:outline-none focus:ring-2 focus:ring-blue-500/40"
           />
         </label>
 
@@ -74,8 +96,7 @@ export default function AddShiftForm({ onAdd, selectedDate, onDateConsumed }: Pr
             id="type"
             value={type}
             onChange={(event) => setType(event.target.value as ShiftType)}
-            className="rounded-xl border border-white/10 bg-slate-950/60 px-3 py-2 text-sm text-white
-                       focus:border-blue-400 focus:outline-none focus:ring-2 focus:ring-blue-500/40"
+            className="rounded-xl border border-white/10 bg-slate-950/70 px-3 py-2 text-sm text-white focus:border-blue-400 focus:outline-none focus:ring-2 focus:ring-blue-500/40"
           >
             {Object.entries(shiftTypeLabels).map(([value, label]) => (
               <option key={value} value={value}>
@@ -93,9 +114,7 @@ export default function AddShiftForm({ onAdd, selectedDate, onDateConsumed }: Pr
             onChange={(event) => setNote(event.target.value)}
             placeholder="Añade detalles como incidencias, recordatorios o metas"
             rows={2}
-            className="min-h-[2.5rem] resize-none rounded-xl border border-white/10 bg-slate-950/60 px-3 py-2
-                       text-sm text-white placeholder:text-white/40 focus:border-blue-400 focus:outline-none
-                       focus:ring-2 focus:ring-blue-500/40"
+            className="min-h-[2.5rem] resize-none rounded-xl border border-white/10 bg-slate-950/70 px-3 py-2 text-sm text-white placeholder:text-white/40 focus:border-blue-400 focus:outline-none focus:ring-2 focus:ring-blue-500/40"
           />
         </label>
 
@@ -108,9 +127,7 @@ export default function AddShiftForm({ onAdd, selectedDate, onDateConsumed }: Pr
           <button
             type="submit"
             disabled={!date}
-            className="inline-flex w-full items-center justify-center gap-2 rounded-full bg-blue-500/90 px-4 py-2 text-sm
-                       font-semibold text-white shadow transition hover:bg-blue-500 disabled:cursor-not-allowed
-                       disabled:opacity-50 focus:outline-none focus:ring-2 focus:ring-blue-400/60 sm:ml-auto sm:w-auto"
+            className="inline-flex w-full items-center justify-center gap-2 rounded-full bg-gradient-to-r from-blue-500 to-indigo-500 px-4 py-2 text-sm font-semibold text-white shadow-lg shadow-blue-500/30 transition hover:from-blue-400 hover:to-indigo-400 disabled:cursor-not-allowed disabled:opacity-50 focus:outline-none focus:ring-2 focus:ring-blue-400/60 sm:ml-auto sm:w-auto"
           >
             Guardar turno
           </button>

@@ -1,6 +1,5 @@
 import type { FC } from "react"
 import CalendarView from "@/components/CalendarView"
-import AgendaView from "@/components/AgendaView"
 import type { ShiftEvent } from "@/types/shifts"
 
 type PlanningSectionProps = {
@@ -22,7 +21,7 @@ const PlanningSection: FC<PlanningSectionProps> = ({
         <div>
           <h3 className="text-lg font-semibold">Planificación visual</h3>
           <p className="text-sm text-white/60">
-            Alterna entre el calendario completo en escritorio y la agenda semanal en móviles.
+            Consulta el calendario mensual completo en cualquier dispositivo.
           </p>
         </div>
         <div className="flex gap-3">
@@ -42,17 +41,13 @@ const PlanningSection: FC<PlanningSectionProps> = ({
         </div>
       </div>
 
-      <div className="mt-6 hidden min-h-[640px] rounded-2xl border border-white/5 bg-slate-950/50 p-4 shadow-inner md:block">
+      <div className="mt-6 min-h-[520px] rounded-2xl border border-white/5 bg-slate-950/50 p-3 shadow-inner sm:min-h-[640px] sm:p-4">
         <CalendarView
           shifts={shifts}
           onSelectEvent={onSelectShift}
           onSelectSlot={onSelectSlot}
           className="h-full"
         />
-      </div>
-
-      <div className="mt-6 rounded-2xl border border-white/5 bg-slate-950/50 p-4 shadow-inner md:hidden">
-        <AgendaView shifts={shifts} onSelectEvent={onSelectShift} />
       </div>
     </div>
   )

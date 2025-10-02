@@ -83,23 +83,23 @@ export default function CalendarView({
   return (
     <div className={containerClassName}>
       {/* Toolbar */}
-      <header className="flex flex-col gap-4 border-b border-white/10 bg-slate-950/50 px-4 py-3 sm:flex-row sm:items-center sm:justify-between">
-        <div className="inline-flex items-center gap-2">
+      <header className="flex flex-col gap-3 border-b border-white/10 bg-slate-950/50 px-3 py-2 sm:flex-row sm:items-center sm:justify-between sm:px-4 sm:py-3">
+        <div className="inline-flex items-center gap-1.5 text-[11px] sm:gap-2 sm:text-xs">
           <button
             onClick={handlePrevMonth}
-            className="rounded-full border border-white/10 bg-white/5 px-3 py-1 text-xs font-semibold text-white/70 transition hover:border-blue-400/60 hover:text-blue-200"
+            className="rounded-full border border-white/10 bg-white/5 px-2.5 py-1 font-semibold text-white/70 transition hover:border-blue-400/60 hover:text-blue-200"
           >
             Ant.
           </button>
           <button
             onClick={handleToday}
-            className="rounded-full border border-blue-500/50 bg-blue-500/80 px-4 py-1.5 text-xs font-semibold text-white shadow-sm transition hover:bg-blue-500"
+            className="rounded-full border border-blue-500/50 bg-blue-500/80 px-3.5 py-1.5 font-semibold text-white shadow-sm transition hover:bg-blue-500"
           >
             Hoy
           </button>
           <button
             onClick={handleNextMonth}
-            className="rounded-full border border-white/10 bg-white/5 px-3 py-1 text-xs font-semibold text-white/70 transition hover:border-blue-400/60 hover:text-blue-200"
+            className="rounded-full border border-white/10 bg-white/5 px-2.5 py-1 font-semibold text-white/70 transition hover:border-blue-400/60 hover:text-blue-200"
           >
             Sig.
           </button>
@@ -115,7 +115,7 @@ export default function CalendarView({
       </header>
 
       {/* Weekdays */}
-      <div className="grid grid-cols-7 gap-px border-b border-white/10 bg-slate-900/60 text-[11px] font-semibold uppercase tracking-wide text-white/60 sm:text-xs">
+      <div className="grid grid-cols-7 gap-px border-b border-white/10 bg-slate-900/60 text-[10px] font-semibold uppercase tracking-wide text-white/60 sm:text-xs">
         {weekdays.map((day) => (
           <div key={day} className="bg-slate-950/40 py-2 text-center">
             {day}
@@ -136,14 +136,14 @@ export default function CalendarView({
               <div
                 key={key}
                 onClick={() => handleDayClick(day)}
-                className={`group flex flex-col gap-2 rounded-xl border border-white/5 bg-slate-950/40 p-3 text-xs transition hover:border-blue-400/40 hover:bg-slate-900/70 ${
+                className={`group flex flex-col gap-1.5 rounded-xl border border-white/5 bg-slate-950/40 p-2 text-[11px] transition hover:border-blue-400/40 hover:bg-slate-900/70 sm:gap-2 sm:p-3 sm:text-xs ${
                   isCurrentMonth ? "text-white/80" : "text-white/30"
                 }`}
               >
                 {/* Número del día */}
                 <div className="flex items-center justify-between">
                   <span
-                    className={`flex h-7 w-7 items-center justify-center rounded-full text-sm font-semibold transition ${
+                    className={`flex h-6 w-6 items-center justify-center rounded-full text-xs font-semibold transition sm:h-7 sm:w-7 sm:text-sm ${
                       isCurrentDay
                         ? "bg-blue-500 text-white shadow-lg shadow-blue-500/40"
                         : "bg-white/5 text-white/80 group-hover:bg-white/10"
@@ -162,7 +162,7 @@ export default function CalendarView({
                         e.stopPropagation()
                         onSelectEvent(shift)
                       }}
-                      className="truncate rounded-lg border px-2 py-1 text-left text-[11px] font-semibold shadow-sm transition hover:scale-[1.01]"
+                      className="truncate rounded-lg border px-1.5 py-1 text-left text-[10px] font-semibold shadow-sm transition hover:scale-[1.01] sm:px-2 sm:text-[11px]"
                       style={{
                         backgroundColor: `${typeColor[shift.type]}26`,
                         borderColor: `${typeColor[shift.type]}40`,

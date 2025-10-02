@@ -6,7 +6,7 @@ export function generateRotation(
   length: number = 30
 ) {
   const result = []
-  let current = new Date(startDate)
+  const current = new Date(startDate)
   let cycleIndex = 0
   let work = true
 

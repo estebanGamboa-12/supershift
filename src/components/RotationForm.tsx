@@ -1,6 +1,6 @@
 'use client'
 
-import { useState } from "react"
+import { useMemo, useState } from "react"
 
 export default function RotationForm({
   onGenerate,
@@ -10,6 +10,16 @@ export default function RotationForm({
   const [start, setStart] = useState("")
   const [model, setModel] = useState("4x2")
   const [error, setError] = useState("")
+
+  const modelDescription = useMemo(() => {
+    const [work, rest] = model.split("x").map(Number)
+    const totalDays = work + rest
+    return {
+      work,
+      rest,
+      totalDays,
+    }
+  }, [model])
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault()
@@ -25,32 +35,57 @@ export default function RotationForm({
   }
 
   return (
-    <form
-      onSubmit={handleSubmit}
-      className="flex flex-wrap items-center gap-3 bg-white p-4 rounded shadow"
-    >
-      <input
-        type="date"
-        value={start}
-        onChange={(e) => setStart(e.target.value)}
-        className="form-input border p-2 rounded"
-      />
-      <select
-        value={model}
-        onChange={(e) => setModel(e.target.value)}
-        className="form-select border p-2 rounded"
-      >
-        <option value="4x2">4x2</option>
-        <option value="5x3">5x3</option>
-        <option value="6x3">6x3</option>
-      </select>
-      <button
-        type="submit"
-        className="px-4 py-2 bg-blue-600 text-white rounded"
-      >
-        Generar
-      </button>
-      {error && <p className="text-red-500 text-sm mt-2">{error}</p>}
-    </form>
+    <div className="overflow-hidden rounded-xl border border-slate-100 bg-white shadow">
+      <div className="flex items-center justify-between gap-4 border-b border-slate-100 px-5 py-4">
+        <div>
+          <h2 className="text-lg font-semibold text-slate-800">Generador de rotaciones</h2>
+          <p className="text-sm text-slate-500">
+            Elige un modelo clásico (4x2, 5x3 o 6x3) y calcula automáticamente 60 días de turnos.
+          </p>
+        </div>
+        <div className="hidden text-right sm:block">
+          <p className="text-xs uppercase tracking-wide text-slate-400">Ciclo activo</p>
+          <p className="text-sm font-semibold text-slate-700">
+            {modelDescription.work} días de trabajo / {modelDescription.rest} de descanso
+          </p>
+          <p className="text-xs text-slate-400">{modelDescription.totalDays} días por ciclo</p>
+        </div>
+      </div>
+
+      <form onSubmit={handleSubmit} className="grid gap-4 px-5 py-4 sm:grid-cols-[1fr_auto_auto]">
+        <label className="flex flex-col gap-1 text-sm text-slate-600">
+          Fecha de inicio
+          <input
+            type="date"
+            value={start}
+            onChange={(e) => setStart(e.target.value)}
+            className="rounded-lg border border-slate-200 px-3 py-2 text-slate-800 focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-200"
+          />
+        </label>
+
+        <label className="flex flex-col gap-1 text-sm text-slate-600">
+          Modelo
+          <select
+            value={model}
+            onChange={(e) => setModel(e.target.value)}
+            className="rounded-lg border border-slate-200 px-3 py-2 text-slate-800 focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-200"
+          >
+            <option value="4x2">4x2 (clásico)</option>
+            <option value="5x3">5x3 (intensivo)</option>
+            <option value="6x3">6x3 (larga duración)</option>
+          </select>
+        </label>
+
+        <div className="flex items-end justify-end">
+          <button
+            type="submit"
+            className="inline-flex w-full items-center justify-center rounded-lg bg-blue-600 px-4 py-2 text-sm font-semibold text-white shadow transition hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-200 sm:w-auto"
+          >
+            Generar rotación
+          </button>
+        </div>
+        {error && <p className="text-sm text-red-500 sm:col-span-3">{error}</p>}
+      </form>
+    </div>
   )
 }

@@ -51,14 +51,7 @@ const DashboardSidebar: FC<DashboardSidebarProps> = ({ className }) => {
         </nav>
       </div>
 
-      <div className="rounded-2xl border border-white/10 bg-slate-900/80 p-5 text-sm text-white/70">
-        <p className="font-semibold text-white">Atajos inteligentes</p>
-        <ul className="mt-3 space-y-2 text-xs text-white/60">
-          <li>⌘K Abre la paleta de comandos</li>
-          <li>⌘⇧A Crear turno instantáneo</li>
-          <li>⌘⇧R Generar nueva rotación</li>
-        </ul>
-      </div>
+     
     </aside>
   )
 }

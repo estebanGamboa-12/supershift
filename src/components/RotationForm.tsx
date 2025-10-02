@@ -35,9 +35,12 @@ export default function RotationForm({
   }
 
   return (
-    <div className="overflow-hidden rounded-3xl border border-white/10 bg-slate-900/60 shadow-lg shadow-blue-500/5 backdrop-blur">
+    <div className="overflow-hidden rounded-3xl border border-white/10 bg-gradient-to-br from-slate-900/70 via-slate-950/80 to-slate-950/90 shadow-2xl shadow-blue-500/10 backdrop-blur">
       <div className="flex flex-col gap-4 border-b border-white/10 px-6 py-5 sm:flex-row sm:items-center sm:justify-between">
         <div className="space-y-1">
+          <div className="inline-flex items-center gap-2 rounded-full border border-white/10 bg-white/5 px-3 py-1 text-xs font-semibold uppercase tracking-wide text-blue-100/80">
+            Planificación automática
+          </div>
           <h2 className="text-lg font-semibold text-white">Generador de rotaciones</h2>
           <p className="text-sm text-white/60">
             Elige un modelo clásico (4x2, 5x3 o 6x3) y calcula automáticamente 60 días de turnos.
@@ -62,7 +65,7 @@ export default function RotationForm({
             type="date"
             value={start}
             onChange={(e) => setStart(e.target.value)}
-            className="rounded-xl border border-white/10 bg-slate-950/60 px-3 py-2 text-sm text-white focus:border-blue-400 focus:outline-none focus:ring-2 focus:ring-blue-500/40"
+            className="rounded-xl border border-white/10 bg-slate-950/70 px-3 py-2 text-sm text-white focus:border-blue-400 focus:outline-none focus:ring-2 focus:ring-blue-500/40"
           />
         </label>
 
@@ -71,7 +74,7 @@ export default function RotationForm({
           <select
             value={model}
             onChange={(e) => setModel(e.target.value)}
-            className="rounded-xl border border-white/10 bg-slate-950/60 px-3 py-2 text-sm text-white focus:border-blue-400 focus:outline-none focus:ring-2 focus:ring-blue-500/40"
+            className="rounded-xl border border-white/10 bg-slate-950/70 px-3 py-2 text-sm text-white focus:border-blue-400 focus:outline-none focus:ring-2 focus:ring-blue-500/40"
           >
             <option value="4x2">4x2 (clásico)</option>
             <option value="5x3">5x3 (intensivo)</option>
@@ -82,7 +85,7 @@ export default function RotationForm({
         <div className="flex items-end justify-end">
           <button
             type="submit"
-            className="inline-flex w-full items-center justify-center rounded-full bg-blue-500/90 px-4 py-2 text-sm font-semibold text-white shadow transition hover:bg-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-400/60 sm:w-auto"
+            className="inline-flex w-full items-center justify-center rounded-full bg-gradient-to-r from-blue-500 to-indigo-500 px-4 py-2 text-sm font-semibold text-white shadow-lg shadow-blue-500/30 transition hover:from-blue-400 hover:to-indigo-400 focus:outline-none focus:ring-2 focus:ring-blue-400/60 sm:w-auto"
           >
             Generar rotación
           </button>

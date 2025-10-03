@@ -14,6 +14,7 @@ export type ShiftRow = RowDataPacket & {
   date: string
   type: string
   note: string | null
+  calendarId?: number
 }
 
 export type ApiShift = {
@@ -24,7 +25,7 @@ export type ApiShift = {
 }
 
 export const SHIFT_SELECT_BASE =
-  "SELECT id, DATE_FORMAT(start_at, '%Y-%m-%d') AS date, shift_type_code AS type, note FROM shifts"
+  "SELECT id, calendar_id AS calendarId, DATE_FORMAT(start_at, '%Y-%m-%d') AS date, shift_type_code AS type, note FROM shifts"
 
 export function mapShiftRow(row: ShiftRow): ApiShift {
   const type = VALID_SHIFT_TYPES.has(row.type as ShiftType)

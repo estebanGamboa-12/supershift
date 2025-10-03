@@ -9,11 +9,21 @@ import {
   type ApiShift,
   type ShiftRow,
 } from "../utils"
+import { findCalendarIdForUser } from "@/lib/calendars"
 
 export const runtime = "nodejs"
 
 type Params = {
   params: { id: string }
+}
+
+const DEFAULT_CALENDAR_ID = Number.parseInt(
+  process.env.DEFAULT_CALENDAR_ID ?? "2",
+  10
+)
+
+function getFallbackCalendarId(): number {
+  return Number.isNaN(DEFAULT_CALENDAR_ID) ? 2 : DEFAULT_CALENDAR_ID
 }
 
 function parseId(idParam: string): number | null {
@@ -24,8 +34,22 @@ function parseId(idParam: string): number | null {
   return id
 }
 
-async function fetchShiftById(id: number) {
-  const rows = await queryRows<ShiftRow[]>(`${SHIFT_SELECT_BASE} WHERE id = ?`, [id])
+function parseUserId(param: string | null): number | null {
+  if (!param) {
+    return null
+  }
+  const userId = Number.parseInt(param, 10)
+  if (Number.isNaN(userId) || userId <= 0) {
+    return null
+  }
+  return userId
+}
+
+async function fetchShiftById(id: number, calendarId: number) {
+  const rows = await queryRows<ShiftRow[]>(
+    `${SHIFT_SELECT_BASE} WHERE id = ? AND calendar_id = ?`,
+    [id, calendarId]
+  )
   return rows.length ? mapShiftRow(rows[0]) : null
 }
 
@@ -49,6 +73,11 @@ export async function PATCH(request: NextRequest, { params }: Params) {
         { status: 400 }
       )
     }
+
+    const userId = parseUserId(request.nextUrl.searchParams.get("userId"))
+    const calendarId = userId
+      ? await findCalendarIdForUser(userId)
+      : getFallbackCalendarId()
 
     const updates: string[] = []
     const values: unknown[] = []
@@ -105,10 +134,10 @@ export async function PATCH(request: NextRequest, { params }: Params) {
 
     updates.push("updated_at = CURRENT_TIMESTAMP")
 
-    values.push(id)
+    values.push(id, calendarId)
 
     const result = await execute(
-      `UPDATE shifts SET ${updates.join(", ")} WHERE id = ?`,
+      `UPDATE shifts SET ${updates.join(", ")} WHERE id = ? AND calendar_id = ?`,
       values
     )
 
@@ -119,7 +148,7 @@ export async function PATCH(request: NextRequest, { params }: Params) {
       )
     }
 
-    const shift = await fetchShiftById(id)
+    const shift = await fetchShiftById(id, calendarId)
     if (!shift) {
       return NextResponse.json(
         { error: "No se pudo recuperar el turno actualizado" },
@@ -150,7 +179,15 @@ export async function DELETE(_request: NextRequest, { params }: Params) {
   }
 
   try {
-    const result = await execute("DELETE FROM shifts WHERE id = ?", [id])
+    const userId = parseUserId(_request.nextUrl.searchParams.get("userId"))
+    const calendarId = userId
+      ? await findCalendarIdForUser(userId)
+      : getFallbackCalendarId()
+
+    const result = await execute(
+      "DELETE FROM shifts WHERE id = ? AND calendar_id = ?",
+      [id, calendarId]
+    )
     if (result.affectedRows === 0) {
       return NextResponse.json(
         { error: "No se encontró el turno especificado" },

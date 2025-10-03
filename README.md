@@ -29,6 +29,7 @@ Variables disponibles:
 - `DB_USER`: usuario con acceso a la base de datos
 - `DB_PASSWORD`: contraseña del usuario
 - `DB_NAME`: nombre de la base de datos importada (`supershift`)
+- `DEFAULT_CALENDAR_ID`: identificador del calendario por defecto al crear turnos (usa `2` para el calendario de Esteban incluido en la base de datos de ejemplo)
 
 ## Instalación de dependencias
 
@@ -56,7 +57,14 @@ Accede a [http://localhost:3000](http://localhost:3000) para ver la aplicación.
 
 ## API interna
 
-La API expone los turnos almacenados en la base de datos a través de `GET /api/shifts`. La ruta consulta la tabla `shifts` y devuelve los campos necesarios para la interfaz de usuario.
+La API expone los turnos almacenados en la base de datos a través de rutas REST bajo `/api/shifts`:
+
+- `GET /api/shifts`: devuelve todos los turnos ordenados por fecha.
+- `POST /api/shifts`: crea un nuevo turno en el calendario indicado por `DEFAULT_CALENDAR_ID`.
+- `PATCH /api/shifts/:id`: actualiza la fecha, el tipo y/o la nota de un turno existente.
+- `DELETE /api/shifts/:id`: elimina un turno y sus notas asociadas.
+
+Ejemplo de respuesta para `GET /api/shifts`:
 
 ```json
 {

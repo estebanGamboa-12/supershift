@@ -1,4 +1,9 @@
-import type { Pool, PoolOptions, RowDataPacket } from "mysql2/promise"
+import type {
+  Pool,
+  PoolOptions,
+  ResultSetHeader,
+  RowDataPacket,
+} from "mysql2/promise"
 
 let pool: Pool | null = null
 
@@ -38,4 +43,13 @@ export async function queryRows<T extends RowDataPacket[]>(
   const poolConnection = await getPool()
   const [rows] = await poolConnection.query<T>(sql, params)
   return rows
+}
+
+export async function execute(
+  sql: string,
+  params: unknown[] = []
+): Promise<ResultSetHeader> {
+  const poolConnection = await getPool()
+  const [result] = await poolConnection.execute<ResultSetHeader>(sql, params)
+  return result
 }

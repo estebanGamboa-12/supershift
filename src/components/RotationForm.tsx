@@ -5,11 +5,13 @@ import { useMemo, useState } from "react"
 export default function RotationForm({
   onGenerate,
 }: {
-  onGenerate: (shifts: { startDate: string; cycle: number[] }) => void
+  onGenerate: (shifts: { startDate: string; cycle: number[] }) => Promise<void>
 }) {
   const [start, setStart] = useState("")
   const [model, setModel] = useState("4x2")
   const [error, setError] = useState("")
+  const [submitError, setSubmitError] = useState("")
+  const [isGenerating, setIsGenerating] = useState(false)
 
   const modelDescription = useMemo(() => {
     const [work, rest] = model.split("x").map(Number)
@@ -37,9 +39,10 @@ export default function RotationForm({
     setError("")
   }
 
-  const handleSubmit = (event: React.FormEvent<HTMLFormElement>) => {
+  const handleSubmit = async (event: React.FormEvent<HTMLFormElement>) => {
     event.preventDefault()
     setError("")
+    setSubmitError("")
 
     if (!start) {
       setError("Por favor selecciona una fecha de inicio")
@@ -47,7 +50,18 @@ export default function RotationForm({
     }
 
     const [work, rest] = model.split("x").map(Number)
-    onGenerate({ startDate: start, cycle: [work, rest] })
+    try {
+      setIsGenerating(true)
+      await onGenerate({ startDate: start, cycle: [work, rest] })
+    } catch (generationError) {
+      setSubmitError(
+        generationError instanceof Error
+          ? generationError.message
+          : "No se pudo generar la rotación. Inténtalo más tarde."
+      )
+    } finally {
+      setIsGenerating(false)
+    }
   }
 
   return (
@@ -113,13 +127,17 @@ export default function RotationForm({
 
       {/* Error */}
       {error && <p className="text-sm text-red-400 text-center">{error}</p>}
+      {submitError && (
+        <p className="text-sm text-red-400 text-center">{submitError}</p>
+      )}
 
       {/* Botón */}
       <button
         type="submit"
-        className="w-full rounded-lg bg-gradient-to-r from-blue-500 to-indigo-500 px-4 py-2 text-sm font-semibold text-white shadow-md transition hover:from-blue-400 hover:to-indigo-400"
+        disabled={isGenerating}
+        className="w-full rounded-lg bg-gradient-to-r from-blue-500 to-indigo-500 px-4 py-2 text-sm font-semibold text-white shadow-md transition hover:from-blue-400 hover:to-indigo-400 disabled:cursor-not-allowed disabled:opacity-60"
       >
-        Generar rotación
+        {isGenerating ? "Generando..." : "Generar rotación"}
       </button>
     </form>
   )

@@ -1,44 +1,87 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# Supershift
 
-## Getting Started
+Aplicación Next.js que muestra la planificación de turnos y ahora obtiene los datos desde una base de datos MySQL alojada en un servidor local XAMPP a través de una API interna.
 
-First, run the development server:
+## Requisitos
 
-```bash
-npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
-```
-
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
-
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
-
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
-
-## Learn More
-
-To learn more about Next.js, take a look at the following resources:
-
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
-
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
-
-## Deploy on Vercel
-
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
-
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+- Node.js 18 o superior
+- npm 9 o superior
+- Entorno XAMPP con MySQL/MariaDB activo
 
 ## Configuración de la base de datos
 
-1. Crea un fichero `.env.local` basado en `.env.local.example` y rellena las credenciales de tu servidor MariaDB/MySQL.
-2. Importa el fichero SQL facilitado (`supershift.sql`) en tu base de datos para crear la estructura inicial y los datos de ejemplo.
-3. Ejecuta `npm install` para instalar las dependencias (incluyendo el cliente MySQL) y `npm run dev` para iniciar la aplicación.
+1. Inicia el servidor MySQL de XAMPP.
+2. Importa el fichero [`supershift.sql`](./supershift.sql) desde phpMyAdmin u otra herramienta para crear la base de datos y sus tablas.
+3. Crea un usuario con permisos de lectura y escritura (por defecto se usa `root` sin contraseña, tal como viene en XAMPP).
 
-La aplicación leerá y actualizará los turnos directamente desde la tabla `shifts`. La generación de nuevas rotaciones reemplaza los turnos del calendario configurado mediante `DEFAULT_CALENDAR_ID`.
+## Variables de entorno
+
+Copia el archivo [`\.env.example`](./.env.example) a `\.env.local` y ajusta los valores según tu instalación:
+
+```bash
+cp .env.example .env.local
+```
+
+Variables disponibles:
+
+- `DB_HOST`: host de MySQL (normalmente `127.0.0.1`)
+- `DB_PORT`: puerto de MySQL (por defecto `3306`)
+- `DB_USER`: usuario con acceso a la base de datos
+- `DB_PASSWORD`: contraseña del usuario
+- `DB_NAME`: nombre de la base de datos importada (`supershift`)
+- `DEFAULT_CALENDAR_ID`: identificador del calendario por defecto al crear turnos (usa `2` para el calendario de Esteban incluido en la base de datos de ejemplo)
+
+## Instalación de dependencias
+
+Instala las dependencias del proyecto (incluyendo `mysql2` para la conexión a la base de datos):
+
+```bash
+npm install
+```
+
+Si el registro de npm no está accesible desde tu entorno, instala el paquete manualmente cuando tengas conexión:
+
+```bash
+npm install mysql2
+```
+
+## Ejecución en desarrollo
+
+Inicia el servidor de desarrollo de Next.js:
+
+```bash
+npm run dev
+```
+
+Accede a [http://localhost:3000](http://localhost:3000) para ver la aplicación.
+
+## API interna
+
+La API expone los turnos almacenados en la base de datos a través de rutas REST bajo `/api/shifts`:
+
+- `GET /api/shifts`: devuelve todos los turnos ordenados por fecha.
+- `POST /api/shifts`: crea un nuevo turno en el calendario indicado por `DEFAULT_CALENDAR_ID`.
+- `PATCH /api/shifts/:id`: actualiza la fecha, el tipo y/o la nota de un turno existente.
+- `DELETE /api/shifts/:id`: elimina un turno y sus notas asociadas.
+
+Ejemplo de respuesta para `GET /api/shifts`:
+
+```json
+{
+  "shifts": [
+    {
+      "id": 1,
+      "date": "2025-10-01",
+      "type": "WORK",
+      "note": "Entrega de reporte mensual"
+    }
+  ]
+}
+```
+
+En caso de error de conexión, la API responde con un código 500 y un mensaje descriptivo en formato JSON.
+
+## Notas
+
+- El archivo `src/data/shifts.json` se mantiene como respaldo y como ejemplo de estructura de datos.
+- Después de modificar dependencias en `package.json`, ejecuta `npm install` para sincronizar `package-lock.json`.

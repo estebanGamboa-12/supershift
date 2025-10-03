@@ -3,12 +3,11 @@
 import { useState } from "react"
 import type { ShiftType } from "@/types/shifts"
 
-type NewShift = {
-  date: string
-  type: ShiftType
+type Props = {
+  onAddShift: (shift: { date: string; type: ShiftType }) => void
 }
 
-export default function ShiftForm({ onAddShift }: { onAddShift: (shift: NewShift) => void }) {
+export default function ShiftForm({ onAddShift }: Props) {
   const [date, setDate] = useState("")
   const [type, setType] = useState<ShiftType>("WORK")
 

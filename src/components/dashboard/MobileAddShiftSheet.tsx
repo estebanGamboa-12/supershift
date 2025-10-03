@@ -38,7 +38,6 @@ export default function MobileAddShiftSheet({
       setError("")
       return
     }
-
     if (selectedDate) {
       setDate(selectedDate)
       onDateConsumed?.()
@@ -52,7 +51,6 @@ export default function MobileAddShiftSheet({
         setType("WORK")
         setNote("")
       }, 200)
-
       return () => clearTimeout(timeout)
     }
   }, [open])
@@ -81,7 +79,6 @@ export default function MobileAddShiftSheet({
 
     setError("")
     setSubmitError("")
-
     try {
       setIsSubmitting(true)
       await onAdd({
@@ -102,17 +99,23 @@ export default function MobileAddShiftSheet({
   }
 
   return (
-    <div className="fixed inset-0 z-50 flex flex-col bg-slate-950/70 backdrop-blur-sm">
+    <div className="fixed inset-0 z-50 flex flex-col bg-black/60 backdrop-blur-md">
+      {/* Fondo clickable para cerrar */}
       <button
         type="button"
         onClick={onClose}
         className="flex-1"
         aria-label="Cerrar formulario rápido"
       />
+
+      {/* Sheet */}
       <form
         onSubmit={handleSubmit}
-        className="mt-auto flex max-h-[85vh] w-full flex-col gap-5 overflow-y-auto rounded-t-3xl border border-white/10 bg-slate-950/95 p-6 pb-[calc(1.5rem+env(safe-area-inset-bottom))] text-white shadow-2xl"
+        className="mt-auto flex max-h-[85vh] w-full flex-col gap-5 overflow-y-auto rounded-t-3xl border border-white/10 bg-slate-950/95 p-6 pb-[calc(1.5rem+env(safe-area-inset-bottom))] text-white shadow-2xl transition-transform duration-300 ease-out translate-y-0"
       >
+        {/* Drag handle */}
+        <div className="mx-auto mb-2 h-1.5 w-12 rounded-full bg-white/20" />
+
         <div className="flex items-start justify-between">
           <div>
             <p className="text-xs uppercase tracking-wide text-blue-200/80">Nuevo turno</p>
@@ -121,9 +124,9 @@ export default function MobileAddShiftSheet({
           <button
             type="button"
             onClick={onClose}
-            className="rounded-full border border-white/20 px-3 py-1 text-sm text-white/70 transition hover:border-white/40 hover:text-white"
+            className="rounded-full border border-white/20 bg-white/5 p-2 text-white/70 transition hover:border-white/40 hover:text-white"
           >
-            Cerrar
+            ✕
           </button>
         </div>
 
@@ -131,6 +134,7 @@ export default function MobileAddShiftSheet({
           <span className="font-semibold text-blue-50">{selectedDateLabel}</span>
         </div>
 
+        {/* Campos */}
         <label className="flex flex-col gap-2 text-sm text-white/80">
           Fecha
           <input
@@ -173,7 +177,7 @@ export default function MobileAddShiftSheet({
         <button
           type="submit"
           disabled={isSubmitting}
-          className="w-full rounded-xl bg-gradient-to-r from-blue-500 to-indigo-500 px-4 py-3 text-sm font-semibold text-white shadow-lg shadow-blue-500/30 transition hover:from-blue-400 hover:to-indigo-400"
+          className="w-full rounded-xl bg-gradient-to-r from-blue-500 to-indigo-500 px-4 py-3 text-sm font-semibold text-white shadow-lg shadow-blue-500/30 transition hover:from-blue-400 hover:to-indigo-400 disabled:opacity-50"
         >
           {isSubmitting ? "Guardando..." : "Guardar turno"}
         </button>

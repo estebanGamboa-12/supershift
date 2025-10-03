@@ -18,7 +18,7 @@ type MobileNavigationProps = {
 
 const MobileNavigation: FC<MobileNavigationProps> = ({ active, onChange }) => {
   return (
-    <nav className="fixed inset-x-0 bottom-0 z-40 border-t border-white/10 bg-slate-950/90 pb-[calc(env(safe-area-inset-bottom))] backdrop-blur lg:hidden">
+    <nav className="fixed inset-x-0 bottom-0 z-40 border-t border-white/10 bg-slate-950/80 backdrop-blur-lg lg:hidden">
       <div className="mx-auto flex max-w-3xl items-stretch justify-between px-2 py-2">
         {NAV_ITEMS.map((item) => {
           const isActive = item.value === active
@@ -27,14 +27,19 @@ const MobileNavigation: FC<MobileNavigationProps> = ({ active, onChange }) => {
               key={item.value}
               type="button"
               onClick={() => onChange(item.value)}
-              className={`flex flex-1 flex-col items-center gap-1 rounded-2xl px-3 py-2 text-xs font-medium transition ${
+              className={`flex flex-1 flex-col items-center gap-1 rounded-2xl px-3 py-2 text-xs font-medium transition-all duration-200 ${
                 isActive
-                  ? "bg-blue-500/20 text-blue-100 shadow-inner shadow-blue-500/30"
-                  : "text-white/60 hover:bg-white/5 hover:text-white"
+                  ? "bg-gradient-to-r from-blue-500/30 to-indigo-500/30 text-blue-100 shadow-inner shadow-blue-500/30 scale-105"
+                  : "text-white/50 hover:bg-white/5 hover:text-white"
               }`}
               aria-current={isActive ? "page" : undefined}
             >
-              <span className="text-lg" aria-hidden>
+              <span
+                className={`text-lg transition ${
+                  isActive ? "scale-110" : "scale-100 opacity-80"
+                }`}
+                aria-hidden
+              >
                 {item.icon}
               </span>
               {item.label}

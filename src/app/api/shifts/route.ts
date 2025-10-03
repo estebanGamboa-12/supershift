@@ -9,7 +9,7 @@ import {
   type ApiShift,
   type ShiftRow,
 } from "./utils"
-import { findCalendarIdForUser } from "@/lib/calendars"
+import { getOrCreateCalendarForUser } from "@/lib/calendars"
 
 export const runtime = "nodejs"
 
@@ -37,12 +37,16 @@ export async function GET(request: NextRequest) {
   try {
     const userId = parseUserId(request.nextUrl.searchParams.get("userId"))
     const calendarId = userId
-      ? await findCalendarIdForUser(userId)
+      ? await getOrCreateCalendarForUser(userId)
       : getCalendarId()
 
     if (!calendarId) {
       return NextResponse.json(
-        { error: "No se encontró un calendario para el usuario" },
+        {
+          error: userId
+            ? "No se encontró un usuario con el identificador indicado"
+            : "No se encontró un calendario predeterminado",
+        },
         { status: 404 }
       )
     }
@@ -114,12 +118,16 @@ export async function POST(request: Request) {
     }
 
     const calendarId = userId
-      ? await findCalendarIdForUser(userId)
+      ? await getOrCreateCalendarForUser(userId)
       : getCalendarId()
 
     if (!calendarId) {
       return NextResponse.json(
-        { error: "No se encontró un calendario para el usuario" },
+        {
+          error: userId
+            ? "No se encontró un usuario con el identificador indicado"
+            : "No se encontró un calendario predeterminado",
+        },
         { status: 404 }
       )
     }

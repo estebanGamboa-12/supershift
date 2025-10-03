@@ -28,7 +28,7 @@ export async function ensureCalendarForUser(
   userId: number,
   name: string,
   timezone: string,
-  connection?: PoolConnection
+  connection?: PoolConnection,
 ): Promise<number> {
   const existing = await findCalendarIdForUser(userId, connection)
   if (existing) {
@@ -62,4 +62,54 @@ export async function ensureCalendarForUser(
   }
 
   return Number(result.insertId)
+}
+
+export async function getOrCreateCalendarForUser(
+  userId: number,
+  connection?: PoolConnection,
+): Promise<number | null> {
+  const existing = await findCalendarIdForUser(userId, connection)
+  if (existing) {
+    return existing
+  }
+
+  let activeConnection = connection
+  let shouldRelease = false
+
+  if (!activeConnection) {
+    const pool = await getPool()
+    activeConnection = await pool.getConnection()
+    shouldRelease = true
+  }
+
+  try {
+    const [rows] = await activeConnection.query<RowDataPacket[]>(
+      `SELECT name, timezone FROM users WHERE id = ? LIMIT 1`,
+      [userId],
+    )
+
+    if (!rows.length) {
+      return null
+    }
+
+    const rawName = rows[0].name != null ? String(rows[0].name) : ""
+    const trimmedName = rawName.trim()
+    const timezoneValue = rows[0].timezone != null ? String(rows[0].timezone) : ""
+    const timezone = timezoneValue.trim().length > 0 ? timezoneValue : "Europe/Madrid"
+    const calendarName =
+      trimmedName.length > 0
+        ? `Calendario de ${trimmedName}`
+        : `Calendario usuario ${userId}`
+
+    return await ensureCalendarForUser(
+      userId,
+      calendarName,
+      timezone,
+      activeConnection,
+    )
+  } finally {
+    if (shouldRelease && activeConnection) {
+      activeConnection.release()
+    }
+  }
 }

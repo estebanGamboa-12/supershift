@@ -1,8 +1,18 @@
 "use client"
 
-import { addDays, addMonths, format, isSameMonth, isToday, startOfMonth, startOfWeek, subMonths } from "date-fns"
+import {
+  addDays,
+  addMonths,
+  format,
+  isSameMonth,
+  isToday,
+  startOfMonth,
+  startOfWeek,
+  subMonths,
+} from "date-fns"
 import { es } from "date-fns/locale"
 import { useMemo, useState } from "react"
+import { AnimatePresence, motion } from "framer-motion"
 import type { ShiftEvent, ShiftType } from "@/types/shifts"
 
 const WEEK_STARTS_ON = 1 // lunes
@@ -13,6 +23,14 @@ const typeColor: Record<ShiftType, string> = {
   NIGHT: "#7c3aed",
   VACATION: "#f97316",
   CUSTOM: "#0ea5e9",
+}
+
+const shiftTypeLabels: Record<ShiftType, string> = {
+  WORK: "Trabajo",
+  REST: "Descanso",
+  NIGHT: "Nocturno",
+  VACATION: "Vacaciones",
+  CUSTOM: "Personalizado",
 }
 
 type CalendarSlot = { start: Date }
@@ -31,6 +49,7 @@ export default function CalendarView({
   className = "",
 }: CalendarViewProps) {
   const [currentDate, setCurrentDate] = useState(() => new Date())
+  const [direction, setDirection] = useState<1 | -1>(1) // animación izquierda/derecha
 
   // Calculamos 6 filas SIEMPRE (42 días)
   const calendarDays = useMemo(() => {
@@ -58,14 +77,17 @@ export default function CalendarView({
   }, [])
 
   function handlePrevMonth() {
+    setDirection(-1)
     setCurrentDate((date) => subMonths(date, 1))
   }
 
   function handleNextMonth() {
+    setDirection(1)
     setCurrentDate((date) => addMonths(date, 1))
   }
 
   function handleToday() {
+    setDirection(1)
     setCurrentDate(new Date())
   }
 
@@ -89,7 +111,7 @@ export default function CalendarView({
             onClick={handlePrevMonth}
             className="rounded-full border border-white/10 bg-white/5 px-2.5 py-1 font-semibold text-white/70 transition hover:border-blue-400/60 hover:text-blue-200"
           >
-            Ant.
+            ‹
           </button>
           <button
             onClick={handleToday}
@@ -101,11 +123,11 @@ export default function CalendarView({
             onClick={handleNextMonth}
             className="rounded-full border border-white/10 bg-white/5 px-2.5 py-1 font-semibold text-white/70 transition hover:border-blue-400/60 hover:text-blue-200"
           >
-            Sig.
+            ›
           </button>
         </div>
         <div className="flex flex-col items-start gap-1 sm:items-end">
-          <span className="text-sm font-semibold text-white sm:text-base">
+          <span className="text-sm font-bold bg-gradient-to-r from-blue-400 to-fuchsia-400 bg-clip-text text-transparent sm:text-base">
             {format(currentDate, "MMMM yyyy", { locale: es })}
           </span>
           <p className="text-xs uppercase tracking-[0.3em] text-white/40">
@@ -123,65 +145,76 @@ export default function CalendarView({
         ))}
       </div>
 
-      {/* Calendar grid */}
-      <div className="flex-1 bg-slate-950/20">
-        <div className="grid h-full grid-cols-7 grid-rows-6 gap-px">
-          {calendarDays.map((day) => {
-            const key = format(day, "yyyy-MM-dd")
-            const dayEvents = eventsByDay.get(key) ?? []
-            const isCurrentMonth = isSameMonth(day, currentDate)
-            const isCurrentDay = isToday(day)
+      {/* Calendar grid con animación */}
+      <div className="relative flex-1 bg-slate-950/20 overflow-hidden min-h-[500px]">
+        <AnimatePresence mode="wait" custom={direction}>
+          <motion.div
+            key={currentDate.toISOString()}
+            custom={direction}
+            initial={{ x: direction > 0 ? 100 : -100, opacity: 0 }}
+            animate={{ x: 0, opacity: 1 }}
+            exit={{ x: direction > 0 ? -100 : 100, opacity: 0 }}
+            transition={{ duration: 0.3, ease: "easeOut" }}
+            className="grid h-full grid-cols-7 grid-rows-6 gap-px"
+          >
+            {calendarDays.map((day) => {
+              const key = format(day, "yyyy-MM-dd")
+              const dayEvents = eventsByDay.get(key) ?? []
+              const isCurrentMonth = isSameMonth(day, currentDate)
+              const isCurrentDay = isToday(day)
 
-            return (
-              <div
-                key={key}
-                onClick={() => handleDayClick(day)}
-                className={`group flex flex-col gap-1.5 rounded-xl border border-white/5 bg-slate-950/40 p-2 text-[11px] transition hover:border-blue-400/40 hover:bg-slate-900/70 sm:gap-2 sm:p-3 sm:text-xs ${
-                  isCurrentMonth ? "text-white/80" : "text-white/30"
-                }`}
-              >
-                {/* Número del día */}
-                <div className="flex items-center justify-between">
-                  <span
-                    className={`flex h-6 w-6 items-center justify-center rounded-full text-xs font-semibold transition sm:h-7 sm:w-7 sm:text-sm ${
-                      isCurrentDay
-                        ? "bg-blue-500 text-white shadow-lg shadow-blue-500/40"
-                        : "bg-white/5 text-white/80 group-hover:bg-white/10"
-                    }`}
-                  >
-                    {format(day, "d")}
-                  </span>
-                </div>
-
-                {/* Eventos */}
-                <div className="flex flex-col gap-1 overflow-hidden">
-                  {dayEvents.map((shift) => (
-                    <button
-                      key={shift.id}
-                      onClick={(e) => {
-                        e.stopPropagation()
-                        onSelectEvent(shift)
-                      }}
-                      className="truncate rounded-lg border px-1.5 py-1 text-left text-[10px] font-semibold shadow-sm transition hover:scale-[1.01] sm:px-2 sm:text-[11px]"
-                      style={{
-                        backgroundColor: `${typeColor[shift.type]}26`,
-                        borderColor: `${typeColor[shift.type]}40`,
-                        color: typeColor[shift.type],
-                      }}
+              return (
+                <div
+                  key={key}
+                  onClick={() => handleDayClick(day)}
+                  className={`group flex flex-col gap-1.5 rounded-xl border border-white/5 bg-slate-950/40 p-2 text-[11px] transition hover:border-blue-400/40 hover:bg-slate-900/70 sm:gap-2 sm:p-3 sm:text-xs ${
+                    isCurrentMonth ? "text-white/80" : "text-white/30"
+                  }`}
+                >
+                  {/* Número del día */}
+                  <div className="flex items-center justify-between">
+                    <span
+                      className={`flex h-6 w-6 items-center justify-center rounded-full text-xs font-semibold transition sm:h-7 sm:w-7 sm:text-sm ${
+                        isCurrentDay
+                          ? "bg-blue-500 text-white shadow-lg shadow-blue-500/40"
+                          : "bg-white/5 text-white/80 group-hover:bg-white/10"
+                      }`}
                     >
-                      <span className="font-semibold">{shift.type}</span>
-                      {shift.note && (
-                        <p className="truncate text-[10px] text-white/70">
-                          {shift.note}
-                        </p>
-                      )}
-                    </button>
-                  ))}
+                      {format(day, "d")}
+                    </span>
+                  </div>
+
+                  {/* Eventos con dots */}
+                  <div className="flex flex-col gap-1 overflow-hidden">
+                    {dayEvents.map((shift) => (
+                      <button
+                        key={shift.id}
+                        onClick={(e) => {
+                          e.stopPropagation()
+                          onSelectEvent(shift)
+                        }}
+                        className="flex items-center gap-1 truncate rounded px-1 py-0.5 text-left text-[10px] font-medium transition hover:scale-[1.01] sm:text-[11px]"
+                      >
+                        <span
+                          className="h-2 w-2 flex-shrink-0 rounded-full"
+                          style={{ backgroundColor: typeColor[shift.type] }}
+                        />
+                        <span className="truncate" style={{ color: typeColor[shift.type] }}>
+                          {shiftTypeLabels[shift.type]}
+                        </span>
+                        {shift.note && (
+                          <span className="truncate text-[10px] text-white/60">
+                            – {shift.note}
+                          </span>
+                        )}
+                      </button>
+                    ))}
+                  </div>
                 </div>
-              </div>
-            )
-          })}
-        </div>
+              )
+            })}
+          </motion.div>
+        </AnimatePresence>
       </div>
     </div>
   )

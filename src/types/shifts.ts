@@ -1,8 +1,10 @@
 export type ShiftType = "WORK" | "REST" | "NIGHT" | "VACATION" | "CUSTOM"
 
-export type Shift = {
+export type ShiftEvent = {
   id: number
   date: string
   type: ShiftType
-  note?: string | null
+  start: Date
+  end: Date
+  note?: string
 }

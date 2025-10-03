@@ -11,7 +11,7 @@ export default function ShiftForm({ onAddShift }: Props) {
   const [date, setDate] = useState("")
   const [type, setType] = useState<ShiftType>("WORK")
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault()
     if (!date) return
     onAddShift({ date, type })

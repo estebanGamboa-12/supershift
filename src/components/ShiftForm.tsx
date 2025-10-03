@@ -1,12 +1,18 @@
 'use client'
 
 import { useState } from "react"
+import type { ShiftType } from "@/types/shifts"
 
-export default function ShiftForm({ onAddShift }: { onAddShift: (shift: any) => void }) {
+type NewShift = {
+  date: string
+  type: ShiftType
+}
+
+export default function ShiftForm({ onAddShift }: { onAddShift: (shift: NewShift) => void }) {
   const [date, setDate] = useState("")
-  const [type, setType] = useState("WORK")
+  const [type, setType] = useState<ShiftType>("WORK")
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault()
     if (!date) return
     onAddShift({ date, type })
@@ -27,7 +33,7 @@ export default function ShiftForm({ onAddShift }: { onAddShift: (shift: any) => 
       />
       <select
         value={type}
-        onChange={(e) => setType(e.target.value)}
+        onChange={(e) => setType(e.target.value as ShiftType)}
         className="form-select border p-2 rounded"
       >
         <option value="WORK">WORK</option>

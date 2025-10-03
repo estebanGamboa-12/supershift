@@ -34,3 +34,11 @@ You can check out [the Next.js GitHub repository](https://github.com/vercel/next
 The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
 
 Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+
+## Configuración de la base de datos
+
+1. Crea un fichero `.env.local` basado en `.env.local.example` y rellena las credenciales de tu servidor MariaDB/MySQL.
+2. Importa el fichero SQL facilitado (`supershift.sql`) en tu base de datos para crear la estructura inicial y los datos de ejemplo.
+3. Ejecuta `npm install` para instalar las dependencias (incluyendo el cliente MySQL) y `npm run dev` para iniciar la aplicación.
+
+La aplicación leerá y actualizará los turnos directamente desde la tabla `shifts`. La generación de nuevas rotaciones reemplaza los turnos del calendario configurado mediante `DEFAULT_CALENDAR_ID`.

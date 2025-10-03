@@ -1,4 +1,4 @@
-import { NextResponse } from "next/server"
+import { NextResponse, type NextRequest } from "next/server"
 import { execute, queryRows } from "@/lib/db"
 import {
   SHIFT_SELECT_BASE,
@@ -9,6 +9,7 @@ import {
   type ApiShift,
   type ShiftRow,
 } from "./utils"
+import { findCalendarIdForUser } from "@/lib/calendars"
 
 export const runtime = "nodejs"
 
@@ -21,10 +22,34 @@ function getCalendarId(): number {
   return Number.isNaN(DEFAULT_CALENDAR_ID) ? 2 : DEFAULT_CALENDAR_ID
 }
 
-export async function GET() {
+function parseUserId(param: string | null): number | null {
+  if (!param) {
+    return null
+  }
+  const userId = Number.parseInt(param, 10)
+  if (Number.isNaN(userId) || userId <= 0) {
+    return null
+  }
+  return userId
+}
+
+export async function GET(request: NextRequest) {
   try {
+    const userId = parseUserId(request.nextUrl.searchParams.get("userId"))
+    const calendarId = userId
+      ? await findCalendarIdForUser(userId)
+      : getCalendarId()
+
+    if (!calendarId) {
+      return NextResponse.json(
+        { error: "No se encontró un calendario para el usuario" },
+        { status: 404 }
+      )
+    }
+
     const rows = await queryRows<ShiftRow[]>(
-      `${SHIFT_SELECT_BASE} ORDER BY start_at ASC`
+      `${SHIFT_SELECT_BASE} WHERE calendar_id = ? ORDER BY start_at ASC`,
+      [calendarId]
     )
 
     const shifts = rows.map((row) => mapShiftRow(row))
@@ -45,7 +70,7 @@ export async function GET() {
 export async function POST(request: Request) {
   try {
     const payload = (await request.json().catch(() => null)) as
-      | { date?: unknown; type?: unknown; note?: unknown }
+      | { date?: unknown; type?: unknown; note?: unknown; userId?: unknown }
       | null
 
     if (!payload || typeof payload.type !== "string") {
@@ -76,12 +101,35 @@ export async function POST(request: Request) {
         ? payload.note.trim()
         : null
 
+    let userId: number | null = null
+    if ("userId" in payload && payload.userId !== undefined) {
+      const parsedUserId = Number(payload.userId)
+      if (Number.isNaN(parsedUserId) || parsedUserId <= 0) {
+        return NextResponse.json(
+          { error: "El identificador del usuario no es válido" },
+          { status: 400 }
+        )
+      }
+      userId = parsedUserId
+    }
+
+    const calendarId = userId
+      ? await findCalendarIdForUser(userId)
+      : getCalendarId()
+
+    if (!calendarId) {
+      return NextResponse.json(
+        { error: "No se encontró un calendario para el usuario" },
+        { status: 404 }
+      )
+    }
+
     const { startAt, endAt } = buildDateRange(date)
 
     const result = await execute(
       `INSERT INTO shifts (calendar_id, shift_type_code, start_at, end_at, all_day, note)
        VALUES (?, ?, ?, ?, 1, ?)`,
-      [getCalendarId(), type, startAt, endAt, note]
+      [calendarId, type, startAt, endAt, note]
     )
 
     if (!result.insertId) {
@@ -89,8 +137,8 @@ export async function POST(request: Request) {
     }
 
     const rows = await queryRows<ShiftRow[]>(
-      `${SHIFT_SELECT_BASE} WHERE id = ?`,
-      [result.insertId]
+      `${SHIFT_SELECT_BASE} WHERE id = ? AND calendar_id = ?`,
+      [result.insertId, calendarId]
     )
 
     if (!rows.length) {

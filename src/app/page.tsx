@@ -2,12 +2,10 @@
 
 import { useState, useMemo, useCallback, useEffect } from "react"
 import { differenceInCalendarDays, format } from "date-fns"
-import shiftsData from "@/data/shifts.json"
 import type { ShiftEvent, ShiftType } from "@/types/shifts"
 import EditShiftModal from "@/components/EditShiftModal"
 import AddShiftForm from "@/components/AddShiftForm"
 import RotationForm from "@/components/RotationForm"
-import { generateRotation } from "@/lib/generateRotation"
 import DashboardSidebar from "@/components/dashboard/DashboardSidebar"
 import DashboardHeader from "@/components/dashboard/DashboardHeader"
 import PlanningSection from "@/components/dashboard/PlanningSection"
@@ -17,6 +15,8 @@ import PlanningHealthCard from "@/components/dashboard/PlanningHealthCard"
 import MobileNavigation, { type MobileTab } from "@/components/dashboard/MobileNavigation"
 import MobileAddShiftSheet from "@/components/dashboard/MobileAddShiftSheet"
 import TeamSpotlight from "@/components/dashboard/TeamSpotlight"
+import UserAuthPanel from "@/components/auth/UserAuthPanel"
+import type { UserSummary } from "@/types/users"
 
 type ApiShift = {
   id: number
@@ -34,23 +34,16 @@ const SHIFT_TYPE_LABELS: Record<ShiftType, string> = {
 }
 
 export default function Home() {
-  const initialShifts = useMemo<ShiftEvent[]>(
-    () =>
-      shiftsData.map((s) => ({
-        ...s,
-        type: s.type as ShiftType,
-        start: new Date(s.date),
-        end: new Date(s.date),
-      })),
-    []
-  )
-
-  const [shifts, setShifts] = useState(initialShifts)
+  const [shifts, setShifts] = useState<ShiftEvent[]>([])
   const [selectedShift, setSelectedShift] = useState<ShiftEvent | null>(null)
   const [selectedDateFromCalendar, setSelectedDateFromCalendar] =
     useState<string | null>(null)
   const [activeMobileTab, setActiveMobileTab] = useState<MobileTab>("calendar")
   const [isMobileAddOpen, setIsMobileAddOpen] = useState(false)
+  const [users, setUsers] = useState<UserSummary[]>([])
+  const [currentUser, setCurrentUser] = useState<UserSummary | null>(null)
+  const [isLoadingUsers, setIsLoadingUsers] = useState(true)
+  const [userError, setUserError] = useState<string | null>(null)
 
   const mapApiShift = useCallback((shift: ApiShift): ShiftEvent => {
     return {
@@ -85,11 +78,16 @@ export default function Home() {
     return payload as T
   }, [])
 
-  const fetchShiftsFromApi = useCallback(async () => {
-    const response = await fetch("/api/shifts", { cache: "no-store" })
-    const data = await parseJsonResponse<{ shifts: ApiShift[] }>(response)
-    return data.shifts.map((shift) => mapApiShift(shift))
-  }, [mapApiShift, parseJsonResponse])
+  const fetchShiftsFromApi = useCallback(
+    async (userId: number) => {
+      const response = await fetch(`/api/shifts?userId=${userId}`, {
+        cache: "no-store",
+      })
+      const data = await parseJsonResponse<{ shifts: ApiShift[] }>(response)
+      return data.shifts.map((shift) => mapApiShift(shift))
+    },
+    [mapApiShift, parseJsonResponse]
+  )
 
   const sortByDate = useCallback((items: ShiftEvent[]) => {
     return [...items].sort(
@@ -107,6 +105,10 @@ export default function Home() {
       type: ShiftType
       note?: string
     }) => {
+      if (!currentUser) {
+        throw new Error("Selecciona un usuario antes de crear turnos")
+      }
+
       try {
         const response = await fetch("/api/shifts", {
           method: "POST",
@@ -115,6 +117,7 @@ export default function Home() {
             date,
             type,
             ...(note ? { note } : {}),
+            userId: currentUser.id,
           }),
         })
 
@@ -126,34 +129,35 @@ export default function Home() {
         throw error
       }
     },
-    [mapApiShift, parseJsonResponse, sortByDate]
+    [currentUser, mapApiShift, parseJsonResponse, sortByDate]
   )
 
   const handleGenerateRotation = useCallback(
     async ({ startDate, cycle }: { startDate: string; cycle: number[] }) => {
-      const generated = generateRotation(startDate, cycle)
-      if (!generated.length) return
+      if (!currentUser) {
+        throw new Error("Selecciona un usuario antes de generar rotaciones")
+      }
 
       try {
-        const createdShifts: ShiftEvent[] = []
-        for (const shift of generated) {
-          const response = await fetch("/api/shifts", {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ date: shift.date, type: shift.type }),
-          })
+        const response = await fetch("/api/shifts/generate", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            startDate,
+            cycle,
+            userId: currentUser.id,
+          }),
+        })
 
-          const data = await parseJsonResponse<{ shift: ApiShift }>(response)
-          createdShifts.push(mapApiShift(data.shift))
-        }
-
-        setShifts((current) => sortByDate([...current, ...createdShifts]))
+        const data = await parseJsonResponse<{ shifts: ApiShift[] }>(response)
+        const generatedShifts = data.shifts.map((shift) => mapApiShift(shift))
+        setShifts(sortByDate(generatedShifts))
       } catch (error) {
         console.error("No se pudo generar la rotación", error)
         throw error
       }
     },
-    [mapApiShift, parseJsonResponse, sortByDate]
+    [currentUser, mapApiShift, parseJsonResponse, sortByDate]
   )
 
   const handleSelectSlot = useCallback((slot: { start: Date }) => {
@@ -181,13 +185,18 @@ export default function Home() {
       note?: string
     }) => {
       try {
-        const response = await fetch(`/api/shifts/${id}`, {
+        if (!currentUser) {
+          throw new Error("Selecciona un usuario antes de actualizar turnos")
+        }
+
+        const response = await fetch(`/api/shifts/${id}?userId=${currentUser.id}`, {
           method: "PATCH",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
             date,
             type,
             note: note ?? null,
+            userId: currentUser.id,
           }),
         })
 
@@ -205,32 +214,42 @@ export default function Home() {
         throw error
       }
     },
-    [mapApiShift, parseJsonResponse, sortByDate]
+    [currentUser, mapApiShift, parseJsonResponse, sortByDate]
   )
 
-  const handleDeleteShift = useCallback(async (id: number) => {
-    try {
-      const response = await fetch(`/api/shifts/${id}`, {
-        method: "DELETE",
-      })
-
-      if (!response.ok && response.status !== 204) {
-        const payload = (await response.json().catch(() => null)) as
-          | { error?: string }
-          | null
-        const message =
-          payload && payload.error
-            ? payload.error
-            : `Error al eliminar el turno (${response.status})`
-        throw new Error(message)
+  const handleDeleteShift = useCallback(
+    async (id: number) => {
+      if (!currentUser) {
+        throw new Error("Selecciona un usuario antes de eliminar turnos")
       }
 
-      setShifts((current) => current.filter((shift) => shift.id !== id))
-    } catch (error) {
-      console.error(`No se pudo eliminar el turno ${id}`, error)
-      throw error
-    }
-  }, [])
+      try {
+        const response = await fetch(
+          `/api/shifts/${id}?userId=${currentUser.id}`,
+          {
+            method: "DELETE",
+          }
+        )
+
+        if (!response.ok && response.status !== 204) {
+          const payload = (await response.json().catch(() => null)) as
+            | { error?: string }
+            | null
+          const message =
+            payload && payload.error
+              ? payload.error
+              : `Error al eliminar el turno (${response.status})`
+          throw new Error(message)
+        }
+
+        setShifts((current) => current.filter((shift) => shift.id !== id))
+      } catch (error) {
+        console.error(`No se pudo eliminar el turno ${id}`, error)
+        throw error
+      }
+    },
+    [currentUser]
+  )
 
   const orderedShifts = useMemo(
     () => sortByDate(shifts),
@@ -286,9 +305,61 @@ export default function Home() {
   useEffect(() => {
     let isMounted = true
 
+    const loadUsers = async () => {
+      try {
+        setIsLoadingUsers(true)
+        const response = await fetch("/api/users", { cache: "no-store" })
+        const data = await parseJsonResponse<{ users: (UserSummary & { calendarId?: number })[] }>(
+          response
+        )
+
+        if (!isMounted) {
+          return
+        }
+
+        const sanitizedUsers = data.users
+          .filter((user) => typeof user.calendarId === "number")
+          .map((user) => ({
+            ...user,
+            calendarId: Number(user.calendarId),
+          }))
+
+        setUsers(sanitizedUsers)
+        setUserError(null)
+      } catch (error) {
+        console.error("No se pudieron cargar los usuarios", error)
+        if (isMounted) {
+          setUserError(
+            error instanceof Error
+              ? error.message
+              : "No se pudieron cargar los usuarios"
+          )
+        }
+      } finally {
+        if (isMounted) {
+          setIsLoadingUsers(false)
+        }
+      }
+    }
+
+    void loadUsers()
+
+    return () => {
+      isMounted = false
+    }
+  }, [parseJsonResponse])
+
+  useEffect(() => {
+    if (!currentUser) {
+      setShifts([])
+      return
+    }
+
+    let isMounted = true
+
     const loadShiftsFromApi = async () => {
       try {
-        const data = await fetchShiftsFromApi()
+        const data = await fetchShiftsFromApi(currentUser.id)
         if (!isMounted) {
           return
         }
@@ -303,7 +374,21 @@ export default function Home() {
     return () => {
       isMounted = false
     }
-  }, [fetchShiftsFromApi, sortByDate])
+  }, [currentUser, fetchShiftsFromApi, sortByDate])
+
+  const handleLogout = useCallback(() => {
+    setCurrentUser(null)
+    setSelectedShift(null)
+    setShifts([])
+    setSelectedDateFromCalendar(null)
+  }, [])
+
+  const handleUserCreated = useCallback((user: UserSummary) => {
+    setUsers((current) => {
+      const filtered = current.filter((item) => item.id !== user.id)
+      return [...filtered, user].sort((a, b) => a.id - b.id)
+    })
+  }, [])
 
   const handleOpenMobileAdd = useCallback(() => {
     setActiveMobileTab("calendar")
@@ -316,6 +401,37 @@ export default function Home() {
     setSelectedDateFromCalendar(null)
   }, [])
 
+  if (!currentUser) {
+    return (
+      <div className="relative min-h-screen overflow-hidden bg-slate-950 text-white">
+        <div
+          className="pointer-events-none absolute inset-x-0 top-[-30%] h-[480px] bg-gradient-to-br from-blue-500/20 via-indigo-500/10 to-transparent blur-3xl"
+          aria-hidden
+        />
+        <main className="relative mx-auto flex min-h-screen w-full max-w-6xl items-center justify-center px-4 py-16">
+          <div className="w-full space-y-6">
+            {userError && (
+              <div className="rounded-2xl border border-red-400/40 bg-red-500/10 px-4 py-3 text-sm text-red-200">
+                {userError}
+              </div>
+            )}
+            {isLoadingUsers ? (
+              <div className="flex items-center justify-center rounded-3xl border border-white/10 bg-slate-900/80 p-12">
+                <p className="text-sm text-white/60">Cargando usuarios...</p>
+              </div>
+            ) : (
+              <UserAuthPanel
+                users={users}
+                onLogin={(user) => setCurrentUser(user)}
+                onUserCreated={handleUserCreated}
+              />
+            )}
+          </div>
+        </main>
+      </div>
+    )
+  }
+
   return (
     <div className="relative min-h-screen overflow-hidden bg-slate-950 text-white">
       <div
@@ -327,6 +443,20 @@ export default function Home() {
         <DashboardSidebar />
 
         <div className="flex w-full flex-col">
+          <div className="flex items-center justify-between border-b border-white/5 bg-slate-900/60 px-4 py-3 text-sm">
+            <div>
+              <p className="font-semibold text-white">{currentUser.name}</p>
+              <p className="text-xs text-white/60">{currentUser.email}</p>
+            </div>
+            <button
+              type="button"
+              onClick={handleLogout}
+              className="rounded-full border border-white/15 px-3 py-1 text-xs font-semibold text-white/80 transition hover:border-red-400/40 hover:text-red-200"
+            >
+              Cerrar sesión
+            </button>
+          </div>
+
           <div className="sticky top-0 z-30 border-b border-white/5 bg-slate-950/90 px-4 py-4 backdrop-blur lg:hidden">
             <div className="mx-auto flex w-full max-w-3xl items-center justify-between">
               <div>

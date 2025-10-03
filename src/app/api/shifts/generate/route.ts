@@ -3,6 +3,7 @@ import { format } from "date-fns"
 import type { PoolConnection, RowDataPacket } from "mysql2/promise"
 import { getPool } from "@/lib/db"
 import { generateRotation } from "@/lib/generateRotation"
+import { findCalendarIdForUser } from "@/lib/calendars"
 
 function toDateOnly(value: Date | string | null) {
   if (!value) return ""
@@ -12,23 +13,19 @@ function toDateOnly(value: Date | string | null) {
   return String(value).slice(0, 10)
 }
 
-function getCalendarId() {
-  return Number(process.env.DEFAULT_CALENDAR_ID ?? process.env.CALENDAR_ID ?? 1)
-}
-
 function getHorizon() {
   return Number(process.env.ROTATION_HORIZON_DAYS ?? 60)
 }
 
 export async function POST(request: Request) {
-  let body: { startDate?: string; cycle?: number[] }
+  let body: { startDate?: string; cycle?: number[]; userId?: number }
   try {
     body = await request.json()
   } catch {
     return NextResponse.json({ message: "JSON no válido" }, { status: 400 })
   }
 
-  const { startDate, cycle } = body
+  const { startDate, cycle, userId } = body
   if (!startDate || !Array.isArray(cycle) || cycle.length !== 2) {
     return NextResponse.json(
       { message: "startDate y ciclo (ej. [4,2]) son obligatorios" },
@@ -36,7 +33,16 @@ export async function POST(request: Request) {
     )
   }
 
-  const calendarId = getCalendarId()
+  const calendarId = userId
+    ? await findCalendarIdForUser(userId)
+    : Number(process.env.DEFAULT_CALENDAR_ID ?? process.env.CALENDAR_ID ?? 1)
+
+  if (!calendarId) {
+    return NextResponse.json(
+      { message: "No se encontró un calendario para el usuario" },
+      { status: 404 }
+    )
+  }
   const horizon = getHorizon()
   const rotation = generateRotation(startDate, cycle, horizon)
 
@@ -83,7 +89,7 @@ export async function POST(request: Request) {
       note: (row.note as string | null) ?? "",
     }))
 
-    return NextResponse.json(shifts)
+    return NextResponse.json({ shifts })
   } catch (error) {
     if (connection) {
       await connection.rollback()

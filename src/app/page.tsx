@@ -33,6 +33,9 @@ const SHIFT_TYPE_LABELS: Record<ShiftType, string> = {
   CUSTOM: "Personalizado",
 }
 
+const SESSION_STORAGE_KEY = "supershift:session"
+const SESSION_DURATION_MS = 1000 * 60 * 60 * 24 * 14 // 14 días
+
 export default function Home() {
   const [shifts, setShifts] = useState<ShiftEvent[]>([])
   const [selectedShift, setSelectedShift] = useState<ShiftEvent | null>(null)
@@ -96,6 +99,55 @@ export default function Home() {
     return [...items].sort(
       (a, b) => new Date(a.date).getTime() - new Date(b.date).getTime()
     )
+  }, [])
+
+  const restoreSession = useCallback(() => {
+    if (typeof window === "undefined") {
+      return
+    }
+
+    const storedValue = window.localStorage.getItem(SESSION_STORAGE_KEY)
+    if (!storedValue) {
+      return
+    }
+
+    try {
+      const parsed = JSON.parse(storedValue) as {
+        user?: UserSummary
+        expiresAt?: number
+      }
+
+      if (!parsed?.user || typeof parsed.expiresAt !== "number") {
+        window.localStorage.removeItem(SESSION_STORAGE_KEY)
+        return
+      }
+
+      if (parsed.expiresAt <= Date.now()) {
+        window.localStorage.removeItem(SESSION_STORAGE_KEY)
+        return
+      }
+
+      setCurrentUser(parsed.user)
+    } catch {
+      window.localStorage.removeItem(SESSION_STORAGE_KEY)
+    }
+  }, [])
+
+  useEffect(() => {
+    restoreSession()
+  }, [restoreSession])
+
+  const persistSession = useCallback((user: UserSummary) => {
+    if (typeof window === "undefined") {
+      return
+    }
+
+    const payload = {
+      user,
+      expiresAt: Date.now() + SESSION_DURATION_MS,
+    }
+
+    window.localStorage.setItem(SESSION_STORAGE_KEY, JSON.stringify(payload))
   }, [])
 
   const handleAddShift = useCallback(
@@ -379,11 +431,23 @@ export default function Home() {
     }
   }, [currentUser, fetchShiftsFromApi, sortByDate])
 
+  const handleLoginSuccess = useCallback(
+    (user: UserSummary) => {
+      setCurrentUser(user)
+      persistSession(user)
+    },
+    [persistSession]
+  )
+
   const handleLogout = useCallback(() => {
     setCurrentUser(null)
     setSelectedShift(null)
     setShifts([])
     setSelectedDateFromCalendar(null)
+
+    if (typeof window !== "undefined") {
+      window.localStorage.removeItem(SESSION_STORAGE_KEY)
+    }
   }, [])
 
   const handleUserCreated = useCallback((user: UserSummary) => {
@@ -425,7 +489,7 @@ export default function Home() {
             ) : (
               <UserAuthPanel
                 users={users}
-                onLogin={(user) => setCurrentUser(user)}
+                onLogin={handleLoginSuccess}
                 onUserCreated={handleUserCreated}
               />
             )}

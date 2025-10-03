@@ -5,14 +5,11 @@ import { format, parse, startOfWeek, getDay } from "date-fns"
 import { es } from "date-fns/locale"
 import "react-big-calendar/lib/css/react-big-calendar.css"
 import { useEffect, useState } from "react"
+import type { Shift } from "@/types/shifts"
 
-type ShiftEvent = {
-  id: number
-  date: string
-  type: "WORK" | "REST" | "NIGHT" | "VACATION" | "CUSTOM"
+type ShiftEvent = Shift & {
   start: Date
   end: Date
-  note?: string
 }
 
 const locales = { es }

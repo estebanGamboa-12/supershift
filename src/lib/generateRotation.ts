@@ -1,20 +1,28 @@
 import { format } from "date-fns"
+import type { ShiftType } from "@/types/shifts"
+
+type GeneratedShift = {
+  id: number
+  date: string
+  type: ShiftType
+  note?: string | null
+}
 
 export function generateRotation(
   startDate: string,
   cycle: number[],
   length: number = 30
-) {
-  const result = []
-  let current = new Date(startDate)
+): GeneratedShift[] {
+  const result: GeneratedShift[] = []
+  const current = new Date(startDate)
   let cycleIndex = 0
   let work = true
 
   for (let i = 0; i < length; i++) {
-    const type = work ? "WORK" : "REST"
+    const type: ShiftType = work ? "WORK" : "REST"
     result.push({
       id: i + 1,
-      date: format(current, "yyyy-MM-dd"), // ✅ fecha segura
+      date: format(current, "yyyy-MM-dd"),
       type,
     })
 

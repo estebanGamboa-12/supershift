@@ -3,7 +3,7 @@ import { format } from "date-fns"
 import type { PoolConnection, RowDataPacket } from "mysql2/promise"
 import { getPool } from "@/lib/db"
 import { generateRotation } from "@/lib/generateRotation"
-import { findCalendarIdForUser } from "@/lib/calendars"
+import { getOrCreateCalendarForUser } from "@/lib/calendars"
 
 function toDateOnly(value: Date | string | null) {
   if (!value) return ""
@@ -13,8 +13,17 @@ function toDateOnly(value: Date | string | null) {
   return String(value).slice(0, 10)
 }
 
+const DEFAULT_CALENDAR_ID = Number.parseInt(
+  process.env.DEFAULT_CALENDAR_ID ?? process.env.CALENDAR_ID ?? "1",
+  10,
+)
+
 function getHorizon() {
   return Number(process.env.ROTATION_HORIZON_DAYS ?? 60)
+}
+
+function getDefaultCalendarId() {
+  return Number.isNaN(DEFAULT_CALENDAR_ID) ? 1 : DEFAULT_CALENDAR_ID
 }
 
 export async function POST(request: Request) {
@@ -33,25 +42,31 @@ export async function POST(request: Request) {
     )
   }
 
-  const calendarId = userId
-    ? await findCalendarIdForUser(userId)
-    : Number(process.env.DEFAULT_CALENDAR_ID ?? process.env.CALENDAR_ID ?? 1)
-
-  if (!calendarId) {
-    return NextResponse.json(
-      { message: "No se encontró un calendario para el usuario" },
-      { status: 404 }
-    )
-  }
   const horizon = getHorizon()
   const rotation = generateRotation(startDate, cycle, horizon)
 
-  const pool = getPool()
+  const pool = await getPool()
   let connection: PoolConnection | null = null
 
   try {
     connection = await pool.getConnection()
     await connection.beginTransaction()
+
+    const calendarId = userId
+      ? await getOrCreateCalendarForUser(userId, connection)
+      : getDefaultCalendarId()
+
+    if (!calendarId) {
+      await connection.rollback()
+      return NextResponse.json(
+        {
+          message: userId
+            ? "No se encontró un calendario para el usuario"
+            : "No se encontró un calendario predeterminado",
+        },
+        { status: 404 },
+      )
+    }
 
     await connection.execute(`DELETE FROM shifts WHERE calendar_id = ?`, [calendarId])
 

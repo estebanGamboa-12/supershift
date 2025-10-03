@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server"
 import type { RowDataPacket } from "mysql2/promise"
 import { queryRows } from "@/lib/db"
-import { findCalendarIdForUser } from "@/lib/calendars"
+import { getOrCreateCalendarForUser } from "@/lib/calendars"
 import { verifyPassword } from "@/lib/passwords"
 
 export const runtime = "nodejs"
@@ -53,7 +53,7 @@ export async function POST(request: Request) {
     }
 
     const userId = Number(userRow.id)
-    const calendarId = await findCalendarIdForUser(userId)
+    const calendarId = await getOrCreateCalendarForUser(userId)
 
     if (!calendarId) {
       return NextResponse.json(

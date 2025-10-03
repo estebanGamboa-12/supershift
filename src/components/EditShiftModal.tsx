@@ -1,6 +1,12 @@
 'use client'
 
 import { useState, useEffect } from "react"
+import type { Shift } from "@/types/shifts"
+
+type CalendarShift = Shift & {
+  start: Date
+  end: Date
+}
 
 export default function EditShiftModal({
   shift,
@@ -8,26 +14,22 @@ export default function EditShiftModal({
   onDelete,
   onClose,
 }: {
-  shift: any
-  onSave: (updatedShift: any) => void
+  shift: CalendarShift
+  onSave: (updatedShift: CalendarShift) => void
   onDelete: (id: number) => void
   onClose: () => void
 }) {
   const [date, setDate] = useState("")
-  const [type, setType] = useState("WORK")
+  const [type, setType] = useState<Shift["type"]>("WORK")
   const [note, setNote] = useState("")
 
   useEffect(() => {
-    if (shift) {
-      setDate(shift.date)
-      setType(shift.type)
-      setNote(shift.note || "")
-    }
+    setDate(shift.date)
+    setType(shift.type)
+    setNote(shift.note ?? "")
   }, [shift])
 
-  if (!shift) return null
-
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault()
     onSave({ ...shift, date, type, note })
   }
@@ -45,7 +47,7 @@ export default function EditShiftModal({
           />
           <select
             value={type}
-            onChange={(e) => setType(e.target.value)}
+            onChange={(e) => setType(e.target.value as Shift["type"])}
             className="w-full border p-2 rounded"
           >
             <option value="WORK">WORK</option>

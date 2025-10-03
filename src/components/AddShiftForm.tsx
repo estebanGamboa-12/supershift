@@ -4,7 +4,7 @@ import { useEffect, useMemo, useState } from "react"
 import type { ShiftType } from "@/types/shifts"
 
 type Props = {
-  onAdd: (shift: { date: string; type: ShiftType; note?: string }) => void
+  onAdd: (shift: { date: string; type: ShiftType; note?: string }) => Promise<void>
   selectedDate?: string | null
   onDateConsumed?: () => void
 }
@@ -22,6 +22,8 @@ export default function AddShiftForm({ onAdd, selectedDate, onDateConsumed }: Pr
   const [type, setType] = useState<ShiftType>("WORK")
   const [note, setNote] = useState("")
   const [error, setError] = useState("")
+  const [submitError, setSubmitError] = useState("")
+  const [isSubmitting, setIsSubmitting] = useState(false)
 
   const selectedDateLabel = useMemo(() => {
     if (!date) return "Selecciona una fecha para el turno"
@@ -43,17 +45,34 @@ export default function AddShiftForm({ onAdd, selectedDate, onDateConsumed }: Pr
     }
   }, [selectedDate, onDateConsumed])
 
-  const handleSubmit = (event: React.FormEvent) => {
+  const handleSubmit = async (event: React.FormEvent) => {
     event.preventDefault()
     if (!date) {
       setError("Selecciona una fecha para el turno")
       return
     }
     setError("")
-    onAdd({ date, type, note: note.trim() ? note.trim() : undefined })
-    setDate("")
-    setType("WORK")
-    setNote("")
+    setSubmitError("")
+
+    try {
+      setIsSubmitting(true)
+      await onAdd({
+        date,
+        type,
+        note: note.trim() ? note.trim() : undefined,
+      })
+      setDate("")
+      setType("WORK")
+      setNote("")
+    } catch (submissionError) {
+      setSubmitError(
+        submissionError instanceof Error
+          ? submissionError.message
+          : "No se pudo guardar el turno. Inténtalo más tarde."
+      )
+    } finally {
+      setIsSubmitting(false)
+    }
   }
 
   return (
@@ -124,12 +143,17 @@ export default function AddShiftForm({ onAdd, selectedDate, onDateConsumed }: Pr
               {error}
             </span>
           )}
+          {submitError && (
+            <span role="alert" className="text-sm text-red-400">
+              {submitError}
+            </span>
+          )}
           <button
             type="submit"
-            disabled={!date}
+            disabled={!date || isSubmitting}
             className="w-full rounded-lg bg-gradient-to-r from-blue-500 to-indigo-500 px-4 py-2 text-sm font-semibold text-white shadow-lg shadow-blue-500/30 transition hover:from-blue-400 hover:to-indigo-400 disabled:cursor-not-allowed disabled:opacity-50"
           >
-            Guardar turno
+            {isSubmitting ? "Guardando..." : "Guardar turno"}
           </button>
         </div>
       </form>

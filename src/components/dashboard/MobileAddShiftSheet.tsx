@@ -14,7 +14,7 @@ const SHIFT_TYPE_LABELS: Record<ShiftType, string> = {
 type MobileAddShiftSheetProps = {
   open: boolean
   onClose: () => void
-  onAdd: (shift: { date: string; type: ShiftType; note?: string }) => void
+  onAdd: (shift: { date: string; type: ShiftType; note?: string }) => Promise<void>
   selectedDate?: string | null
   onDateConsumed?: () => void
 }
@@ -30,6 +30,8 @@ export default function MobileAddShiftSheet({
   const [type, setType] = useState<ShiftType>("WORK")
   const [note, setNote] = useState("")
   const [error, setError] = useState("")
+  const [submitError, setSubmitError] = useState("")
+  const [isSubmitting, setIsSubmitting] = useState(false)
 
   useEffect(() => {
     if (!open) {
@@ -70,16 +72,33 @@ export default function MobileAddShiftSheet({
 
   if (!open) return null
 
-  const handleSubmit = (event: React.FormEvent) => {
+  const handleSubmit = async (event: React.FormEvent) => {
     event.preventDefault()
     if (!date) {
       setError("Selecciona una fecha para el turno")
       return
     }
 
-    onAdd({ date, type, note: note.trim() ? note.trim() : undefined })
     setError("")
-    onClose()
+    setSubmitError("")
+
+    try {
+      setIsSubmitting(true)
+      await onAdd({
+        date,
+        type,
+        note: note.trim() ? note.trim() : undefined,
+      })
+      onClose()
+    } catch (submissionError) {
+      setSubmitError(
+        submissionError instanceof Error
+          ? submissionError.message
+          : "No se pudo guardar el turno. Inténtalo más tarde."
+      )
+    } finally {
+      setIsSubmitting(false)
+    }
   }
 
   return (
@@ -149,12 +168,14 @@ export default function MobileAddShiftSheet({
         </label>
 
         {error && <p className="text-sm text-red-400">{error}</p>}
+        {submitError && <p className="text-sm text-red-400">{submitError}</p>}
 
         <button
           type="submit"
+          disabled={isSubmitting}
           className="w-full rounded-xl bg-gradient-to-r from-blue-500 to-indigo-500 px-4 py-3 text-sm font-semibold text-white shadow-lg shadow-blue-500/30 transition hover:from-blue-400 hover:to-indigo-400"
         >
-          Guardar turno
+          {isSubmitting ? "Guardando..." : "Guardar turno"}
         </button>
       </form>
     </div>

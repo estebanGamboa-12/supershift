@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useMemo, useCallback, useRef, useEffect } from "react"
+import { useState, useMemo, useCallback, useEffect } from "react"
 import { differenceInCalendarDays, format } from "date-fns"
 import shiftsData from "@/data/shifts.json"
 import type { ShiftEvent, ShiftType } from "@/types/shifts"
@@ -51,9 +51,45 @@ export default function Home() {
     useState<string | null>(null)
   const [activeMobileTab, setActiveMobileTab] = useState<MobileTab>("calendar")
   const [isMobileAddOpen, setIsMobileAddOpen] = useState(false)
-  const nextIdRef = useRef(
-    initialShifts.reduce((max, shift) => Math.max(max, shift.id), 0) + 1
-  )
+
+  const mapApiShift = useCallback((shift: ApiShift): ShiftEvent => {
+    return {
+      id: shift.id,
+      date: shift.date,
+      type: shift.type,
+      start: new Date(shift.date),
+      end: new Date(shift.date),
+      ...(shift.note && shift.note.trim().length > 0
+        ? { note: shift.note }
+        : {}),
+    }
+  }, [])
+
+  const parseJsonResponse = useCallback(async <T,>(response: Response) => {
+    const payload = (await response.json().catch(() => null)) as
+      | T
+      | { error?: string }
+      | null
+
+    if (!response.ok || !payload) {
+      const message =
+        payload &&
+        typeof payload === "object" &&
+        "error" in payload &&
+        typeof payload.error === "string"
+          ? payload.error
+          : `Error en la solicitud (${response.status})`
+      throw new Error(message)
+    }
+
+    return payload as T
+  }, [])
+
+  const fetchShiftsFromApi = useCallback(async () => {
+    const response = await fetch("/api/shifts", { cache: "no-store" })
+    const data = await parseJsonResponse<{ shifts: ApiShift[] }>(response)
+    return data.shifts.map((shift) => mapApiShift(shift))
+  }, [mapApiShift, parseJsonResponse])
 
   const sortByDate = useCallback((items: ShiftEvent[]) => {
     return [...items].sort(
@@ -62,45 +98,62 @@ export default function Home() {
   }, [])
 
   const handleAddShift = useCallback(
-    ({ date, type, note }: { date: string; type: ShiftType; note?: string }) => {
-      if (!date) return
+    async ({
+      date,
+      type,
+      note,
+    }: {
+      date: string
+      type: ShiftType
+      note?: string
+    }) => {
+      try {
+        const response = await fetch("/api/shifts", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            date,
+            type,
+            ...(note ? { note } : {}),
+          }),
+        })
 
-      const id = nextIdRef.current++
-      const newShift: ShiftEvent = {
-        id,
-        date,
-        type,
-        start: new Date(date),
-        end: new Date(date),
-        ...(note ? { note } : {}),
+        const data = await parseJsonResponse<{ shift: ApiShift }>(response)
+        const newShift = mapApiShift(data.shift)
+        setShifts((current) => sortByDate([...current, newShift]))
+      } catch (error) {
+        console.error("No se pudo crear el turno", error)
+        throw error
       }
-
-      setShifts((current) => sortByDate([...current, newShift]))
     },
-    [sortByDate]
+    [mapApiShift, parseJsonResponse, sortByDate]
   )
 
   const handleGenerateRotation = useCallback(
-    ({ startDate, cycle }: { startDate: string; cycle: number[] }) => {
+    async ({ startDate, cycle }: { startDate: string; cycle: number[] }) => {
       const generated = generateRotation(startDate, cycle)
       if (!generated.length) return
 
-      setShifts((current) => {
-        const generatedShifts = generated.map((shift) => {
-          const id = nextIdRef.current++
-          return {
-            id,
-            date: shift.date,
-            type: shift.type,
-            start: new Date(shift.date),
-            end: new Date(shift.date),
-          }
-        })
+      try {
+        const createdShifts: ShiftEvent[] = []
+        for (const shift of generated) {
+          const response = await fetch("/api/shifts", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ date: shift.date, type: shift.type }),
+          })
 
-        return sortByDate([...current, ...generatedShifts])
-      })
+          const data = await parseJsonResponse<{ shift: ApiShift }>(response)
+          createdShifts.push(mapApiShift(data.shift))
+        }
+
+        setShifts((current) => sortByDate([...current, ...createdShifts]))
+      } catch (error) {
+        console.error("No se pudo generar la rotación", error)
+        throw error
+      }
     },
-    [sortByDate]
+    [mapApiShift, parseJsonResponse, sortByDate]
   )
 
   const handleSelectSlot = useCallback((slot: { start: Date }) => {
@@ -113,6 +166,70 @@ export default function Home() {
 
   const handleGoToToday = useCallback(() => {
     setSelectedDateFromCalendar(format(new Date(), "yyyy-MM-dd"))
+  }, [])
+
+  const handleUpdateShift = useCallback(
+    async ({
+      id,
+      date,
+      type,
+      note,
+    }: {
+      id: number
+      date: string
+      type: ShiftType
+      note?: string
+    }) => {
+      try {
+        const response = await fetch(`/api/shifts/${id}`, {
+          method: "PATCH",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            date,
+            type,
+            note: note ?? null,
+          }),
+        })
+
+        const data = await parseJsonResponse<{ shift: ApiShift }>(response)
+        const updatedShift = mapApiShift(data.shift)
+        setShifts((current) =>
+          sortByDate(
+            current.map((shift) =>
+              shift.id === id ? updatedShift : shift
+            )
+          )
+        )
+      } catch (error) {
+        console.error(`No se pudo actualizar el turno ${id}`, error)
+        throw error
+      }
+    },
+    [mapApiShift, parseJsonResponse, sortByDate]
+  )
+
+  const handleDeleteShift = useCallback(async (id: number) => {
+    try {
+      const response = await fetch(`/api/shifts/${id}`, {
+        method: "DELETE",
+      })
+
+      if (!response.ok && response.status !== 204) {
+        const payload = (await response.json().catch(() => null)) as
+          | { error?: string }
+          | null
+        const message =
+          payload && payload.error
+            ? payload.error
+            : `Error al eliminar el turno (${response.status})`
+        throw new Error(message)
+      }
+
+      setShifts((current) => current.filter((shift) => shift.id !== id))
+    } catch (error) {
+      console.error(`No se pudo eliminar el turno ${id}`, error)
+      throw error
+    }
   }, [])
 
   const orderedShifts = useMemo(
@@ -171,28 +288,11 @@ export default function Home() {
 
     const loadShiftsFromApi = async () => {
       try {
-        const response = await fetch("/api/shifts", { cache: "no-store" })
-        if (!response.ok) {
-          throw new Error(`Error al obtener los turnos: ${response.status}`)
-        }
-
-        const data: { shifts: ApiShift[] } = await response.json()
+        const data = await fetchShiftsFromApi()
         if (!isMounted) {
           return
         }
-
-        const mappedShifts: ShiftEvent[] = data.shifts.map((shift) => ({
-          id: shift.id,
-          date: shift.date,
-          type: shift.type,
-          start: new Date(shift.date),
-          end: new Date(shift.date),
-          ...(shift.note != null ? { note: shift.note } : {}),
-        }))
-
-        setShifts(sortByDate(mappedShifts))
-        nextIdRef.current =
-          mappedShifts.reduce((max, shift) => Math.max(max, shift.id), 0) + 1
+        setShifts(sortByDate(data))
       } catch (error) {
         console.error("No se pudieron cargar los turnos desde la API", error)
       }
@@ -203,7 +303,7 @@ export default function Home() {
     return () => {
       isMounted = false
     }
-  }, [sortByDate])
+  }, [fetchShiftsFromApi, sortByDate])
 
   const handleOpenMobileAdd = useCallback(() => {
     setActiveMobileTab("calendar")
@@ -355,10 +455,7 @@ export default function Home() {
       <MobileAddShiftSheet
         open={isMobileAddOpen}
         onClose={handleCloseMobileAdd}
-        onAdd={(shift) => {
-          handleAddShift(shift)
-          handleCloseMobileAdd()
-        }}
+        onAdd={handleAddShift}
         selectedDate={selectedDateFromCalendar}
         onDateConsumed={() => setSelectedDateFromCalendar(null)}
       />
@@ -366,24 +463,12 @@ export default function Home() {
       {selectedShift && (
         <EditShiftModal
           shift={selectedShift}
-          onSave={(s) => {
-            setShifts((curr) =>
-              sortByDate(
-                curr.map((sh) =>
-                  sh.id === s.id
-                    ? {
-                        ...s,
-                        start: new Date(s.date),
-                        end: new Date(s.date),
-                      }
-                    : sh
-                )
-              )
-            )
+          onSave={async (shift) => {
+            await handleUpdateShift(shift)
             setSelectedShift(null)
           }}
-          onDelete={(id) => {
-            setShifts((curr) => curr.filter((sh) => sh.id !== id))
+          onDelete={async (id) => {
+            await handleDeleteShift(id)
             setSelectedShift(null)
           }}
           onClose={() => setSelectedShift(null)}

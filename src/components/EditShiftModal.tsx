@@ -5,8 +5,13 @@ import type { ShiftEvent, ShiftType } from "@/types/shifts"
 
 type Props = {
   shift: ShiftEvent
-  onSave: (updatedShift: ShiftEvent) => void
-  onDelete: (id: number) => void
+  onSave: (updatedShift: {
+    id: number
+    date: string
+    type: ShiftType
+    note?: string
+  }) => Promise<void>
+  onDelete: (id: number) => Promise<void>
   onClose: () => void
 }
 
@@ -23,6 +28,10 @@ export default function EditShiftModal({ shift, onSave, onDelete, onClose }: Pro
   const [type, setType] = useState<ShiftType>("WORK")
   const [note, setNote] = useState("")
   const [isDeleting, setIsDeleting] = useState(false)
+  const [isProcessingDelete, setIsProcessingDelete] = useState(false)
+  const [isSaving, setIsSaving] = useState(false)
+  const [saveError, setSaveError] = useState("")
+  const [deleteError, setDeleteError] = useState("")
 
   useEffect(() => {
     if (shift) {
@@ -30,6 +39,9 @@ export default function EditShiftModal({ shift, onSave, onDelete, onClose }: Pro
       setType(shift.type)
       setNote(shift.note || "")
       setIsDeleting(false)
+      setIsProcessingDelete(false)
+      setSaveError("")
+      setDeleteError("")
     }
   }, [shift])
 
@@ -44,15 +56,29 @@ export default function EditShiftModal({ shift, onSave, onDelete, onClose }: Pro
 
   if (!shift) return null
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
-    if (!date) return
-    onSave({
-      ...shift,
-      date,
-      type,
-      note: note.trim() ? note.trim() : undefined,
-    })
+    if (!date || isSaving) return
+    setSaveError("")
+
+    try {
+      setIsSaving(true)
+      await onSave({
+        id: shift.id,
+        date,
+        type,
+        note: note.trim() ? note.trim() : undefined,
+      })
+      onClose()
+    } catch (error) {
+      setSaveError(
+        error instanceof Error
+          ? error.message
+          : "No se pudo guardar el turno. Inténtalo más tarde."
+      )
+    } finally {
+      setIsSaving(false)
+    }
   }
 
   return (
@@ -132,39 +158,68 @@ export default function EditShiftModal({ shift, onSave, onDelete, onClose }: Pro
           <div className="flex flex-wrap items-center justify-between gap-3">
             <button
               type="button"
-              onClick={() => {
+              onClick={async () => {
                 if (!isDeleting) {
                   setIsDeleting(true)
+                  setDeleteError("")
                   return
                 }
-                onDelete(shift.id)
+
+                try {
+                  setIsProcessingDelete(true)
+                  await onDelete(shift.id)
+                  onClose()
+                } catch (error) {
+                  setDeleteError(
+                    error instanceof Error
+                      ? error.message
+                      : "No se pudo eliminar el turno. Inténtalo más tarde."
+                  )
+                  setIsProcessingDelete(false)
+                }
               }}
+              disabled={isProcessingDelete}
               className={`inline-flex items-center gap-2 rounded-full border px-4 py-2 text-sm font-semibold transition focus:outline-none focus:ring-2 focus:ring-red-400/30 ${
                 isDeleting
                   ? "border-red-500 bg-red-500 text-white hover:bg-red-400"
                   : "border-red-400/30 bg-red-500/10 text-red-200 hover:border-red-400/50 hover:bg-red-500/20"
-              }`}
+              } ${isProcessingDelete ? "opacity-60" : ""}`}
             >
-              {isDeleting ? "Confirmar borrado" : "Eliminar turno"}
+              {isProcessingDelete
+                ? "Eliminando..."
+                : isDeleting
+                  ? "Confirmar borrado"
+                  : "Eliminar turno"}
             </button>
 
             <div className="ml-auto flex gap-2">
               <button
                 type="button"
-                onClick={onClose}
+                onClick={() => {
+                  setIsDeleting(false)
+                  setIsProcessingDelete(false)
+                  onClose()
+                }}
                 className="rounded-full border border-white/10 bg-white/5 px-4 py-2 text-sm font-semibold text-white/70 transition hover:border-white/20 hover:text-white"
               >
                 Cancelar
               </button>
               <button
                 type="submit"
-                disabled={!date}
+                disabled={!date || isSaving}
                 className="rounded-full bg-gradient-to-r from-blue-500 to-indigo-500 px-4 py-2 text-sm font-semibold text-white shadow-lg shadow-blue-500/30 transition hover:from-blue-400 hover:to-indigo-400 focus:outline-none focus:ring-2 focus:ring-blue-400/40 disabled:opacity-50"
               >
-                Guardar cambios
+                {isSaving ? "Guardando..." : "Guardar cambios"}
               </button>
             </div>
           </div>
+
+          {saveError && (
+            <p className="text-sm text-red-400">{saveError}</p>
+          )}
+          {deleteError && (
+            <p className="text-sm text-red-400">{deleteError}</p>
+          )}
         </form>
       </div>
     </div>

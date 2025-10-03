@@ -65,13 +65,16 @@ export default function Home() {
       | null
 
     if (!response.ok || !payload) {
+      const fallbackMessage = `Error en la solicitud (${response.status})`
       const message =
         payload &&
-        typeof payload === "object" &&
-        "error" in payload &&
-        typeof payload.error === "string"
-          ? payload.error
-          : `Error en la solicitud (${response.status})`
+        typeof payload === "object"
+          ? typeof (payload as { error?: unknown }).error === "string"
+            ? (payload as { error: string }).error
+            : typeof (payload as { message?: unknown }).message === "string"
+              ? (payload as { message: string }).message
+              : fallbackMessage
+          : fallbackMessage
       throw new Error(message)
     }
 

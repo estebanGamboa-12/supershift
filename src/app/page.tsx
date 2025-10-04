@@ -16,6 +16,7 @@ import MobileNavigation, { type MobileTab } from "@/components/dashboard/MobileN
 import MobileAddShiftSheet from "@/components/dashboard/MobileAddShiftSheet"
 import TeamSpotlight from "@/components/dashboard/TeamSpotlight"
 import UserAuthPanel from "@/components/auth/UserAuthPanel"
+import FloatingParticlesLoader from "@/components/FloatingParticlesLoader"
 import type { UserSummary } from "@/types/users"
 
 type ApiShift = {
@@ -504,19 +505,7 @@ export default function Home() {
               </div>
             )}
             {isLoadingUsers ? (
-              <div className="flex items-center justify-center rounded-3xl border border-white/10 bg-slate-900/80 p-12">
-                <div className="flex flex-col items-center gap-4 text-center">
-                  <div className="relative h-16 w-16">
-                    <div className="absolute inset-0 rounded-full border-2 border-white/15" />
-                    <div className="absolute inset-0 animate-spin rounded-full border-2 border-transparent border-t-blue-400 border-l-indigo-500" />
-                    <div className="absolute inset-3 rounded-full bg-gradient-to-br from-blue-500/20 via-indigo-500/10 to-transparent" />
-                  </div>
-                  <div className="space-y-1">
-                    <p className="text-sm font-semibold text-white">Preparando tu equipo...</p>
-                    <p className="text-xs text-white/60">Cargando usuarios y configuraciones</p>
-                  </div>
-                </div>
-              </div>
+              <FloatingParticlesLoader />
             ) : (
               <UserAuthPanel
                 users={users}

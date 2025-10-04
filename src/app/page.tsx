@@ -566,6 +566,8 @@ export default function Home() {
               currentMonthShiftCount={currentMonthShifts.length}
               totalShiftCount={orderedShifts.length}
               activeShiftTypes={activeShiftTypes}
+              shifts={orderedShifts}
+              onSearchSelect={handleSelectShift}
             />
           </div>
 

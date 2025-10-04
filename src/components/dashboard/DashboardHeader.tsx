@@ -44,15 +44,22 @@ const DashboardHeader: FC<DashboardHeaderProps> = ({
 
           {/* Search + CTA */}
           <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
-            <div className="relative w-full sm:w-64">
-              <input
-                type="search"
-                placeholder="Buscar personas, turnos o notas..."
-                className="w-full rounded-full border border-white/10 bg-white/5 px-5 py-2.5 text-sm text-white placeholder:text-white/40 focus:border-blue-400 focus:outline-none focus:ring-2 focus:ring-blue-400/40"
+            <div className="group relative w-full sm:w-80">
+              <div
+                className="pointer-events-none absolute -inset-[1px] rounded-2xl bg-gradient-to-r from-blue-500/60 via-indigo-500/60 to-sky-500/60 opacity-60 blur-sm transition duration-300 group-hover:opacity-90 group-focus-within:opacity-100"
+                aria-hidden
               />
-              <span className="pointer-events-none absolute inset-y-0 right-4 flex items-center text-xs text-white/40">
-                ⌘K
-              </span>
+              <div className="relative flex items-center gap-3 rounded-2xl border border-white/10 bg-slate-900/80 px-4 py-2.5 shadow-lg shadow-blue-500/20 backdrop-blur">
+                <span className="inline-flex h-9 w-9 items-center justify-center rounded-xl bg-white/10 text-lg">🔍</span>
+                <input
+                  type="search"
+                  placeholder="Buscar personas, turnos o notas..."
+                  className="flex-1 bg-transparent text-sm text-white placeholder:text-white/50 focus:outline-none"
+                />
+                <span className="pointer-events-none text-xs font-medium text-white/50">
+                  ⌘K
+                </span>
+              </div>
             </div>
             <button
               type="button"

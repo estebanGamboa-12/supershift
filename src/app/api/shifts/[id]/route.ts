@@ -76,7 +76,7 @@ export async function PATCH(request: NextRequest, { params }: Params) {
 
     const userId = parseUserId(request.nextUrl.searchParams.get("userId"))
     const calendarId = userId
-      ? await findCalendarIdForUser(userId)
+      ? (await findCalendarIdForUser(userId)) ?? getFallbackCalendarId()
       : getFallbackCalendarId()
 
     const updates: string[] = []
@@ -181,7 +181,7 @@ export async function DELETE(_request: NextRequest, { params }: Params) {
   try {
     const userId = parseUserId(_request.nextUrl.searchParams.get("userId"))
     const calendarId = userId
-      ? await findCalendarIdForUser(userId)
+      ? (await findCalendarIdForUser(userId)) ?? getFallbackCalendarId()
       : getFallbackCalendarId()
 
     const result = await execute(

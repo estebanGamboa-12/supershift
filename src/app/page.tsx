@@ -17,6 +17,7 @@ import MobileAddShiftSheet from "@/components/dashboard/MobileAddShiftSheet"
 import TeamSpotlight from "@/components/dashboard/TeamSpotlight"
 import UserAuthPanel from "@/components/auth/UserAuthPanel"
 import FloatingParticlesLoader from "@/components/FloatingParticlesLoader"
+import AuroraBackground from "@/components/AuroraBackground"
 import type { UserSummary } from "@/types/users"
 
 type ApiShift = {
@@ -493,11 +494,8 @@ export default function Home() {
   if (!currentUser) {
     return (
       <div className="relative min-h-screen overflow-hidden bg-slate-950 text-white">
-        <div
-          className="pointer-events-none absolute inset-x-0 top-[-30%] h-[480px] bg-gradient-to-br from-blue-500/20 via-indigo-500/10 to-transparent blur-3xl"
-          aria-hidden
-        />
-        <main className="relative mx-auto flex min-h-screen w-full max-w-6xl items-center justify-center px-4 py-16">
+        <AuroraBackground />
+        <main className="relative z-10 mx-auto flex min-h-screen w-full max-w-6xl items-center justify-center px-4 py-16">
           <div className="w-full space-y-6">
             {userError && (
               <div className="rounded-2xl border border-red-400/40 bg-red-500/10 px-4 py-3 text-sm text-red-200">
@@ -521,12 +519,9 @@ export default function Home() {
 
   return (
     <div className="relative min-h-screen overflow-hidden bg-slate-950 text-white">
-      <div
-        className="pointer-events-none absolute inset-x-0 top-[-30%] h-[480px] bg-gradient-to-br from-blue-500/20 via-indigo-500/10 to-transparent blur-3xl"
-        aria-hidden
-      />
+      <AuroraBackground />
 
-      <div className="relative flex min-h-screen flex-col lg:flex-row">
+      <div className="relative z-10 flex min-h-screen flex-col lg:flex-row">
         <DashboardSidebar />
 
         <div className="flex w-full flex-col">

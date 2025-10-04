@@ -37,6 +37,9 @@ export default function UserAuthPanel({
   const [isRegistering, setIsRegistering] = useState(false)
   const [activeForm, setActiveForm] = useState<"login" | "register">("login")
 
+  const highlightedUsers = users.slice(0, 3)
+  const remainingUsers = Math.max(users.length - highlightedUsers.length, 0)
+
   const handleFormChange = (form: "login" | "register") => {
     setActiveForm(form)
     if (form === "login") setRegisterError("")
@@ -231,6 +234,16 @@ export default function UserAuthPanel({
           )}
         </AnimatePresence>
       </div>
+
+      {(highlightedUsers.length > 0 || remainingUsers > 0) && (
+        <div className="relative z-10 mt-10 space-y-1 text-center text-xs text-white/50">
+          <p className="font-medium text-white/60">Personas ya organizando sus turnos</p>
+          <p>
+            {highlightedUsers.map((user) => user.name).join(", ")}
+            {remainingUsers > 0 ? ` y ${remainingUsers} más` : ""}
+          </p>
+        </div>
+      )}
 
       <p className="mt-10 text-center text-[11px] tracking-[0.3em] text-white/40">
         Diseñado por Esteban Gamboa 

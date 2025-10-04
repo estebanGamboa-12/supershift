@@ -3,22 +3,44 @@
 import { useMemo, useState } from "react"
 import { motion } from "framer-motion"
 
+type RotationMode = "preset" | "manual"
+
+enum PresetOption {
+  CLASSIC = "4x2",
+  INTENSIVE = "5x3",
+  LONG = "6x3",
+}
+
 export default function RotationForm({
   onGenerate,
 }: {
   onGenerate: (shifts: { startDate: string; cycle: number[] }) => Promise<void>
 }) {
   const [start, setStart] = useState("")
-  const [model, setModel] = useState("4x2")
+  const [mode, setMode] = useState<RotationMode>("preset")
+  const [model, setModel] = useState<PresetOption>(PresetOption.CLASSIC)
+  const [manualWorkDays, setManualWorkDays] = useState("4")
+  const [manualRestDays, setManualRestDays] = useState("2")
   const [error, setError] = useState("")
   const [submitError, setSubmitError] = useState("")
   const [isGenerating, setIsGenerating] = useState(false)
 
   const modelDescription = useMemo(() => {
-    const [work, rest] = model.split("x").map(Number)
+    if (mode === "manual") {
+      const work = Number.parseInt(manualWorkDays, 10)
+      const rest = Number.parseInt(manualRestDays, 10)
+      const safeWork = Number.isFinite(work) && work > 0 ? work : 0
+      const safeRest = Number.isFinite(rest) && rest > 0 ? rest : 0
+      const totalDays = safeWork + safeRest
+      return { work: safeWork, rest: safeRest, totalDays }
+    }
+
+    const [work, rest] = String(model)
+      .split("x")
+      .map((value) => Number.parseInt(value, 10))
     const totalDays = work + rest
     return { work, rest, totalDays }
-  }, [model])
+  }, [manualRestDays, manualWorkDays, mode, model])
 
   const formattedStart = useMemo(() => {
     if (!start) return "Selecciona una fecha de inicio"
@@ -40,6 +62,12 @@ export default function RotationForm({
     setError("")
   }
 
+  const handleChangeMode = (nextMode: RotationMode) => {
+    setMode(nextMode)
+    setError("")
+    setSubmitError("")
+  }
+
   const handleSubmit = async (event: React.FormEvent<HTMLFormElement>) => {
     event.preventDefault()
     setError("")
@@ -50,7 +78,23 @@ export default function RotationForm({
       return
     }
 
-    const [work, rest] = model.split("x").map(Number)
+    let work: number
+    let rest: number
+
+    if (mode === "manual") {
+      work = Number.parseInt(manualWorkDays, 10)
+      rest = Number.parseInt(manualRestDays, 10)
+
+      if (!Number.isFinite(work) || work <= 0 || !Number.isFinite(rest) || rest <= 0) {
+        setError("Define días válidos para trabajo y descanso")
+        return
+      }
+    } else {
+      ;[work, rest] = String(model)
+        .split("x")
+        .map((value) => Number.parseInt(value, 10))
+    }
+
     try {
       setIsGenerating(true)
       await onGenerate({ startDate: start, cycle: [work, rest] })
@@ -115,15 +159,81 @@ export default function RotationForm({
           Modelo de ciclo
         </legend>
 
-        <select
-          value={model}
-          onChange={(e) => setModel(e.target.value)}
-          className="rounded-lg border border-white/20 bg-slate-900 px-3 py-2 text-sm text-white focus:border-fuchsia-400 focus:outline-none focus:ring-2 focus:ring-fuchsia-500/40"
-        >
-          <option value="4x2">4x2 (clásico)</option>
-          <option value="5x3">5x3 (intensivo)</option>
-          <option value="6x3">6x3 (larga duración)</option>
-        </select>
+        <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+          <button
+            type="button"
+            onClick={() => handleChangeMode("preset")}
+            className={`rounded-lg border px-3 py-2 text-left text-sm transition focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-fuchsia-500 ${
+              mode === "preset"
+                ? "border-fuchsia-400/60 bg-fuchsia-500/20 text-white"
+                : "border-white/10 bg-slate-900/60 text-white/80 hover:border-fuchsia-400/40 hover:text-white"
+            }`}
+          >
+            Usar plantillas
+          </button>
+          <button
+            type="button"
+            onClick={() => handleChangeMode("manual")}
+            className={`rounded-lg border px-3 py-2 text-left text-sm transition focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-fuchsia-500 ${
+              mode === "manual"
+                ? "border-fuchsia-400/60 bg-fuchsia-500/20 text-white"
+                : "border-white/10 bg-slate-900/60 text-white/80 hover:border-fuchsia-400/40 hover:text-white"
+            }`}
+          >
+            Diseñar mi ciclo
+          </button>
+        </div>
+
+        {mode === "preset" ? (
+          <div className="flex flex-col gap-3 rounded-lg border border-white/10 bg-slate-900/60 p-3">
+            <label className="text-xs uppercase tracking-wide text-white/50">
+              Plantillas rápidas
+            </label>
+            <select
+              value={model}
+              onChange={(e) => setModel(e.target.value as PresetOption)}
+              className="rounded-lg border border-white/20 bg-slate-900 px-3 py-2 text-sm text-white focus:border-fuchsia-400 focus:outline-none focus:ring-2 focus:ring-fuchsia-500/40"
+            >
+              <option value={PresetOption.CLASSIC}>4x2 (clásico)</option>
+              <option value={PresetOption.INTENSIVE}>5x3 (intensivo)</option>
+              <option value={PresetOption.LONG}>6x3 (larga duración)</option>
+            </select>
+            <p className="text-xs text-white/60">
+              Selecciona una combinación de días laborales y de descanso ya preparada.
+            </p>
+          </div>
+        ) : (
+          <div className="flex flex-col gap-4 rounded-lg border border-white/10 bg-slate-900/60 p-3">
+            <p className="text-xs uppercase tracking-wide text-white/50">
+              Personaliza tu ciclo
+            </p>
+            <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+              <label className="flex flex-col gap-2 text-xs text-white/70">
+                Días de trabajo consecutivos
+                <input
+                  type="number"
+                  min={1}
+                  value={manualWorkDays}
+                  onChange={(event) => setManualWorkDays(event.target.value)}
+                  className="rounded-lg border border-white/20 bg-slate-900 px-3 py-2 text-sm text-white focus:border-fuchsia-400 focus:outline-none focus:ring-2 focus:ring-fuchsia-500/40"
+                />
+              </label>
+              <label className="flex flex-col gap-2 text-xs text-white/70">
+                Días de descanso consecutivos
+                <input
+                  type="number"
+                  min={1}
+                  value={manualRestDays}
+                  onChange={(event) => setManualRestDays(event.target.value)}
+                  className="rounded-lg border border-white/20 bg-slate-900 px-3 py-2 text-sm text-white focus:border-fuchsia-400 focus:outline-none focus:ring-2 focus:ring-fuchsia-500/40"
+                />
+              </label>
+            </div>
+            <p className="text-xs text-white/60">
+              Define cuántos días seguidos trabajarás y cuántos descansarás antes de repetir el patrón.
+            </p>
+          </div>
+        )}
 
         <div className="text-xs text-white/70">
           {modelDescription.work} días de trabajo / {modelDescription.rest} de

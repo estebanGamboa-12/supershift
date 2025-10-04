@@ -505,7 +505,17 @@ export default function Home() {
             )}
             {isLoadingUsers ? (
               <div className="flex items-center justify-center rounded-3xl border border-white/10 bg-slate-900/80 p-12">
-                <p className="text-sm text-white/60">Cargando usuarios...</p>
+                <div className="flex flex-col items-center gap-4 text-center">
+                  <div className="relative h-16 w-16">
+                    <div className="absolute inset-0 rounded-full border-2 border-white/15" />
+                    <div className="absolute inset-0 animate-spin rounded-full border-2 border-transparent border-t-blue-400 border-l-indigo-500" />
+                    <div className="absolute inset-3 rounded-full bg-gradient-to-br from-blue-500/20 via-indigo-500/10 to-transparent" />
+                  </div>
+                  <div className="space-y-1">
+                    <p className="text-sm font-semibold text-white">Preparando tu equipo...</p>
+                    <p className="text-xs text-white/60">Cargando usuarios y configuraciones</p>
+                  </div>
+                </div>
               </div>
             ) : (
               <UserAuthPanel

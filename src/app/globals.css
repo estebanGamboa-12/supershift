@@ -142,3 +142,112 @@ body {
     opacity: 0;
   }
 }
+
+.aurora-container {
+  z-index: 0;
+}
+
+.aurora-grid {
+  position: absolute;
+  inset: -50%;
+  background-image: linear-gradient(
+      rgba(148, 163, 184, 0.08) 1px,
+      transparent 1px
+    ),
+    linear-gradient(90deg, rgba(148, 163, 184, 0.08) 1px, transparent 1px);
+  background-size: 160px 160px;
+  transform: rotate(3deg) scale(1.3);
+  filter: blur(0.6px);
+  opacity: 0.35;
+  mask-image: radial-gradient(circle at center, black 35%, transparent 75%);
+}
+
+.aurora-spot {
+  position: absolute;
+  width: 38rem;
+  height: 38rem;
+  border-radius: 9999px;
+  filter: blur(110px);
+  opacity: 0.65;
+  mix-blend-mode: screen;
+  animation: auroraFloat 18s ease-in-out infinite;
+}
+
+.aurora-spot--one {
+  top: -12rem;
+  left: -6rem;
+  background: radial-gradient(circle, rgba(59, 130, 246, 0.7), transparent 65%);
+  animation-delay: -4s;
+}
+
+.aurora-spot--two {
+  top: 10%;
+  right: -12rem;
+  background: radial-gradient(circle, rgba(14, 165, 233, 0.65), transparent 60%);
+  animation-delay: -9s;
+}
+
+.aurora-spot--three {
+  bottom: -14rem;
+  left: 20%;
+  background: radial-gradient(circle, rgba(129, 140, 248, 0.55), transparent 60%);
+  animation-delay: -13s;
+}
+
+.aurora-glow {
+  position: absolute;
+  inset: 15% 20% 20% 15%;
+  background: radial-gradient(circle at top, rgba(59, 130, 246, 0.22), transparent 60%),
+    radial-gradient(circle at bottom, rgba(236, 72, 153, 0.1), transparent 65%);
+  filter: blur(120px);
+  opacity: 0.75;
+  animation: auroraPulse 14s ease-in-out infinite;
+}
+
+@keyframes auroraFloat {
+  0%,
+  100% {
+    transform: translate3d(0, 0, 0) scale(1);
+  }
+  50% {
+    transform: translate3d(40px, -30px, 0) scale(1.05);
+  }
+}
+
+@keyframes auroraPulse {
+  0%,
+  100% {
+    opacity: 0.65;
+    transform: scale(0.95);
+  }
+  50% {
+    opacity: 0.95;
+    transform: scale(1.05);
+  }
+}
+
+@media (max-width: 768px) {
+  .aurora-spot {
+    width: 24rem;
+    height: 24rem;
+    filter: blur(90px);
+  }
+
+  .aurora-spot--one {
+    top: -8rem;
+    left: -10rem;
+  }
+
+  .aurora-spot--two {
+    right: -10rem;
+  }
+
+  .aurora-spot--three {
+    bottom: -10rem;
+    left: -5rem;
+  }
+
+  .aurora-grid {
+    opacity: 0.25;
+  }
+}

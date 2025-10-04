@@ -19,13 +19,15 @@ type CalendarSlot = { start: Date }
 
 type CalendarViewProps = {
   shifts: ShiftEvent[]
-  onSelectEvent: (shift: ShiftEvent) => void
+  onSelectShift?: (shift: ShiftEvent) => void
+  onSelectEvent?: (shift: ShiftEvent) => void
   onSelectSlot?: (slotInfo: CalendarSlot) => void
   className?: string
 }
 
 export default function CalendarView({
   shifts,
+  onSelectShift,
   onSelectEvent,
   onSelectSlot,
   className = "",
@@ -161,7 +163,8 @@ export default function CalendarView({
                       key={shift.id}
                       onClick={(e) => {
                         e.stopPropagation()
-                        onSelectEvent(shift)
+                        const handler = onSelectShift ?? onSelectEvent
+                        handler?.(shift)
                       }}
                       className="truncate rounded-lg border px-1.5 py-1 text-left text-[11px] font-semibold shadow-sm transition hover:scale-[1.01] sm:text-[10px]"
                       style={{

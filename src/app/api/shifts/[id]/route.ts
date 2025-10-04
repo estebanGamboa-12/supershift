@@ -195,7 +195,7 @@ export async function DELETE(_request: NextRequest, { params }: Params) {
       )
     }
 
-    return NextResponse.json(null, { status: 204 })
+    return new NextResponse(null, { status: 204 })
   } catch (error) {
     console.error(`Error deleting shift ${id}`, error)
     return NextResponse.json(

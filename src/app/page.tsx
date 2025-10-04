@@ -36,6 +36,15 @@ const SHIFT_TYPE_LABELS: Record<ShiftType, string> = {
 const SESSION_STORAGE_KEY = "supershift:session"
 const SESSION_DURATION_MS = 1000 * 60 * 60 * 24 * 14 // 14 días
 
+class ApiError extends Error {
+  status: number
+
+  constructor(status: number, message: string) {
+    super(message)
+    this.status = status
+  }
+}
+
 export default function Home() {
   const [shifts, setShifts] = useState<ShiftEvent[]>([])
   const [selectedShift, setSelectedShift] = useState<ShiftEvent | null>(null)
@@ -78,7 +87,7 @@ export default function Home() {
               ? (payload as { message: string }).message
               : fallbackMessage
           : fallbackMessage
-      throw new Error(message)
+      throw new ApiError(response.status, message)
     }
 
     return payload as T
@@ -265,6 +274,18 @@ export default function Home() {
           )
         )
       } catch (error) {
+        if (error instanceof ApiError && error.status === 404) {
+          setShifts((current) => current.filter((shift) => shift.id !== id))
+          setSelectedShift((current) =>
+            current && current.id === id ? null : current
+          )
+
+          console.error(`No se pudo actualizar el turno ${id}`, error)
+          throw new Error(
+            "El turno que intentabas editar ya no existe. Se ha eliminado de la vista."
+          )
+        }
+
         console.error(`No se pudo actualizar el turno ${id}`, error)
         throw error
       }

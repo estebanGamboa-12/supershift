@@ -594,8 +594,8 @@ export default function Home() {
 
           <main className="flex-1 overflow-y-auto pb-[calc(6rem+env(safe-area-inset-bottom))] lg:pb-0">
             <div className="mx-auto w-full max-w-7xl space-y-10 px-4 py-6 sm:px-6 lg:px-10 xl:px-12">
-              <div className="hidden gap-6 lg:grid lg:grid-cols-12">
-                <section className="space-y-6 lg:col-span-9">
+              <div className="hidden space-y-6 lg:block">
+                <section className="space-y-6">
                   <PlanningSection
                     shifts={orderedShifts}
                     onSelectShift={handleSelectShift}
@@ -608,9 +608,7 @@ export default function Home() {
                     totalShifts={orderedShifts.length}
                     shiftTypeLabels={SHIFT_TYPE_LABELS}
                   />
-                </section>
 
-                <aside className="space-y-6 lg:col-span-3">
                   <ShiftPlannerLab
                     resetSignal={rotationBuilderResetKey}
                     onCommit={handleManualRotationConfirm}
@@ -623,7 +621,7 @@ export default function Home() {
                     selectedDate={selectedDateFromCalendar}
                     onDateConsumed={() => setSelectedDateFromCalendar(null)}
                   />
-                </aside>
+                </section>
               </div>
 
               <div className="space-y-6 lg:hidden">

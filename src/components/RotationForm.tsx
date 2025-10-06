@@ -1,281 +1,200 @@
 "use client"
 
-import { useMemo, useState } from "react"
+import { useMemo } from "react"
 import { motion } from "framer-motion"
+import { format, parseISO } from "date-fns"
+import { es } from "date-fns/locale"
+import type { ShiftType } from "@/types/shifts"
 
-type RotationMode = "preset" | "manual"
-
-enum PresetOption {
-  CLASSIC = "4x2",
-  INTENSIVE = "5x3",
-  LONG = "6x3",
+type ManualRotationDraftEntry = {
+  date: string
+  type: ShiftType
 }
 
-export default function RotationForm({
-  onGenerate,
-}: {
-  onGenerate: (shifts: { startDate: string; cycle: number[] }) => Promise<void>
-}) {
-  const [start, setStart] = useState("")
-  const [mode, setMode] = useState<RotationMode>("preset")
-  const [model, setModel] = useState<PresetOption>(PresetOption.CLASSIC)
-  const [manualWorkDays, setManualWorkDays] = useState("4")
-  const [manualRestDays, setManualRestDays] = useState("2")
-  const [error, setError] = useState("")
-  const [submitError, setSubmitError] = useState("")
-  const [isGenerating, setIsGenerating] = useState(false)
+type ManualRotationPanelProps = {
+  draft: ManualRotationDraftEntry[]
+  onChangeType: (date: string, type: ShiftType) => void
+  onRemoveDate: (date: string) => void
+  onClear: () => void
+  onCommit: () => void | Promise<void>
+  isCommitting?: boolean
+  error?: string | null
+}
 
-  const modelDescription = useMemo(() => {
-    if (mode === "manual") {
-      const work = Number.parseInt(manualWorkDays, 10)
-      const rest = Number.parseInt(manualRestDays, 10)
-      const safeWork = Number.isFinite(work) && work > 0 ? work : 0
-      const safeRest = Number.isFinite(rest) && rest > 0 ? rest : 0
-      const totalDays = safeWork + safeRest
-      return { work: safeWork, rest: safeRest, totalDays }
+const SHIFT_TYPE_LABELS: Record<ShiftType, string> = {
+  WORK: "Trabajo",
+  REST: "Descanso",
+  NIGHT: "Nocturno",
+  VACATION: "Vacaciones",
+  CUSTOM: "Personalizado",
+}
+
+const SHIFT_TYPE_BADGE: Record<ShiftType, string> = {
+  WORK: "bg-blue-500/20 border-blue-400/40 text-blue-200",
+  REST: "bg-slate-500/20 border-slate-400/40 text-slate-200",
+  NIGHT: "bg-purple-500/20 border-purple-400/40 text-purple-200",
+  VACATION: "bg-amber-500/20 border-amber-400/40 text-amber-200",
+  CUSTOM: "bg-cyan-500/20 border-cyan-400/40 text-cyan-200",
+}
+
+function getFormattedDate(date: string) {
+  try {
+    const parsed = parseISO(date)
+    if (Number.isNaN(parsed.getTime())) {
+      return { formatted: date, short: date }
     }
 
-    const [work, rest] = String(model)
-      .split("x")
-      .map((value) => Number.parseInt(value, 10))
-    const totalDays = work + rest
-    return { work, rest, totalDays }
-  }, [manualRestDays, manualWorkDays, mode, model])
+    const formatted = format(parsed, "EEEE d 'de' MMMM yyyy", { locale: es })
+    const short = format(parsed, "dd/MM/yyyy", { locale: es })
+    return { formatted, short }
+  } catch {
+    return { formatted: date, short: date }
+  }
+}
 
-  const formattedStart = useMemo(() => {
-    if (!start) return "Selecciona una fecha de inicio"
-    const parsed = new Date(start)
-    if (Number.isNaN(parsed.getTime())) return "Selecciona una fecha válida"
-
-    return parsed.toLocaleDateString("es-ES", {
-      weekday: "long",
-      day: "numeric",
-      month: "long",
-      year: "numeric",
+export default function ManualRotationPanel({
+  draft,
+  onChangeType,
+  onRemoveDate,
+  onClear,
+  onCommit,
+  isCommitting = false,
+  error,
+}: ManualRotationPanelProps) {
+  const orderedDraft = useMemo(() => {
+    return [...draft].sort((a, b) => {
+      const left = parseISO(a.date)
+      const right = parseISO(b.date)
+      const leftTime = Number.isNaN(left.getTime()) ? 0 : left.getTime()
+      const rightTime = Number.isNaN(right.getTime()) ? 0 : right.getTime()
+      return leftTime - rightTime
     })
-  }, [start])
+  }, [draft])
 
-  const handleUseToday = () => {
-    const today = new Date()
-    const iso = today.toISOString().split("T")[0]
-    setStart(iso)
-    setError("")
-  }
-
-  const handleChangeMode = (nextMode: RotationMode) => {
-    setMode(nextMode)
-    setError("")
-    setSubmitError("")
-  }
-
-  const handleSubmit = async (event: React.FormEvent<HTMLFormElement>) => {
-    event.preventDefault()
-    setError("")
-    setSubmitError("")
-
-    if (!start) {
-      setError("Por favor selecciona una fecha de inicio")
-      return
-    }
-
-    let work: number
-    let rest: number
-
-    if (mode === "manual") {
-      work = Number.parseInt(manualWorkDays, 10)
-      rest = Number.parseInt(manualRestDays, 10)
-
-      if (!Number.isFinite(work) || work <= 0 || !Number.isFinite(rest) || rest <= 0) {
-        setError("Define días válidos para trabajo y descanso")
-        return
-      }
-    } else {
-      ;[work, rest] = String(model)
-        .split("x")
-        .map((value) => Number.parseInt(value, 10))
-    }
-
-    try {
-      setIsGenerating(true)
-      await onGenerate({ startDate: start, cycle: [work, rest] })
-    } catch (generationError) {
-      setSubmitError(
-        generationError instanceof Error
-          ? generationError.message
-          : "No se pudo generar la rotación. Inténtalo más tarde."
-      )
-    } finally {
-      setIsGenerating(false)
-    }
-  }
+  const hasDraft = orderedDraft.length > 0
 
   return (
-    <form
-      onSubmit={handleSubmit}
-      className="relative mx-auto w-full max-w-md rounded-3xl border border-white/10 bg-slate-900/70 p-8 text-white shadow-2xl backdrop-blur-xl"
-    >
-      {/* Glow decorativo */}
-      <div className="pointer-events-none absolute inset-0 bg-gradient-to-tr from-blue-500/10 via-fuchsia-500/5 to-transparent opacity-80" />
+    <section className="relative mx-auto w-full max-w-md rounded-3xl border border-white/10 bg-slate-900/70 p-8 text-white shadow-2xl backdrop-blur-xl">
+      <div className="pointer-events-none absolute inset-0 rounded-3xl bg-gradient-to-tr from-blue-500/10 via-fuchsia-500/5 to-transparent opacity-80" />
 
-      {/* Título */}
-      <header className="relative mb-6 text-center">
-        <h2 className="text-3xl font-bold bg-gradient-to-r from-blue-400 to-fuchsia-400 bg-clip-text text-transparent">
-          Generador de rotaciones
-        </h2>
-        <p className="mt-2 text-sm text-white/70">
-          Define una fecha inicial y selecciona un modelo de ciclo para rellenar
-          automáticamente tu agenda.
-        </p>
-      </header>
+      <div className="relative space-y-6">
+        <header className="text-center">
+          <h2 className="text-3xl font-bold bg-gradient-to-r from-blue-400 to-fuchsia-400 bg-clip-text text-transparent">
+            Planificación manual
+          </h2>
+          <p className="mt-2 text-sm text-white/70">
+            Pulsa un día del calendario para añadirlo al borrador y asigna el tipo de turno que corresponda.
+          </p>
+        </header>
 
-      {/* Fecha */}
-      <fieldset className="relative mb-6 flex flex-col gap-4 rounded-xl border border-white/10 bg-slate-800/60 p-4">
-        <legend className="px-2 text-xs font-semibold uppercase text-blue-200/80">
-          Fecha de inicio
-        </legend>
-
-        <p className="text-sm font-medium">{formattedStart}</p>
-
-        <div className="flex gap-2">
-          <input
-            type="date"
-            value={start}
-            onChange={(e) => setStart(e.target.value)}
-            className="flex-1 rounded-lg border border-white/20 bg-slate-900 px-3 py-2 text-sm text-white placeholder-white/40 focus:border-blue-400 focus:outline-none focus:ring-2 focus:ring-blue-500/40"
-          />
-          <button
-            type="button"
-            onClick={handleUseToday}
-            className="rounded-lg border border-white/20 bg-white/10 px-3 text-xs font-semibold text-white transition hover:bg-white/20"
-          >
-            Hoy
-          </button>
-        </div>
-      </fieldset>
-
-      {/* Modelo */}
-      <fieldset className="relative mb-6 flex flex-col gap-3 rounded-xl border border-white/10 bg-slate-800/60 p-4">
-        <legend className="px-2 text-xs font-semibold uppercase text-blue-200/80">
-          Modelo de ciclo
-        </legend>
-
-        <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
-          <button
-            type="button"
-            onClick={() => handleChangeMode("preset")}
-            className={`rounded-lg border px-3 py-2 text-left text-sm transition focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-fuchsia-500 ${
-              mode === "preset"
-                ? "border-fuchsia-400/60 bg-fuchsia-500/20 text-white"
-                : "border-white/10 bg-slate-900/60 text-white/80 hover:border-fuchsia-400/40 hover:text-white"
-            }`}
-          >
-            Usar plantillas
-          </button>
-          <button
-            type="button"
-            onClick={() => handleChangeMode("manual")}
-            className={`rounded-lg border px-3 py-2 text-left text-sm transition focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-fuchsia-500 ${
-              mode === "manual"
-                ? "border-fuchsia-400/60 bg-fuchsia-500/20 text-white"
-                : "border-white/10 bg-slate-900/60 text-white/80 hover:border-fuchsia-400/40 hover:text-white"
-            }`}
-          >
-            Diseñar mi ciclo
-          </button>
-        </div>
-
-        {mode === "preset" ? (
-          <div className="flex flex-col gap-3 rounded-lg border border-white/10 bg-slate-900/60 p-3">
-            <label className="text-xs uppercase tracking-wide text-white/50">
-              Plantillas rápidas
-            </label>
-            <select
-              value={model}
-              onChange={(e) => setModel(e.target.value as PresetOption)}
-              className="rounded-lg border border-white/20 bg-slate-900 px-3 py-2 text-sm text-white focus:border-fuchsia-400 focus:outline-none focus:ring-2 focus:ring-fuchsia-500/40"
-            >
-              <option value={PresetOption.CLASSIC}>4x2 (clásico)</option>
-              <option value={PresetOption.INTENSIVE}>5x3 (intensivo)</option>
-              <option value={PresetOption.LONG}>6x3 (larga duración)</option>
-            </select>
-            <p className="text-xs text-white/60">
-              Selecciona una combinación de días laborales y de descanso ya preparada.
+        <div className="flex items-center justify-between gap-3 rounded-xl border border-white/10 bg-slate-800/60 p-4 text-left">
+          <div className="space-y-1 text-sm text-white/70">
+            <p>
+              Gestiona las fechas seleccionadas antes de confirmarlas. Puedes ajustar cada tipo de turno o eliminarlas si te equivocas.
             </p>
           </div>
-        ) : (
-          <div className="flex flex-col gap-4 rounded-lg border border-white/10 bg-slate-900/60 p-3">
-            <p className="text-xs uppercase tracking-wide text-white/50">
-              Personaliza tu ciclo
-            </p>
-            <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
-              <label className="flex flex-col gap-2 text-xs text-white/70">
-                Días de trabajo consecutivos
-                <input
-                  type="number"
-                  min={1}
-                  value={manualWorkDays}
-                  onChange={(event) => setManualWorkDays(event.target.value)}
-                  className="rounded-lg border border-white/20 bg-slate-900 px-3 py-2 text-sm text-white focus:border-fuchsia-400 focus:outline-none focus:ring-2 focus:ring-fuchsia-500/40"
-                />
-              </label>
-              <label className="flex flex-col gap-2 text-xs text-white/70">
-                Días de descanso consecutivos
-                <input
-                  type="number"
-                  min={1}
-                  value={manualRestDays}
-                  onChange={(event) => setManualRestDays(event.target.value)}
-                  className="rounded-lg border border-white/20 bg-slate-900 px-3 py-2 text-sm text-white focus:border-fuchsia-400 focus:outline-none focus:ring-2 focus:ring-fuchsia-500/40"
-                />
-              </label>
+          <button
+            type="button"
+            onClick={onClear}
+            disabled={!hasDraft || isCommitting}
+            className="rounded-lg border border-white/20 bg-white/10 px-3 py-1 text-xs font-semibold uppercase tracking-wide text-white transition hover:bg-white/20 disabled:cursor-not-allowed disabled:opacity-40"
+          >
+            Limpiar
+          </button>
+        </div>
+
+        <div className="space-y-3">
+          {hasDraft ? (
+            <ul className="flex flex-col gap-3">
+              {orderedDraft.map((entry) => {
+                const display = getFormattedDate(entry.date)
+                return (
+                  <li
+                    key={entry.date}
+                    className="flex flex-col gap-3 rounded-2xl border border-white/10 bg-slate-900/60 p-4 sm:flex-row sm:items-center sm:gap-4"
+                  >
+                    <div className="flex-1">
+                      <p className="text-sm font-semibold capitalize text-white">
+                        {display.formatted}
+                      </p>
+                      <p className="text-xs uppercase tracking-wide text-white/50">
+                        {display.short}
+                      </p>
+                    </div>
+
+                    <div className="flex flex-wrap items-center gap-2 sm:justify-end">
+                      <span
+                        className={`inline-flex items-center rounded-full border px-3 py-1 text-xs font-semibold uppercase tracking-wide ${SHIFT_TYPE_BADGE[entry.type]}`}
+                      >
+                        {SHIFT_TYPE_LABELS[entry.type]}
+                      </span>
+                      <select
+                        value={entry.type}
+                        onChange={(event) =>
+                          onChangeType(entry.date, event.target.value as ShiftType)
+                        }
+                        disabled={isCommitting}
+                        className="rounded-lg border border-white/20 bg-slate-950 px-3 py-2 text-xs font-semibold text-white focus:border-fuchsia-400 focus:outline-none focus:ring-2 focus:ring-fuchsia-500/40 disabled:cursor-not-allowed disabled:opacity-60"
+                      >
+                        {Object.entries(SHIFT_TYPE_LABELS).map(([value, label]) => (
+                          <option key={value} value={value}>
+                            {label}
+                          </option>
+                        ))}
+                      </select>
+                      <button
+                        type="button"
+                        onClick={() => onRemoveDate(entry.date)}
+                        disabled={isCommitting}
+                        className="rounded-lg border border-white/20 bg-white/10 px-3 py-1 text-xs font-semibold uppercase tracking-wide text-white transition hover:bg-white/20 disabled:cursor-not-allowed disabled:opacity-40"
+                      >
+                        Quitar
+                      </button>
+                    </div>
+                  </li>
+                )
+              })}
+            </ul>
+          ) : (
+            <div className="rounded-2xl border border-dashed border-white/10 bg-slate-900/40 p-6 text-center text-sm text-white/60">
+              No hay fechas seleccionadas todavía. Usa el calendario para crear tu borrador.
             </div>
-            <p className="text-xs text-white/60">
-              Define cuántos días seguidos trabajarás y cuántos descansarás antes de repetir el patrón.
-            </p>
-          </div>
-        )}
-
-        <div className="text-xs text-white/70">
-          {modelDescription.work} días de trabajo / {modelDescription.rest} de
-          descanso
-          <br />
-          <span className="text-blue-300">
-            {modelDescription.totalDays} días por ciclo
-          </span>
+          )}
         </div>
-      </fieldset>
 
-      {/* Errores */}
-      {error && <p className="mb-3 text-center text-sm text-red-400">{error}</p>}
-      {submitError && (
-        <p className="mb-3 text-center text-sm text-red-400">{submitError}</p>
-      )}
-
-      {/* Botón con spinner */}
-      <motion.button
-        whileTap={{ scale: 0.97 }}
-        type="submit"
-        disabled={isGenerating}
-        className="flex w-full items-center justify-center gap-2 rounded-lg bg-gradient-to-r from-blue-500 to-indigo-500 px-4 py-3 text-sm font-semibold text-white shadow-lg transition hover:from-blue-400 hover:to-indigo-400 disabled:cursor-not-allowed disabled:opacity-60"
-      >
-        {isGenerating ? (
-          <>
-            <motion.div
-              className="h-4 w-4 rounded-full border-2 border-white/40 border-t-white"
-              animate={{ rotate: 360 }}
-              transition={{ repeat: Infinity, duration: 1, ease: "linear" }}
-            />
-            Generando...
-          </>
-        ) : (
-          "Generar rotación"
+        {error && (
+          <p className="text-center text-sm text-red-400">
+            {error}
+          </p>
         )}
-      </motion.button>
 
-      {/* Tagline */}
-      <p className="mt-6 text-center text-[11px] tracking-[0.25em] text-white/40">
-        Planifica sin complicaciones
-      </p>
-    </form>
+        <motion.button
+          whileTap={{ scale: hasDraft && !isCommitting ? 0.97 : 1 }}
+          type="button"
+          onClick={onCommit}
+          disabled={!hasDraft || isCommitting}
+          className="flex w-full items-center justify-center gap-2 rounded-lg bg-gradient-to-r from-blue-500 to-indigo-500 px-4 py-3 text-sm font-semibold text-white shadow-lg transition hover:from-blue-400 hover:to-indigo-400 disabled:cursor-not-allowed disabled:opacity-60"
+        >
+          {isCommitting ? (
+            <>
+              <motion.div
+                className="h-4 w-4 rounded-full border-2 border-white/40 border-t-white"
+                animate={{ rotate: 360 }}
+                transition={{ repeat: Infinity, duration: 1, ease: "linear" }}
+              />
+              Guardando...
+            </>
+          ) : (
+            "Confirmar rotación"
+          )}
+        </motion.button>
+
+        <p className="text-center text-[11px] tracking-[0.25em] text-white/40">
+          Planifica sin complicaciones
+        </p>
+      </div>
+    </section>
   )
 }
+
+export type { ManualRotationDraftEntry, ManualRotationPanelProps }

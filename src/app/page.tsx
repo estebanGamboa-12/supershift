@@ -5,7 +5,6 @@ import { differenceInCalendarDays, format } from "date-fns"
 import { es } from "date-fns/locale"
 import type { ShiftEvent, ShiftType } from "@/types/shifts"
 import EditShiftModal from "@/components/EditShiftModal"
-import AddShiftForm from "@/components/AddShiftForm"
 import type { ManualRotationDay } from "@/components/ManualRotationBuilder"
 import ShiftPlannerLab from "@/components/ShiftPlannerLab"
 import DashboardSidebar from "@/components/dashboard/DashboardSidebar"
@@ -637,11 +636,6 @@ export default function Home() {
                     errorMessage={rotationError}
                   />
 
-                  <AddShiftForm
-                    onAdd={handleAddShift}
-                    selectedDate={selectedDateFromCalendar}
-                    onDateConsumed={() => setSelectedDateFromCalendar(null)}
-                  />
                 </section>
               </div>
 
@@ -769,11 +763,6 @@ export default function Home() {
                         onCommit={handleManualRotationConfirm}
                         isCommitting={isCommittingRotation}
                         errorMessage={rotationError}
-                      />
-                      <AddShiftForm
-                        onAdd={handleAddShift}
-                        selectedDate={selectedDateFromCalendar}
-                        onDateConsumed={() => setSelectedDateFromCalendar(null)}
                       />
                     </div>
                   )}

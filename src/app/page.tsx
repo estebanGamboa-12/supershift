@@ -5,7 +5,7 @@ import { differenceInCalendarDays, format } from "date-fns"
 import type { ShiftEvent, ShiftType } from "@/types/shifts"
 import EditShiftModal from "@/components/EditShiftModal"
 import AddShiftForm from "@/components/AddShiftForm"
-import RotationForm from "@/components/RotationForm"
+import ManualRotationPanel from "@/components/RotationForm"
 import DashboardSidebar from "@/components/dashboard/DashboardSidebar"
 import DashboardHeader from "@/components/dashboard/DashboardHeader"
 import PlanningSection from "@/components/dashboard/PlanningSection"
@@ -58,6 +58,11 @@ export default function Home() {
   const [currentUser, setCurrentUser] = useState<UserSummary | null>(null)
   const [isLoadingUsers, setIsLoadingUsers] = useState(true)
   const [userError, setUserError] = useState<string | null>(null)
+  const [rotationDraft, setRotationDraft] = useState<
+    { date: string; type: ShiftType }[]
+  >([])
+  const [isCommittingRotation, setIsCommittingRotation] = useState(false)
+  const [rotationError, setRotationError] = useState<string | null>(null)
 
   const mapApiShift = useCallback((shift: ApiShift): ShiftEvent => {
     return {
@@ -198,37 +203,86 @@ export default function Home() {
     [currentUser, mapApiShift, parseJsonResponse, sortByDate]
   )
 
-  const handleGenerateRotation = useCallback(
-    async ({ startDate, cycle }: { startDate: string; cycle: number[] }) => {
-      if (!currentUser) {
-        throw new Error("Selecciona un usuario antes de generar rotaciones")
-      }
-
-      try {
-        const response = await fetch("/api/shifts/generate", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            startDate,
-            cycle,
-            userId: currentUser.id,
-          }),
-        })
-
-        const data = await parseJsonResponse<{ shifts: ApiShift[] }>(response)
-        const generatedShifts = data.shifts.map((shift) => mapApiShift(shift))
-        setShifts(sortByDate(generatedShifts))
-      } catch (error) {
-        console.error("No se pudo generar la rotación", error)
-        throw error
-      }
-    },
-    [currentUser, mapApiShift, parseJsonResponse, sortByDate]
-  )
-
   const handleSelectSlot = useCallback((slot: { start: Date }) => {
-    setSelectedDateFromCalendar(format(slot.start, "yyyy-MM-dd"))
+    const date = format(slot.start, "yyyy-MM-dd")
+    setSelectedDateFromCalendar(date)
+    setRotationError(null)
+    setRotationDraft((current) => {
+      if (current.some((entry) => entry.date === date)) {
+        return current
+      }
+
+      return [...current, { date, type: "WORK" }]
+    })
   }, [])
+
+  const handleDraftTypeChange = useCallback((date: string, type: ShiftType) => {
+    setRotationError(null)
+    setRotationDraft((current) =>
+      current.map((entry) =>
+        entry.date === date
+          ? {
+              ...entry,
+              type,
+            }
+          : entry
+      )
+    )
+  }, [])
+
+  const handleDraftRemoveDate = useCallback((date: string) => {
+    setRotationError(null)
+    setRotationDraft((current) => current.filter((entry) => entry.date !== date))
+  }, [])
+
+  const handleDraftClear = useCallback(() => {
+    setRotationError(null)
+    setRotationDraft([])
+  }, [])
+
+  const handleCommitRotationDraft = useCallback(async () => {
+    if (rotationDraft.length === 0) {
+      return
+    }
+
+    const queue = [...rotationDraft].sort(
+      (a, b) => new Date(a.date).getTime() - new Date(b.date).getTime()
+    )
+    const committed: string[] = []
+
+    const removeCommitted = () => {
+      if (committed.length === 0) {
+        return
+      }
+
+      const committedSet = new Set(committed)
+      setRotationDraft((current) =>
+        current.filter((entry) => !committedSet.has(entry.date))
+      )
+    }
+
+    try {
+      setIsCommittingRotation(true)
+      setRotationError(null)
+
+      for (const entry of queue) {
+        await handleAddShift({ date: entry.date, type: entry.type })
+        committed.push(entry.date)
+      }
+
+      removeCommitted()
+    } catch (error) {
+      removeCommitted()
+
+      const message =
+        error instanceof Error
+          ? error.message
+          : "No se pudo guardar la rotación. Inténtalo más tarde."
+      setRotationError(message)
+    } finally {
+      setIsCommittingRotation(false)
+    }
+  }, [handleAddShift, rotationDraft])
 
   const handleSelectShift = useCallback((shift: ShiftEvent) => {
     setSelectedShift(shift)
@@ -590,7 +644,15 @@ export default function Home() {
                 </section>
 
                 <aside className="space-y-6 lg:col-span-3">
-                  <RotationForm onGenerate={handleGenerateRotation} />
+                  <ManualRotationPanel
+                    draft={rotationDraft}
+                    onChangeType={handleDraftTypeChange}
+                    onRemoveDate={handleDraftRemoveDate}
+                    onClear={handleDraftClear}
+                    onCommit={handleCommitRotationDraft}
+                    isCommitting={isCommittingRotation}
+                    error={rotationError}
+                  />
 
                   <AddShiftForm
                     onAdd={handleAddShift}
@@ -641,7 +703,15 @@ export default function Home() {
 
                 {activeMobileTab === "settings" && (
                   <div className="space-y-6">
-                    <RotationForm onGenerate={handleGenerateRotation} />
+                    <ManualRotationPanel
+                      draft={rotationDraft}
+                      onChangeType={handleDraftTypeChange}
+                      onRemoveDate={handleDraftRemoveDate}
+                      onClear={handleDraftClear}
+                      onCommit={handleCommitRotationDraft}
+                      isCommitting={isCommittingRotation}
+                      error={rotationError}
+                    />
                     <AddShiftForm
                       onAdd={handleAddShift}
                       selectedDate={selectedDateFromCalendar}

@@ -11,7 +11,7 @@ import ShiftPlannerLab from "@/components/ShiftPlannerLab"
 import DashboardSidebar from "@/components/dashboard/DashboardSidebar"
 // eslint-disable-next-line @typescript-eslint/no-unused-vars
 import DashboardHeader from "@/components/dashboard/DashboardHeader"
-import PlanningSection from "@/components/dashboard/PlanningSection"
+import CalendarView from "@/components/CalendarView"
 import ShiftDistribution from "@/components/dashboard/ShiftDistribution"
 import NextShiftCard from "@/components/dashboard/NextShiftCard"
 import PlanningHealthCard from "@/components/dashboard/PlanningHealthCard"
@@ -255,10 +255,6 @@ export default function Home() {
 
   const handleSelectShift = useCallback((shift: ShiftEvent) => {
     setSelectedShift(shift)
-  }, [])
-
-  const handleGoToToday = useCallback(() => {
-    setSelectedDateFromCalendar(format(new Date(), "yyyy-MM-dd"))
   }, [])
 
   const handleUpdateShift = useCallback(
@@ -736,11 +732,10 @@ export default function Home() {
                         daysUntilNextShift={daysUntilNextShift}
                         shiftTypeLabels={SHIFT_TYPE_LABELS}
                       />
-                      <PlanningSection
+                      <CalendarView
                         shifts={orderedShifts}
-                        onSelectShift={handleSelectShift}
+                        onSelectEvent={handleSelectShift}
                         onSelectSlot={handleSelectSlot}
-                        onGoToToday={handleGoToToday}
                       />
                     </div>
                   )}

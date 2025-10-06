@@ -248,6 +248,8 @@ type RotationDay = {
   date: string
   type: ShiftType
   pluses: ShiftPluses
+  note?: string
+  color?: string
 }
 
 type RotationSummary = {

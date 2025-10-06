@@ -5,9 +5,8 @@ import { differenceInCalendarDays, format } from "date-fns"
 import type { ShiftEvent, ShiftType } from "@/types/shifts"
 import EditShiftModal from "@/components/EditShiftModal"
 import AddShiftForm from "@/components/AddShiftForm"
-import ManualRotationBuilder, {
-  type ManualRotationDay,
-} from "@/components/ManualRotationBuilder"
+import type { ManualRotationDay } from "@/components/ManualRotationBuilder"
+import ShiftPlannerLab from "@/components/ShiftPlannerLab"
 import DashboardSidebar from "@/components/dashboard/DashboardSidebar"
 import DashboardHeader from "@/components/dashboard/DashboardHeader"
 import PlanningSection from "@/components/dashboard/PlanningSection"
@@ -231,7 +230,11 @@ export default function Home() {
         )
 
         for (const entry of queue) {
-          await handleAddShift({ date: entry.date, type: entry.type })
+          await handleAddShift({
+            date: entry.date,
+            type: entry.type,
+            ...(entry.note ? { note: entry.note } : {}),
+          })
         }
 
         setRotationBuilderResetKey((current) => current + 1)
@@ -608,11 +611,10 @@ export default function Home() {
                 </section>
 
                 <aside className="space-y-6 lg:col-span-3">
-                  <ManualRotationBuilder
-                    key={rotationBuilderResetKey}
-                    onConfirm={handleManualRotationConfirm}
-                    confirmLabel="Guardar rotación"
-                    disabled={isCommittingRotation}
+                  <ShiftPlannerLab
+                    resetSignal={rotationBuilderResetKey}
+                    onCommit={handleManualRotationConfirm}
+                    isCommitting={isCommittingRotation}
                     errorMessage={rotationError}
                   />
 
@@ -665,11 +667,10 @@ export default function Home() {
 
                 {activeMobileTab === "settings" && (
                   <div className="space-y-6">
-                    <ManualRotationBuilder
-                      key={`mobile-${rotationBuilderResetKey}`}
-                      onConfirm={handleManualRotationConfirm}
-                      confirmLabel="Guardar rotación"
-                      disabled={isCommittingRotation}
+                    <ShiftPlannerLab
+                      resetSignal={rotationBuilderResetKey}
+                      onCommit={handleManualRotationConfirm}
+                      isCommitting={isCommittingRotation}
                       errorMessage={rotationError}
                     />
                     <AddShiftForm

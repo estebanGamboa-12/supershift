@@ -2,12 +2,14 @@
 
 import { useState, useMemo, useCallback, useEffect } from "react"
 import { differenceInCalendarDays, format } from "date-fns"
+import { es } from "date-fns/locale"
 import type { ShiftEvent, ShiftType } from "@/types/shifts"
 import EditShiftModal from "@/components/EditShiftModal"
 import AddShiftForm from "@/components/AddShiftForm"
 import type { ManualRotationDay } from "@/components/ManualRotationBuilder"
 import ShiftPlannerLab from "@/components/ShiftPlannerLab"
 import DashboardSidebar from "@/components/dashboard/DashboardSidebar"
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
 import DashboardHeader from "@/components/dashboard/DashboardHeader"
 import PlanningSection from "@/components/dashboard/PlanningSection"
 import ShiftDistribution from "@/components/dashboard/ShiftDistribution"
@@ -392,6 +394,29 @@ export default function Home() {
 
   const activeShiftTypes = Object.keys(typeCounts).length
 
+  const mobileGreeting = useMemo(() => {
+    if (!currentUser?.name) {
+      return "Supershift"
+    }
+
+    const [firstName] = currentUser.name.split(" ")
+    return firstName && firstName.trim().length > 0
+      ? firstName
+      : currentUser.name
+  }, [currentUser])
+
+  const nextShiftCountdownLabel = useMemo(() => {
+    if (daysUntilNextShift === null) {
+      return "Sin turno programado"
+    }
+
+    if (daysUntilNextShift === 0) {
+      return "Hoy"
+    }
+
+    return `En ${daysUntilNextShift} día${daysUntilNextShift === 1 ? "" : "s"}`
+  }, [daysUntilNextShift])
+
   useEffect(() => {
     if (!selectedDateFromCalendar) return
     if (typeof window === "undefined") return
@@ -624,60 +649,140 @@ export default function Home() {
                 </section>
               </div>
 
-              <div className="space-y-6 lg:hidden">
-                {activeMobileTab === "calendar" && (
-                  <div className="space-y-6">
-                    <NextShiftCard
-                      nextShift={nextShift}
-                      daysUntilNextShift={daysUntilNextShift}
-                      shiftTypeLabels={SHIFT_TYPE_LABELS}
-                    />
-                    <PlanningSection
-                      shifts={orderedShifts}
-                      onSelectShift={handleSelectShift}
-                      onSelectSlot={handleSelectSlot}
-                      onGoToToday={handleGoToToday}
-                    />
-                  </div>
-                )}
-
-                {activeMobileTab === "stats" && (
-                  <div className="space-y-6">
-                    <PlanningHealthCard
-                      currentMonthShiftCount={currentMonthShifts.length}
-                      totalShiftCount={orderedShifts.length}
-                      activeShiftTypes={activeShiftTypes}
-                    />
-                    <ShiftDistribution
-                      typeCounts={typeCounts}
-                      totalShifts={orderedShifts.length}
-                      shiftTypeLabels={SHIFT_TYPE_LABELS}
-                    />
-                  </div>
-                )}
-
-                {activeMobileTab === "team" && (
-                  <TeamSpotlight
-                    upcomingShifts={upcomingShifts}
-                    shiftTypeLabels={SHIFT_TYPE_LABELS}
+              <div className="lg:hidden">
+                <section className="relative -mx-4 mt-2">
+                  <div
+                    className="pointer-events-none absolute inset-x-4 top-0 h-full rounded-3xl bg-[radial-gradient(circle_at_top,_rgba(59,130,246,0.22),_transparent_65%)] blur-3xl"
+                    aria-hidden
                   />
-                )}
-
-                {activeMobileTab === "settings" && (
-                  <div className="space-y-6">
-                    <ShiftPlannerLab
-                      resetSignal={rotationBuilderResetKey}
-                      onCommit={handleManualRotationConfirm}
-                      isCommitting={isCommittingRotation}
-                      errorMessage={rotationError}
-                    />
-                    <AddShiftForm
-                      onAdd={handleAddShift}
-                      selectedDate={selectedDateFromCalendar}
-                      onDateConsumed={() => setSelectedDateFromCalendar(null)}
-                    />
+                  <div className="relative mx-auto max-w-3xl overflow-hidden rounded-3xl border border-white/10 bg-slate-950/80 px-5 py-6 shadow-2xl shadow-blue-500/20 backdrop-blur">
+                    <div className="flex items-center justify-between gap-4">
+                      <div>
+                        <p className="text-xs font-semibold uppercase tracking-wide text-blue-200/80">
+                          Tu panel hoy
+                        </p>
+                        <h2 className="text-2xl font-bold text-white sm:text-3xl">
+                          Hola, {mobileGreeting}
+                        </h2>
+                      </div>
+                      <button
+                        type="button"
+                        onClick={handleOpenMobileAdd}
+                        className="inline-flex h-12 w-12 items-center justify-center rounded-2xl border border-blue-400/40 bg-gradient-to-br from-blue-500/40 to-indigo-500/40 text-2xl font-bold text-white shadow-lg shadow-blue-500/30 transition hover:from-blue-400/50 hover:to-indigo-400/50 focus:outline-none focus:ring-2 focus:ring-blue-400/60"
+                        aria-label="Añadir turno"
+                      >
+                        +
+                      </button>
+                    </div>
+                    <p className="mt-4 text-sm text-white/70">
+                      Mantén el control de tus turnos con la misma experiencia premium que en escritorio.
+                    </p>
+                    <div className="mt-5 grid grid-cols-2 gap-3 text-xs text-white/70">
+                      <div className="rounded-2xl border border-white/5 bg-white/5 px-3 py-3 shadow-inner shadow-blue-500/10">
+                        <p className="text-[11px] uppercase tracking-wide text-white/60">
+                          Este mes
+                        </p>
+                        <p className="mt-1 text-2xl font-semibold text-white">
+                          {currentMonthShifts.length}
+                        </p>
+                        <p className="mt-1 text-[11px] text-white/50">
+                          Turnos programados
+                        </p>
+                      </div>
+                      <div className="rounded-2xl border border-white/5 bg-white/5 px-3 py-3 shadow-inner shadow-blue-500/10">
+                        <p className="text-[11px] uppercase tracking-wide text-white/60">
+                          Próximo turno
+                        </p>
+                        <p className="mt-1 text-base font-semibold text-white">
+                          {nextShift
+                            ? format(new Date(nextShift.date), "d MMM", { locale: es })
+                            : "Pendiente"}
+                        </p>
+                        <p className="mt-1 text-[11px] text-white/50">
+                          {nextShiftCountdownLabel}
+                        </p>
+                      </div>
+                      <div className="rounded-2xl border border-white/5 bg-white/5 px-3 py-3 shadow-inner shadow-blue-500/10">
+                        <p className="text-[11px] uppercase tracking-wide text-white/60">
+                          Tipos activos
+                        </p>
+                        <p className="mt-1 text-2xl font-semibold text-white">
+                          {activeShiftTypes}
+                        </p>
+                        <p className="mt-1 text-[11px] text-white/50">
+                          Variaciones en uso
+                        </p>
+                      </div>
+                      <div className="rounded-2xl border border-white/5 bg-white/5 px-3 py-3 shadow-inner shadow-blue-500/10">
+                        <p className="text-[11px] uppercase tracking-wide text-white/60">
+                          Equipo
+                        </p>
+                        <p className="mt-1 text-base font-semibold text-white">
+                          {users.length > 0 ? `${users.length} miembros` : "Sin datos"}
+                        </p>
+                        <p className="mt-1 text-[11px] text-white/50">
+                          Activos en Supershift
+                        </p>
+                      </div>
+                    </div>
                   </div>
-                )}
+                </section>
+
+                <div className="mx-auto mt-6 flex w-full max-w-3xl flex-col gap-6 pb-32">
+                  {activeMobileTab === "calendar" && (
+                    <div className="flex flex-col gap-6">
+                      <NextShiftCard
+                        nextShift={nextShift}
+                        daysUntilNextShift={daysUntilNextShift}
+                        shiftTypeLabels={SHIFT_TYPE_LABELS}
+                      />
+                      <PlanningSection
+                        shifts={orderedShifts}
+                        onSelectShift={handleSelectShift}
+                        onSelectSlot={handleSelectSlot}
+                        onGoToToday={handleGoToToday}
+                      />
+                    </div>
+                  )}
+
+                  {activeMobileTab === "stats" && (
+                    <div className="flex flex-col gap-6">
+                      <PlanningHealthCard
+                        currentMonthShiftCount={currentMonthShifts.length}
+                        totalShiftCount={orderedShifts.length}
+                        activeShiftTypes={activeShiftTypes}
+                      />
+                      <ShiftDistribution
+                        typeCounts={typeCounts}
+                        totalShifts={orderedShifts.length}
+                        shiftTypeLabels={SHIFT_TYPE_LABELS}
+                      />
+                    </div>
+                  )}
+
+                  {activeMobileTab === "team" && (
+                    <TeamSpotlight
+                      upcomingShifts={upcomingShifts}
+                      shiftTypeLabels={SHIFT_TYPE_LABELS}
+                    />
+                  )}
+
+                  {activeMobileTab === "settings" && (
+                    <div className="flex flex-col gap-6">
+                      <ShiftPlannerLab
+                        resetSignal={rotationBuilderResetKey}
+                        onCommit={handleManualRotationConfirm}
+                        isCommitting={isCommittingRotation}
+                        errorMessage={rotationError}
+                      />
+                      <AddShiftForm
+                        onAdd={handleAddShift}
+                        selectedDate={selectedDateFromCalendar}
+                        onDateConsumed={() => setSelectedDateFromCalendar(null)}
+                      />
+                    </div>
+                  )}
+                </div>
               </div>
             </div>
           </main>
@@ -687,7 +792,7 @@ export default function Home() {
       <button
         type="button"
         onClick={handleOpenMobileAdd}
-        className="fixed bottom-24 right-6 z-40 inline-flex h-14 w-14 items-center justify-center rounded-full bg-gradient-to-r from-blue-500 to-indigo-500 text-3xl font-bold text-white shadow-lg shadow-blue-500/40 transition hover:from-blue-400 hover:to-indigo-400 focus:outline-none focus:ring-2 focus:ring-blue-400/60 lg:hidden"
+        className="fixed bottom-[6.5rem] right-6 z-40 inline-flex h-16 w-16 items-center justify-center rounded-[28px] border border-blue-400/40 bg-gradient-to-br from-blue-500/70 to-indigo-500/70 text-3xl font-bold text-white shadow-2xl shadow-blue-500/40 backdrop-blur transition hover:from-blue-400/80 hover:to-indigo-400/80 focus:outline-none focus:ring-2 focus:ring-blue-400/60 lg:hidden"
         aria-label="Añadir turno"
       >
         +

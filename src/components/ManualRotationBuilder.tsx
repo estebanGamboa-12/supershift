@@ -1,12 +1,221 @@
 "use client"
 
 import { useEffect, useMemo, useState, useTransition } from "react"
-import { DayPicker } from "react-day-picker"
-import "react-day-picker/dist/style.css"
-import { format, parseISO } from "date-fns"
+import type { SVGProps } from "react"
+import {
+  addDays,
+  addMonths,
+  format,
+  isSameMonth,
+  isToday,
+  parseISO,
+  startOfMonth,
+  startOfWeek,
+  subMonths,
+} from "date-fns"
 import { es } from "date-fns/locale"
 import { AnimatePresence, motion } from "framer-motion"
-import { CalendarIcon, Loader2, Sparkles, Trash2, XCircle } from "lucide-react"
+
+const WEEK_STARTS_ON = 1
+
+type InlineCalendarProps = {
+  selectedDates: Date[]
+  onSelectDate: (date: Date) => void
+}
+
+function InlineCalendar({ selectedDates, onSelectDate }: InlineCalendarProps) {
+  const [currentMonth, setCurrentMonth] = useState(() => new Date())
+
+  const calendarStart = useMemo(
+    () => startOfWeek(startOfMonth(currentMonth), { weekStartsOn: WEEK_STARTS_ON }),
+    [currentMonth],
+  )
+
+  const calendarDays = useMemo(
+    () => Array.from({ length: 42 }, (_, index) => addDays(calendarStart, index)),
+    [calendarStart],
+  )
+
+  const weekdays = useMemo(() => {
+    const weekRef = startOfWeek(new Date(), { weekStartsOn: WEEK_STARTS_ON })
+    return Array.from({ length: 7 }, (_, index) =>
+      format(addDays(weekRef, index), "EEEEEE", { locale: es }),
+    )
+  }, [])
+
+  const selectedKeys = useMemo(() => {
+    return new Set(
+      selectedDates
+        .map((date) => format(date, "yyyy-MM-dd"))
+        .filter((value) => typeof value === "string"),
+    )
+  }, [selectedDates])
+
+  const goToPreviousMonth = () => {
+    setCurrentMonth((month) => subMonths(month, 1))
+  }
+
+  const goToNextMonth = () => {
+    setCurrentMonth((month) => addMonths(month, 1))
+  }
+
+  const goToToday = () => {
+    setCurrentMonth(new Date())
+  }
+
+  return (
+    <div className="space-y-4">
+      <header className="flex flex-col gap-3 rounded-2xl border border-white/10 bg-slate-950/40 p-4 sm:flex-row sm:items-center sm:justify-between">
+        <div className="inline-flex items-center gap-2 text-xs sm:text-[13px]">
+          <button
+            type="button"
+            onClick={goToPreviousMonth}
+            className="rounded-full border border-white/10 bg-white/5 px-3 py-1 font-semibold text-white/70 transition hover:border-sky-400/60 hover:text-sky-200"
+          >
+            Ant.
+          </button>
+          <button
+            type="button"
+            onClick={goToToday}
+            className="rounded-full border border-sky-500/60 bg-sky-500/80 px-4 py-1.5 font-semibold text-white shadow-sm transition hover:bg-sky-500"
+          >
+            Hoy
+          </button>
+          <button
+            type="button"
+            onClick={goToNextMonth}
+            className="rounded-full border border-white/10 bg-white/5 px-3 py-1 font-semibold text-white/70 transition hover:border-sky-400/60 hover:text-sky-200"
+          >
+            Sig.
+          </button>
+        </div>
+
+        <div className="text-right">
+          <p className="text-base font-semibold text-white sm:text-lg">
+            {format(currentMonth, "MMMM yyyy", { locale: es })}
+          </p>
+          <p className="text-[11px] uppercase tracking-[0.35em] text-white/40">Calendario</p>
+        </div>
+      </header>
+
+      <div className="overflow-hidden rounded-3xl border border-white/5 bg-slate-900/60">
+        <div className="grid grid-cols-7 gap-px border-b border-white/5 bg-slate-900/60 text-[11px] font-semibold uppercase tracking-wide text-white/60 sm:text-xs">
+          {weekdays.map((day) => (
+            <div key={day} className="bg-slate-950/40 py-2 text-center">
+              {day}
+            </div>
+          ))}
+        </div>
+
+        <div className="grid grid-cols-7 grid-rows-6 gap-px bg-slate-900/50">
+          {calendarDays.map((day) => {
+            const key = format(day, "yyyy-MM-dd")
+            const isSelected = selectedKeys.has(key)
+            const isCurrentMonth = isSameMonth(day, currentMonth)
+            const isCurrentDay = isToday(day)
+
+            return (
+              <button
+                key={key}
+                type="button"
+                onClick={() => onSelectDate(day)}
+                className={`flex h-full flex-col gap-1 rounded-2xl border border-transparent p-3 text-left transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sky-400/70 ${
+                  isCurrentMonth ? "text-white/90" : "text-white/40"
+                } ${
+                  isSelected
+                    ? "bg-sky-500/20 text-sky-200 shadow-[0_8px_24px_rgba(14,165,233,0.25)]"
+                    : "bg-slate-950/40 hover:border-sky-400/30 hover:bg-slate-900/60"
+                }`}
+              >
+                <span
+                  className={`flex h-7 w-7 items-center justify-center rounded-full text-sm font-semibold transition ${
+                    isCurrentDay
+                      ? "bg-fuchsia-500 text-white shadow-lg shadow-fuchsia-500/50"
+                      : "bg-white/5 text-white/80"
+                  } ${isSelected ? "ring-2 ring-sky-300" : ""}`}
+                >
+                  {format(day, "d")}
+                </span>
+                <span className="text-[11px] uppercase tracking-wide text-white/40">
+                  {format(day, "EEE", { locale: es })}
+                </span>
+              </button>
+            )
+          })}
+        </div>
+      </div>
+    </div>
+  )
+}
+
+const iconStrokeProps = {
+  fill: "none" as const,
+  stroke: "currentColor",
+  strokeWidth: 1.5,
+  strokeLinecap: "round" as const,
+  strokeLinejoin: "round" as const,
+}
+
+function CalendarIcon(props: SVGProps<SVGSVGElement>) {
+  return (
+    <svg viewBox="0 0 24 24" {...props} {...iconStrokeProps}>
+      <rect x={3} y={4} width={18} height={17} rx={2.5} ry={2.5} />
+      <line x1={3} y1={9} x2={21} y2={9} />
+      <line x1={8} y1={2.5} x2={8} y2={6} />
+      <line x1={16} y1={2.5} x2={16} y2={6} />
+    </svg>
+  )
+}
+
+function Sparkles(props: SVGProps<SVGSVGElement>) {
+  return (
+    <svg viewBox="0 0 24 24" {...props} {...iconStrokeProps}>
+      <path d="M8 4.5 9.5 9l4.5 1.5L9.5 12 8 16.5 6.5 12 2 10.5 6.5 9 8 4.5Z" />
+      <path d="M16 5 17 7l2 1-2 1-1 2-1-2-2-1 2-1 1-2Z" />
+      <path d="M15 14.5 16 17l2.5.75L16 18.5l-1 2.5-1-2.5-2.5-.75L15 17Z" />
+    </svg>
+  )
+}
+
+function Trash2(props: SVGProps<SVGSVGElement>) {
+  return (
+    <svg viewBox="0 0 24 24" {...props} {...iconStrokeProps}>
+      <path d="M4 7h16" />
+      <path d="M9 4h6l1 2H8Z" />
+      <path d="M18 7v12a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2V7" />
+      <line x1={10} y1={11} x2={10} y2={17} />
+      <line x1={14} y1={11} x2={14} y2={17} />
+    </svg>
+  )
+}
+
+function XCircle(props: SVGProps<SVGSVGElement>) {
+  return (
+    <svg viewBox="0 0 24 24" {...props} {...iconStrokeProps}>
+      <circle cx={12} cy={12} r={9} />
+      <line x1={9} y1={9} x2={15} y2={15} />
+      <line x1={15} y1={9} x2={9} y2={15} />
+    </svg>
+  )
+}
+
+function Loader2(props: SVGProps<SVGSVGElement>) {
+  return (
+    <svg viewBox="0 0 24 24" {...props} {...iconStrokeProps}>
+      <path d="M12 4a8 8 0 1 1-5.657 2.343" />
+    </svg>
+  )
+}
+
+function AlertCircle(props: SVGProps<SVGSVGElement>) {
+  return (
+    <svg viewBox="0 0 24 24" {...props} {...iconStrokeProps}>
+      <circle cx={12} cy={12} r={9} />
+      <line x1={12} y1={8} x2={12} y2={12.5} />
+      <circle cx={12} cy={16} r={0.5} fill="currentColor" stroke="none" />
+    </svg>
+  )
+}
 
 const SHIFT_TYPES = ["WORK", "REST", "NIGHT", "VACATION", "CUSTOM"] as const
 
@@ -53,6 +262,7 @@ type ManualRotationBuilderProps = {
   onConfirm?: (days: RotationDay[], summary: RotationSummary) => void | Promise<void>
   confirmLabel?: string
   disabled?: boolean
+  errorMessage?: string | null
 }
 
 type EditorState = {
@@ -73,6 +283,7 @@ export function ManualRotationBuilder({
   onConfirm,
   confirmLabel = "Confirmar",
   disabled = false,
+  errorMessage = null,
 }: ManualRotationBuilderProps) {
   const [days, setDays] = useState<RotationDay[]>(() =>
     initialDays.map((day) => ({
@@ -211,26 +422,8 @@ export function ManualRotationBuilder({
             </div>
           </header>
 
-          <div className="overflow-hidden rounded-3xl border border-white/5 bg-slate-900/50 p-4 shadow-inner shadow-slate-900/40">
-            <DayPicker
-              mode="multiple"
-              locale={es}
-              selected={selectedDates}
-              onDayClick={handleDayClick}
-              modifiersStyles={{
-                selected: {
-                  background: "rgba(56, 189, 248, 0.35)",
-                  color: "#0ea5e9",
-                  boxShadow: "0 8px 24px rgba(14,165,233,0.35)",
-                  borderRadius: "12px",
-                },
-                today: {
-                  fontWeight: 600,
-                  color: "#f472b6",
-                },
-              }}
-              className="mx-auto text-sm text-slate-200 [&_.rdp-head_cell]:text-xs [&_.rdp-day_focus]:outline-none [&_.rdp-day_focus]:ring-2 [&_.rdp-day_focus]:ring-sky-400/70 [&_.rdp-day_selected]:focus-visible:outline-none"
-            />
+          <div className="p-2">
+            <InlineCalendar selectedDates={selectedDates} onSelectDate={handleDayClick} />
           </div>
         </section>
 
@@ -427,6 +620,15 @@ export function ManualRotationBuilder({
                 </span>
               </button>
             </div>
+
+            {errorMessage ? (
+              <div className="mt-4 inline-flex w-full items-start gap-3 rounded-2xl border border-rose-400/40 bg-rose-500/10 px-4 py-3 text-left text-sm text-rose-100">
+                <span className="mt-1">
+                  <AlertCircle className="h-4 w-4" />
+                </span>
+                <span>{errorMessage}</span>
+              </div>
+            ) : null}
           </div>
         </section>
       </div>
@@ -546,5 +748,7 @@ export function ManualRotationBuilder({
     </div>
   )
 }
+
+export type { RotationDay as ManualRotationDay, RotationSummary }
 
 export default ManualRotationBuilder

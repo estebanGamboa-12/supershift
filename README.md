@@ -11,7 +11,7 @@ Aplicación Next.js que muestra la planificación de turnos y ahora obtiene los 
 ## Configuración de la base de datos
 
 1. Inicia el servidor MySQL de XAMPP.
-2. Importa el fichero [`supershift.sql`](./supershift.sql) desde phpMyAdmin u otra herramienta para crear la base de datos y sus tablas.
+2. Importa el fichero [`supershift.sql`](./supershift.sql) (o el situado en [`database/supershift.sql`](./database/supershift.sql)) desde phpMyAdmin u otra herramienta para crear la base de datos completa con todas las tablas y datos de ejemplo.
 3. Crea un usuario con permisos de lectura y escritura (por defecto se usa `root` sin contraseña, tal como viene en XAMPP).
 
 ## Variables de entorno
@@ -30,6 +30,13 @@ Variables disponibles:
 - `DB_PASSWORD`: contraseña del usuario
 - `DB_NAME`: nombre de la base de datos importada (`supershift`)
 - `DEFAULT_CALENDAR_ID`: identificador del calendario por defecto al crear turnos (usa `2` para el calendario de Esteban incluido en la base de datos de ejemplo)
+
+### Usuarios de ejemplo
+
+La importación crea dos cuentas listas para iniciar sesión en la aplicación:
+
+- **Admin Supershift** → correo `admin@supershift.local` y contraseña `admin123`.
+- **Esteban** → correo `esteban@example.com` y contraseña `supershift`.
 
 ## Instalación de dependencias
 

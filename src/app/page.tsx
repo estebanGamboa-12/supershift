@@ -5,7 +5,9 @@ import { differenceInCalendarDays, format } from "date-fns"
 import type { ShiftEvent, ShiftType } from "@/types/shifts"
 import EditShiftModal from "@/components/EditShiftModal"
 import AddShiftForm from "@/components/AddShiftForm"
-import ManualRotationPanel from "@/components/RotationForm"
+import ManualRotationBuilder, {
+  type ManualRotationDay,
+} from "@/components/ManualRotationBuilder"
 import DashboardSidebar from "@/components/dashboard/DashboardSidebar"
 import DashboardHeader from "@/components/dashboard/DashboardHeader"
 import PlanningSection from "@/components/dashboard/PlanningSection"
@@ -58,11 +60,9 @@ export default function Home() {
   const [currentUser, setCurrentUser] = useState<UserSummary | null>(null)
   const [isLoadingUsers, setIsLoadingUsers] = useState(true)
   const [userError, setUserError] = useState<string | null>(null)
-  const [rotationDraft, setRotationDraft] = useState<
-    { date: string; type: ShiftType }[]
-  >([])
   const [isCommittingRotation, setIsCommittingRotation] = useState(false)
   const [rotationError, setRotationError] = useState<string | null>(null)
+  const [rotationBuilderResetKey, setRotationBuilderResetKey] = useState(0)
 
   const mapApiShift = useCallback((shift: ApiShift): ShiftEvent => {
     return {
@@ -207,82 +207,46 @@ export default function Home() {
     const date = format(slot.start, "yyyy-MM-dd")
     setSelectedDateFromCalendar(date)
     setRotationError(null)
-    setRotationDraft((current) => {
-      if (current.some((entry) => entry.date === date)) {
-        return current
-      }
-
-      return [...current, { date, type: "WORK" }]
-    })
   }, [])
 
-  const handleDraftTypeChange = useCallback((date: string, type: ShiftType) => {
-    setRotationError(null)
-    setRotationDraft((current) =>
-      current.map((entry) =>
-        entry.date === date
-          ? {
-              ...entry,
-              type,
-            }
-          : entry
-      )
-    )
-  }, [])
-
-  const handleDraftRemoveDate = useCallback((date: string) => {
-    setRotationError(null)
-    setRotationDraft((current) => current.filter((entry) => entry.date !== date))
-  }, [])
-
-  const handleDraftClear = useCallback(() => {
-    setRotationError(null)
-    setRotationDraft([])
-  }, [])
-
-  const handleCommitRotationDraft = useCallback(async () => {
-    if (rotationDraft.length === 0) {
-      return
-    }
-
-    const queue = [...rotationDraft].sort(
-      (a, b) => new Date(a.date).getTime() - new Date(b.date).getTime()
-    )
-    const committed: string[] = []
-
-    const removeCommitted = () => {
-      if (committed.length === 0) {
+  const handleManualRotationConfirm = useCallback(
+    async (days: ManualRotationDay[]) => {
+      if (!days.length) {
         return
       }
 
-      const committedSet = new Set(committed)
-      setRotationDraft((current) =>
-        current.filter((entry) => !committedSet.has(entry.date))
-      )
-    }
-
-    try {
-      setIsCommittingRotation(true)
-      setRotationError(null)
-
-      for (const entry of queue) {
-        await handleAddShift({ date: entry.date, type: entry.type })
-        committed.push(entry.date)
+      if (!currentUser) {
+        setRotationError(
+          "Selecciona un usuario antes de crear una rotación manual.",
+        )
+        return
       }
 
-      removeCommitted()
-    } catch (error) {
-      removeCommitted()
+      try {
+        setIsCommittingRotation(true)
+        setRotationError(null)
 
-      const message =
-        error instanceof Error
-          ? error.message
-          : "No se pudo guardar la rotación. Inténtalo más tarde."
-      setRotationError(message)
-    } finally {
-      setIsCommittingRotation(false)
-    }
-  }, [handleAddShift, rotationDraft])
+        const queue = [...days].sort(
+          (a, b) => new Date(a.date).getTime() - new Date(b.date).getTime(),
+        )
+
+        for (const entry of queue) {
+          await handleAddShift({ date: entry.date, type: entry.type })
+        }
+
+        setRotationBuilderResetKey((current) => current + 1)
+      } catch (error) {
+        const message =
+          error instanceof Error
+            ? error.message
+            : "No se pudo guardar la rotación manual. Inténtalo más tarde."
+        setRotationError(message)
+      } finally {
+        setIsCommittingRotation(false)
+      }
+    },
+    [currentUser, handleAddShift],
+  )
 
   const handleSelectShift = useCallback((shift: ShiftEvent) => {
     setSelectedShift(shift)
@@ -644,14 +608,12 @@ export default function Home() {
                 </section>
 
                 <aside className="space-y-6 lg:col-span-3">
-                  <ManualRotationPanel
-                    draft={rotationDraft}
-                    onChangeType={handleDraftTypeChange}
-                    onRemoveDate={handleDraftRemoveDate}
-                    onClear={handleDraftClear}
-                    onCommit={handleCommitRotationDraft}
-                    isCommitting={isCommittingRotation}
-                    error={rotationError}
+                  <ManualRotationBuilder
+                    key={rotationBuilderResetKey}
+                    onConfirm={handleManualRotationConfirm}
+                    confirmLabel="Guardar rotación"
+                    disabled={isCommittingRotation}
+                    errorMessage={rotationError}
                   />
 
                   <AddShiftForm
@@ -703,14 +665,12 @@ export default function Home() {
 
                 {activeMobileTab === "settings" && (
                   <div className="space-y-6">
-                    <ManualRotationPanel
-                      draft={rotationDraft}
-                      onChangeType={handleDraftTypeChange}
-                      onRemoveDate={handleDraftRemoveDate}
-                      onClear={handleDraftClear}
-                      onCommit={handleCommitRotationDraft}
-                      isCommitting={isCommittingRotation}
-                      error={rotationError}
+                    <ManualRotationBuilder
+                      key={`mobile-${rotationBuilderResetKey}`}
+                      onConfirm={handleManualRotationConfirm}
+                      confirmLabel="Guardar rotación"
+                      disabled={isCommittingRotation}
+                      errorMessage={rotationError}
                     />
                     <AddShiftForm
                       onAdd={handleAddShift}

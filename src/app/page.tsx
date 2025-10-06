@@ -560,7 +560,7 @@ export default function Home() {
             </button>
           </div>
 
-          <div className="sticky top-0 z-30 border-b border-white/5 bg-slate-950/90 px-4 py-4 backdrop-blur lg:hidden">
+          {/* <div className="sticky top-0 z-30 border-b border-white/5 bg-slate-950/90 px-4 py-4 backdrop-blur lg:hidden">
             <div className="mx-auto flex w-full max-w-3xl items-center justify-between">
               <div>
                 <p className="text-xs uppercase tracking-wide text-white/50">
@@ -576,9 +576,9 @@ export default function Home() {
                 Ir a hoy
               </button>
             </div>
-          </div>
+          </div> */}
 
-          <div className="hidden lg:block">
+          {/* <div className="hidden lg:block">
             <DashboardHeader
               onQuickAdd={handleGoToToday}
               nextShift={nextShift}
@@ -590,24 +590,24 @@ export default function Home() {
               shifts={orderedShifts}
               onSearchSelect={handleSelectShift}
             />
-          </div>
+          </div> */}
 
           <main className="flex-1 overflow-y-auto pb-[calc(6rem+env(safe-area-inset-bottom))] lg:pb-0">
             <div className="mx-auto w-full max-w-7xl space-y-10 px-4 py-6 sm:px-6 lg:px-10 xl:px-12">
               <div className="hidden space-y-6 lg:block">
                 <section className="space-y-6">
-                  <PlanningSection
+                  {/* <PlanningSection
                     shifts={orderedShifts}
                     onSelectShift={handleSelectShift}
                     onSelectSlot={handleSelectSlot}
                     onGoToToday={handleGoToToday}
-                  />
+                  /> */}
 
-                  <ShiftDistribution
+                  {/* <ShiftDistribution
                     typeCounts={typeCounts}
                     totalShifts={orderedShifts.length}
                     shiftTypeLabels={SHIFT_TYPE_LABELS}
-                  />
+                  /> */}
 
                   <ShiftPlannerLab
                     resetSignal={rotationBuilderResetKey}

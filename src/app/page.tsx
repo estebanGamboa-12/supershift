@@ -41,7 +41,9 @@ function toPositiveInteger(value: unknown): number | null {
       ? value
       : typeof value === "string"
         ? Number.parseInt(value, 10)
-        : Number.NaN
+        : typeof value === "bigint"
+          ? Number(value)
+          : Number.NaN
 
   if (!Number.isFinite(numericValue)) {
     return null
@@ -61,12 +63,18 @@ function sanitizeUserSummary(value: unknown): UserSummary | null {
   }
 
   const candidate = value as Partial<UserSummary>
-  const id = toPositiveInteger(candidate.id)
-  const calendarId = toPositiveInteger(candidate.calendarId)
+  const id = toPositiveInteger(
+    candidate.id ?? (candidate as { userId?: unknown }).userId
+  )
 
-  if (!id || !calendarId) {
+  if (!id) {
     return null
   }
+
+  const calendarId =
+    toPositiveInteger(
+      candidate.calendarId ?? (candidate as { calendar_id?: unknown }).calendar_id
+    ) ?? id
 
   const name =
     typeof candidate.name === "string" && candidate.name.trim().length > 0

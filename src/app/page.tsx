@@ -194,6 +194,21 @@ export default function Home() {
     window.localStorage.setItem(SESSION_STORAGE_KEY, JSON.stringify(payload))
   }, [])
 
+  const clearSession = useCallback(
+    (message?: string) => {
+      setCurrentUser(null)
+      setSelectedShift(null)
+      setShifts([])
+      setSelectedDateFromCalendar(null)
+      setUserError(message ?? null)
+
+      if (typeof window !== "undefined") {
+        window.localStorage.removeItem(SESSION_STORAGE_KEY)
+      }
+    },
+    []
+  )
+
   const handleAddShift = useCallback(
     async ({
       date,
@@ -532,6 +547,11 @@ export default function Home() {
         setShifts(sortByDate(data))
       } catch (error) {
         console.error("No se pudieron cargar los turnos desde la API", error)
+        if (error instanceof ApiError && error.status === 404 && isMounted) {
+          clearSession(
+            "El usuario seleccionado ya no existe. Inicia sesión nuevamente."
+          )
+        }
       }
     }
 
@@ -540,7 +560,7 @@ export default function Home() {
     return () => {
       isMounted = false
     }
-  }, [currentUser, fetchShiftsFromApi, sortByDate])
+  }, [clearSession, currentUser, fetchShiftsFromApi, sortByDate])
 
   const handleLoginSuccess = useCallback(
     (user: UserSummary) => {
@@ -551,15 +571,8 @@ export default function Home() {
   )
 
   const handleLogout = useCallback(() => {
-    setCurrentUser(null)
-    setSelectedShift(null)
-    setShifts([])
-    setSelectedDateFromCalendar(null)
-
-    if (typeof window !== "undefined") {
-      window.localStorage.removeItem(SESSION_STORAGE_KEY)
-    }
-  }, [])
+    clearSession()
+  }, [clearSession])
 
   const handleUserCreated = useCallback((user: UserSummary) => {
     setUsers((current) => {

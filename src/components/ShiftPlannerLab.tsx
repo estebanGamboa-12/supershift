@@ -1,6 +1,6 @@
 "use client"
 
-import { useEffect, useMemo, useState } from "react"
+import { useCallback, useEffect, useMemo, useRef, useState } from "react"
 import { AnimatePresence, motion } from "framer-motion"
 import {
   addDays,
@@ -71,6 +71,7 @@ const ROTATION_PATTERNS: { label: string; cycle: [number, number] }[] = [
 type Mode = "manual" | "rotation"
 
 type ShiftPlannerLabProps = {
+  initialEntries?: ManualRotationDay[]
   onCommit?: (days: ManualRotationDay[]) => Promise<void> | void
   isCommitting?: boolean
   errorMessage?: string | null
@@ -96,20 +97,99 @@ function sumPluses(pluses: PlannerPluses): number {
   )
 }
 
+function normalizePluses(pluses?: ManualRotationDay["pluses"]): PlannerPluses {
+  if (!pluses) {
+    return { ...INITIAL_PLUSES }
+  }
+  return {
+    night: pluses.night ?? 0,
+    holiday: pluses.holiday ?? 0,
+    availability: pluses.availability ?? 0,
+    other: pluses.other ?? 0,
+  }
+}
+
+function toPlannerEntry(day: ManualRotationDay): PlannerEntry {
+  return {
+    date: day.date,
+    type: day.type,
+    note: day.note ?? "",
+    color: day.color ?? "",
+    label: day.label ?? SHIFT_LABELS[day.type],
+    pluses: normalizePluses(day.pluses),
+  }
+}
+
+function buildEntriesMap(days: ManualRotationDay[] = []): Record<string, PlannerEntry> {
+  return days.reduce<Record<string, PlannerEntry>>((acc, day) => {
+    acc[day.date] = toPlannerEntry(day)
+    return acc
+  }, {})
+}
+
 export default function ShiftPlannerLab({
+  initialEntries = [],
   onCommit,
   isCommitting = false,
   errorMessage = null,
   resetSignal,
 }: ShiftPlannerLabProps) {
   const [currentMonth, setCurrentMonth] = useState(() => startOfMonth(new Date()))
-  const [entries, setEntries] = useState<Record<string, PlannerEntry>>({})
+  const [entries, setEntries] = useState<Record<string, PlannerEntry>>(() =>
+    buildEntriesMap(initialEntries),
+  )
   const [mode, setMode] = useState<Mode>("manual")
   const [selectedDate, setSelectedDate] = useState<string | null>(null)
   const [rotationPattern, setRotationPattern] = useState<[number, number]>(
     ROTATION_PATTERNS[0]?.cycle ?? [4, 2],
   )
   const [rotationStart, setRotationStart] = useState(() => toIsoDate(new Date()))
+
+  useEffect(() => {
+    setEntries(buildEntriesMap(initialEntries))
+    setSelectedDate(null)
+  }, [initialEntries])
+
+  useEffect(() => {
+    setSelectedDate(null)
+  }, [resetSignal])
+
+  const onCommitRef = useRef(onCommit)
+
+  useEffect(() => {
+    onCommitRef.current = onCommit
+  }, [onCommit])
+
+  const commitEntries = useCallback((map: Record<string, PlannerEntry>) => {
+    const callback = onCommitRef.current
+    if (!callback) {
+      return
+    }
+
+    const payload: ManualRotationDay[] = Object.values(map)
+      .map((entry) => ({
+        date: entry.date,
+        type: entry.type,
+        pluses: { ...entry.pluses },
+        ...(entry.note ? { note: entry.note } : {}),
+        ...(entry.color ? { color: entry.color } : {}),
+        ...(entry.label ? { label: entry.label } : {}),
+      }))
+      .sort((a, b) => a.date.localeCompare(b.date))
+
+    void Promise.resolve(callback(payload))
+  }, [])
+
+  const updateEntries = useCallback(
+    (updater: (previous: Record<string, PlannerEntry>) => Record<string, PlannerEntry>) => {
+      setEntries((previous) => {
+        const next = updater(previous)
+        commitEntries(next)
+        return next
+      })
+    },
+    [commitEntries],
+  )
 
   const calendarDays = useMemo(() => {
     const monthStart = startOfMonth(currentMonth)
@@ -159,11 +239,6 @@ export default function ShiftPlannerLab({
     return summary
   }, [orderedEntries])
 
-  useEffect(() => {
-    setEntries({})
-    setSelectedDate(null)
-  }, [resetSignal])
-
   const monthLabel = useMemo(
     () => format(currentMonth, "MMMM yyyy", { locale: es }),
     [currentMonth],
@@ -198,7 +273,7 @@ export default function ShiftPlannerLab({
   }
 
   function handleSaveEntry(entry: PlannerEntry) {
-    setEntries((prev) => ({
+    updateEntries((prev) => ({
       ...prev,
       [entry.date]: entry,
     }))
@@ -206,7 +281,7 @@ export default function ShiftPlannerLab({
   }
 
   function handleRemoveEntry(date: string) {
-    setEntries((prev) => {
+    updateEntries((prev) => {
       const next = { ...prev }
       delete next[date]
       return next
@@ -231,35 +306,37 @@ export default function ShiftPlannerLab({
     let isWork = true
     let remaining = workLength
 
-    const updates: Record<string, PlannerEntry> = {}
+    updateEntries((prev) => {
+      const updates: Record<string, PlannerEntry> = {}
 
-    while (pointer <= monthEnd) {
-      const iso = toIsoDate(pointer)
-      const existing = entries[iso]
-      const shiftType: ShiftType = isWork ? "WORK" : "REST"
-      const palette = SHIFT_TYPES.find(({ value }) => value === shiftType)?.defaultColor
-      updates[iso] = {
-        date: iso,
-        type: shiftType,
-        note: existing?.note ?? "",
-        color: existing?.color ?? palette ?? "#2563eb",
-        label: existing?.label ?? SHIFT_LABELS[shiftType],
-        pluses: existing?.pluses ? { ...existing.pluses } : { ...INITIAL_PLUSES },
+      while (pointer <= monthEnd) {
+        const iso = toIsoDate(pointer)
+        const existing = prev[iso]
+        const shiftType: ShiftType = isWork ? "WORK" : "REST"
+        const palette = SHIFT_TYPES.find(({ value }) => value === shiftType)?.defaultColor
+        updates[iso] = {
+          date: iso,
+          type: shiftType,
+          note: existing?.note ?? "",
+          color: existing?.color ?? palette ?? "#2563eb",
+          label: existing?.label ?? SHIFT_LABELS[shiftType],
+          pluses: existing?.pluses ? { ...existing.pluses } : { ...INITIAL_PLUSES },
+        }
+
+        remaining -= 1
+        if (remaining <= 0) {
+          isWork = !isWork
+          remaining = isWork ? workLength : restLength
+        }
+
+        pointer = addDays(pointer, 1)
       }
 
-      remaining -= 1
-      if (remaining <= 0) {
-        isWork = !isWork
-        remaining = isWork ? workLength : restLength
+      return {
+        ...prev,
+        ...updates,
       }
-
-      pointer = addDays(pointer, 1)
-    }
-
-    setEntries((prev) => ({
-      ...prev,
-      ...updates,
-    }))
+    })
   }
 
   function handleExportCSV() {
@@ -376,23 +453,6 @@ export default function ShiftPlannerLab({
     newWindow.document.close()
     newWindow.focus()
     newWindow.print()
-  }
-
-  async function handleCommit() {
-    if (!onCommit || orderedEntries.length === 0) {
-      return
-    }
-
-    const payload: ManualRotationDay[] = orderedEntries.map((entry) => ({
-      date: entry.date,
-      type: entry.type,
-      pluses: { ...entry.pluses },
-      note: entry.note || undefined,
-      color: entry.color || undefined,
-      label: entry.label || undefined,
-    }))
-
-    await Promise.resolve(onCommit(payload))
   }
 
   const activeEntry = selectedDate ? entries[selectedDate] : null
@@ -655,14 +715,11 @@ export default function ShiftPlannerLab({
             </div>
 
             <div className="flex flex-col gap-3 pt-2 text-xs">
-              <button
-                type="button"
-                onClick={handleCommit}
-                disabled={!onCommit || orderedEntries.length === 0 || isCommitting}
-                className="inline-flex items-center justify-center rounded-full bg-gradient-to-r from-emerald-500 to-sky-500 px-4 py-2 text-sm font-semibold text-white shadow shadow-emerald-500/30 transition hover:brightness-110 disabled:cursor-not-allowed disabled:opacity-50"
-              >
-                {isCommitting ? "Guardando..." : "Guardar en mi calendario"}
-              </button>
+              <p className="inline-flex items-center justify-center rounded-full border border-emerald-500/40 bg-emerald-500/10 px-4 py-2 text-center font-semibold uppercase tracking-wide text-emerald-200">
+                {isCommitting
+                  ? "Guardando cambios en tu calendario..."
+                  : "Cambios guardados automáticamente"}
+              </p>
               <button
                 type="button"
                 onClick={handleExportCSV}
@@ -685,7 +742,7 @@ export default function ShiftPlannerLab({
 
           <section className="rounded-2xl border border-white/10 bg-slate-950/60 p-5 text-sm text-white/70">
             <p>
-              Combina los modos manual y automático para ajustar turnos especiales, vacaciones o guardias. Tras guardar, los cambios se aplicarán sobre tu calendario real y podrás seguir editando desde la vista general.
+              Combina los modos manual y automático para ajustar turnos especiales, vacaciones o guardias. Los cambios se aplican automáticamente sobre tu calendario real y podrás seguir editando desde la vista general.
             </p>
           </section>
         </aside>

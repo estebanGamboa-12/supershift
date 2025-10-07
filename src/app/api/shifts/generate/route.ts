@@ -19,7 +19,7 @@ const DEFAULT_CALENDAR_ID = Number.parseInt(
 )
 
 function getHorizon() {
-  return Number(process.env.ROTATION_HORIZON_DAYS ?? 60)
+  return Number(process.env.ROTATION_HORIZON_DAYS ?? 365)
 }
 
 function getDefaultCalendarId() {

@@ -237,6 +237,14 @@ const SHIFT_TYPE_COLORS: Record<ShiftType, string> = {
   CUSTOM: "from-pink-400/70 to-fuchsia-500/70",
 }
 
+const SHIFT_TYPE_HEX_COLORS: Record<ShiftType, string> = {
+  WORK: "#2563eb",
+  REST: "#22c55e",
+  NIGHT: "#7c3aed",
+  VACATION: "#f97316",
+  CUSTOM: "#0ea5e9",
+}
+
 type ShiftPluses = {
   night: number
   holiday: number
@@ -250,6 +258,7 @@ type RotationDay = {
   pluses: ShiftPluses
   note?: string
   color?: string
+  label?: string
 }
 
 type RotationSummary = {
@@ -271,6 +280,8 @@ type EditorState = {
   date: Date
   type: ShiftType
   pluses: ShiftPluses
+  color: string
+  label: string
 }
 
 const INITIAL_PLUSES: ShiftPluses = {
@@ -290,6 +301,8 @@ export function ManualRotationBuilder({
   const [days, setDays] = useState<RotationDay[]>(() =>
     initialDays.map((day) => ({
       ...day,
+      color: day.color ?? SHIFT_TYPE_HEX_COLORS[day.type],
+      label: day.label ?? SHIFT_TYPE_LABELS[day.type],
       pluses: { ...INITIAL_PLUSES, ...day.pluses },
     })),
   )
@@ -332,6 +345,8 @@ export function ManualRotationBuilder({
     setDays(
       initialDays.map((day) => ({
         ...day,
+        color: day.color ?? SHIFT_TYPE_HEX_COLORS[day.type],
+        label: day.label ?? SHIFT_TYPE_LABELS[day.type],
         pluses: { ...INITIAL_PLUSES, ...day.pluses },
       })),
     )
@@ -350,11 +365,16 @@ export function ManualRotationBuilder({
 
     const isoDate = format(date, "yyyy-MM-dd")
     const existing = days.find((day) => day.date === isoDate)
+    const type = existing?.type ?? "WORK"
+    const color = existing?.color ?? SHIFT_TYPE_HEX_COLORS[type]
+    const label = existing?.label ?? SHIFT_TYPE_LABELS[type]
 
     setEditor({
       date,
-      type: existing?.type ?? "WORK",
+      type,
       pluses: existing?.pluses ?? { ...INITIAL_PLUSES },
+      color,
+      label,
     })
   }
 
@@ -362,6 +382,11 @@ export function ManualRotationBuilder({
     if (!editor) return
 
     const isoDate = format(editor.date, "yyyy-MM-dd")
+    const defaultColor = SHIFT_TYPE_HEX_COLORS[editor.type]
+    const sanitizedColor = editor.color || defaultColor
+    const trimmedLabel = editor.label.trim()
+    const resolvedLabel =
+      trimmedLabel.length > 0 ? trimmedLabel : SHIFT_TYPE_LABELS[editor.type]
 
     setDays((prev) => {
       const next = prev.filter((item) => item.date !== isoDate)
@@ -369,6 +394,8 @@ export function ManualRotationBuilder({
         date: isoDate,
         type: editor.type,
         pluses: { ...editor.pluses },
+        color: sanitizedColor,
+        label: resolvedLabel,
       })
       return next.sort((a, b) => a.date.localeCompare(b.date))
     })
@@ -419,7 +446,7 @@ export function ManualRotationBuilder({
             <div>
               <h2 className="text-2xl font-semibold tracking-tight text-white">Constructor manual</h2>
               <p className="text-sm text-slate-200/70">
-                Pulsa un día para añadirlo, asigna un tipo de turno y define pluses personalizados en euros.
+                Pulsa un día para añadirlo, asigna un tipo de turno, personaliza el color y define los pluses en niveles enteros.
               </p>
             </div>
           </header>
@@ -462,6 +489,7 @@ export function ManualRotationBuilder({
                     const dateLabel = isValid
                       ? format(parsed, "EEEE d 'de' MMMM", { locale: es })
                       : day.date
+                    const accent = day.color ?? SHIFT_TYPE_HEX_COLORS[day.type]
                     return (
                       <motion.article
                         key={day.date}
@@ -475,11 +503,18 @@ export function ManualRotationBuilder({
                         <div className="flex-1">
                           <p className="text-sm font-semibold capitalize text-white">{dateLabel}</p>
                           <div className="mt-1 inline-flex items-center gap-2 rounded-full border border-white/20 bg-white/10 px-3 py-1 text-xs font-medium text-white/90">
-                            <span className={`inline-flex items-center gap-2 rounded-full bg-gradient-to-r ${SHIFT_TYPE_COLORS[day.type]} px-2.5 py-1 text-[0.65rem] font-semibold uppercase tracking-wider text-white shadow-sm shadow-black/20`}>
-                              {SHIFT_TYPE_LABELS[day.type]}
+                            <span
+                              className="inline-flex items-center gap-2 rounded-full px-2.5 py-1 text-[0.65rem] font-semibold uppercase tracking-wider shadow-sm shadow-black/20"
+                              style={{
+                                backgroundColor: `${accent}1a`,
+                                color: accent,
+                                border: `1px solid ${accent}33`,
+                              }}
+                            >
+                              {day.label ?? SHIFT_TYPE_LABELS[day.type]}
                             </span>
                             <span className="text-[0.7rem] text-slate-200/70">
-                              Pluses: €{(day.pluses.night + day.pluses.holiday + day.pluses.availability + day.pluses.other).toFixed(2)}
+                              Pluses: {day.pluses.night + day.pluses.holiday + day.pluses.availability + day.pluses.other} niveles
                             </span>
                           </div>
                         </div>
@@ -491,6 +526,8 @@ export function ManualRotationBuilder({
                                 date: parseISO(day.date),
                                 type: day.type,
                                 pluses: { ...day.pluses },
+                                color: day.color ?? SHIFT_TYPE_HEX_COLORS[day.type],
+                                label: day.label ?? SHIFT_TYPE_LABELS[day.type],
                               })
                             }
                             className="inline-flex items-center gap-2 rounded-full bg-white/10 px-3 py-1.5 text-xs font-semibold uppercase tracking-wide text-white transition hover:bg-white/20 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sky-400 focus-visible:ring-offset-2 focus-visible:ring-offset-slate-900"
@@ -544,7 +581,7 @@ export function ManualRotationBuilder({
                 animate={{ opacity: 1, y: 0 }}
                 className="rounded-2xl border border-white/10 bg-slate-950/40 p-4 text-sm shadow-inner shadow-slate-950/60"
               >
-                <p className="text-xs uppercase tracking-wide text-slate-400">Total pluses</p>
+                <p className="text-xs uppercase tracking-wide text-slate-400">Total pluses (niveles)</p>
                 <motion.p
                   key={summary.totalAmount}
                   initial={{ scale: 0.8, opacity: 0 }}
@@ -552,7 +589,7 @@ export function ManualRotationBuilder({
                   transition={{ type: "spring", stiffness: 260, damping: 18 }}
                   className="mt-1 text-3xl font-bold text-emerald-300"
                 >
-                  €{summary.totalAmount.toFixed(2)}
+                  {summary.totalAmount}
                 </motion.p>
               </motion.div>
             </div>
@@ -583,19 +620,19 @@ export function ManualRotationBuilder({
             <div className="mt-6 grid gap-3 text-xs text-slate-300 sm:grid-cols-2">
               <span className="flex items-center justify-between rounded-xl border border-white/5 bg-white/5 px-4 py-2">
                 <span>Plus nocturno</span>
-                <strong className="text-slate-50">€{summary.pluses.night.toFixed(2)}</strong>
+                <strong className="text-slate-50">{summary.pluses.night}</strong>
               </span>
               <span className="flex items-center justify-between rounded-xl border border-white/5 bg-white/5 px-4 py-2">
                 <span>Plus festivo</span>
-                <strong className="text-slate-50">€{summary.pluses.holiday.toFixed(2)}</strong>
+                <strong className="text-slate-50">{summary.pluses.holiday}</strong>
               </span>
               <span className="flex items-center justify-between rounded-xl border border-white/5 bg-white/5 px-4 py-2">
                 <span>Disponibilidad</span>
-                <strong className="text-slate-50">€{summary.pluses.availability.toFixed(2)}</strong>
+                <strong className="text-slate-50">{summary.pluses.availability}</strong>
               </span>
               <span className="flex items-center justify-between rounded-xl border border-white/5 bg-white/5 px-4 py-2">
                 <span>Otros pluses</span>
-                <strong className="text-slate-50">€{summary.pluses.other.toFixed(2)}</strong>
+                <strong className="text-slate-50">{summary.pluses.other}</strong>
               </span>
             </div>
 
@@ -674,7 +711,29 @@ export function ManualRotationBuilder({
                       <button
                         key={type}
                         type="button"
-                        onClick={() => setEditor((prev) => (prev ? { ...prev, type } : prev))}
+                        onClick={() =>
+                          setEditor((prev) => {
+                            if (!prev) return prev
+                            const shouldResetColor =
+                              !prev.color ||
+                              prev.color === SHIFT_TYPE_HEX_COLORS[prev.type]
+                            const shouldResetLabel =
+                              !prev.label ||
+                              prev.label.trim().length === 0 ||
+                              prev.label === SHIFT_TYPE_LABELS[prev.type]
+
+                            return {
+                              ...prev,
+                              type,
+                              color: shouldResetColor
+                                ? SHIFT_TYPE_HEX_COLORS[type]
+                                : prev.color,
+                              label: shouldResetLabel
+                                ? SHIFT_TYPE_LABELS[type]
+                                : prev.label,
+                            }
+                          })
+                        }
                         className={`group relative flex items-center gap-3 rounded-2xl border border-white/10 bg-gradient-to-r ${SHIFT_TYPE_COLORS[type]} px-4 py-3 text-left text-sm font-medium text-white shadow-lg shadow-black/20 transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/70 focus-visible:ring-offset-2 focus-visible:ring-offset-slate-900 ${editor.type === type ? "ring-2 ring-white/80" : "opacity-80 hover:opacity-100"}`}
                       >
                         <span className="text-xs font-semibold uppercase tracking-widest text-white/80">
@@ -685,8 +744,43 @@ export function ManualRotationBuilder({
                   </div>
                 </div>
 
+                <div className="grid gap-3 sm:grid-cols-2">
+                  <label className="flex flex-col gap-2 text-xs text-white/70">
+                    Texto del turno
+                    <input
+                      type="text"
+                      value={editor.label}
+                      onChange={(event) =>
+                        setEditor((prev) =>
+                          prev
+                            ? { ...prev, label: event.target.value }
+                            : prev,
+                        )
+                      }
+                      className="w-full rounded-xl border border-white/10 bg-slate-950/60 px-3 py-2 text-sm text-white/90 shadow-inner shadow-black/40 placeholder:text-white/40 focus-visible:border-sky-400/70 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sky-400/70"
+                      placeholder="Etiqueta que verás en el calendario"
+                    />
+                  </label>
+
+                  <label className="flex flex-col gap-2 text-xs text-white/70">
+                    Color del turno
+                    <input
+                      type="color"
+                      value={editor.color}
+                      onChange={(event) =>
+                        setEditor((prev) =>
+                          prev
+                            ? { ...prev, color: event.target.value }
+                            : prev,
+                        )
+                      }
+                      className="h-11 w-full rounded-xl border border-white/10 bg-slate-950/60"
+                    />
+                  </label>
+                </div>
+
                 <div className="space-y-3">
-                  <p className="text-xs font-semibold uppercase tracking-wide text-slate-400">Pluses (€)</p>
+                  <p className="text-xs font-semibold uppercase tracking-wide text-slate-400">Pluses (nivel 0-3)</p>
                   <div className="grid gap-4 sm:grid-cols-2">
                     {(
                       [
@@ -703,22 +797,28 @@ export function ManualRotationBuilder({
                         <span className="text-xs uppercase tracking-wide text-slate-300">{label}</span>
                         <input
                           type="number"
+                          inputMode="numeric"
                           min={0}
-                          step={0.01}
+                          max={3}
+                          step={1}
                           value={editor.pluses[key]}
-                          onChange={(event) =>
+                          onChange={(event) => {
+                            const parsed = Number.parseInt(event.target.value, 10)
+                            const safeValue = Number.isNaN(parsed)
+                              ? 0
+                              : Math.min(3, Math.max(0, parsed))
                             setEditor((prev) =>
                               prev
                                 ? {
                                     ...prev,
                                     pluses: {
                                       ...prev.pluses,
-                                      [key]: Number.parseFloat(event.target.value) || 0,
+                                      [key]: safeValue,
                                     },
                                   }
                                 : prev,
                             )
-                          }
+                          }}
                           className="w-full rounded-xl border border-white/10 bg-slate-950/60 px-3 py-2 text-sm text-white/90 shadow-inner shadow-black/40 transition focus-visible:border-sky-400/70 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sky-400/70"
                         />
                       </label>

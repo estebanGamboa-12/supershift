@@ -31,6 +31,7 @@ type PlannerEntry = {
   type: ShiftType
   note: string
   color: string
+  label: string
   pluses: PlannerPluses
 }
 
@@ -81,8 +82,12 @@ function toIsoDate(date: Date) {
 }
 
 function ensureNumber(value: string): number {
-  const parsed = Number.parseFloat(value.replace(/,/g, "."))
-  return Number.isNaN(parsed) ? 0 : parsed
+  const normalized = value.replace(/,/g, "").trim()
+  const parsed = Number.parseInt(normalized, 10)
+  if (Number.isNaN(parsed)) {
+    return 0
+  }
+  return Math.max(0, Math.min(3, parsed))
 }
 
 function sumPluses(pluses: PlannerPluses): number {
@@ -238,6 +243,7 @@ export default function ShiftPlannerLab({
         type: shiftType,
         note: existing?.note ?? "",
         color: existing?.color ?? palette ?? "#2563eb",
+        label: existing?.label ?? SHIFT_LABELS[shiftType],
         pluses: existing?.pluses ? { ...existing.pluses } : { ...INITIAL_PLUSES },
       }
 
@@ -264,6 +270,7 @@ export default function ShiftPlannerLab({
     const header = [
       "Fecha",
       "Tipo",
+      "Etiqueta",
       "Color",
       "Nota",
       "Plus nocturnidad",
@@ -276,13 +283,14 @@ export default function ShiftPlannerLab({
     const rows = orderedEntries.map((entry) => [
       entry.date,
       SHIFT_LABELS[entry.type],
+      entry.label,
       entry.color,
       entry.note.replace(/"/g, '""'),
-      entry.pluses.night.toFixed(2),
-      entry.pluses.holiday.toFixed(2),
-      entry.pluses.availability.toFixed(2),
-      entry.pluses.other.toFixed(2),
-      sumPluses(entry.pluses).toFixed(2),
+      String(entry.pluses.night),
+      String(entry.pluses.holiday),
+      String(entry.pluses.availability),
+      String(entry.pluses.other),
+      String(sumPluses(entry.pluses)),
     ])
 
     const csvContent = [header, ...rows]
@@ -318,16 +326,17 @@ export default function ShiftPlannerLab({
 
     const rowsHtml = orderedEntries
       .map((entry) => {
-        const total = sumPluses(entry.pluses).toFixed(2)
+        const total = sumPluses(entry.pluses)
         return `<tr>
           <td style="padding:8px;border:1px solid #e2e8f0;">${entry.date}</td>
           <td style="padding:8px;border:1px solid #e2e8f0;">${SHIFT_LABELS[entry.type]}</td>
+          <td style="padding:8px;border:1px solid #e2e8f0;">${entry.label}</td>
           <td style="padding:8px;border:1px solid #e2e8f0;">${entry.note || "-"}</td>
-          <td style="padding:8px;border:1px solid #e2e8f0;">€${entry.pluses.night.toFixed(2)}</td>
-          <td style="padding:8px;border:1px solid #e2e8f0;">€${entry.pluses.holiday.toFixed(2)}</td>
-          <td style="padding:8px;border:1px solid #e2e8f0;">€${entry.pluses.availability.toFixed(2)}</td>
-          <td style="padding:8px;border:1px solid #e2e8f0;">€${entry.pluses.other.toFixed(2)}</td>
-          <td style="padding:8px;border:1px solid #e2e8f0; font-weight:600;">€${total}</td>
+          <td style="padding:8px;border:1px solid #e2e8f0;">${entry.pluses.night}</td>
+          <td style="padding:8px;border:1px solid #e2e8f0;">${entry.pluses.holiday}</td>
+          <td style="padding:8px;border:1px solid #e2e8f0;">${entry.pluses.availability}</td>
+          <td style="padding:8px;border:1px solid #e2e8f0;">${entry.pluses.other}</td>
+          <td style="padding:8px;border:1px solid #e2e8f0; font-weight:600;">${total}</td>
         </tr>`
       })
       .join("")
@@ -351,6 +360,7 @@ export default function ShiftPlannerLab({
               <tr>
                 <th style="padding:8px;border:1px solid #e2e8f0;">Fecha</th>
                 <th style="padding:8px;border:1px solid #e2e8f0;">Tipo</th>
+                <th style="padding:8px;border:1px solid #e2e8f0;">Etiqueta</th>
                 <th style="padding:8px;border:1px solid #e2e8f0;">Nota</th>
                 <th style="padding:8px;border:1px solid #e2e8f0;">Nocturnidad</th>
                 <th style="padding:8px;border:1px solid #e2e8f0;">Festivo</th>
@@ -379,6 +389,7 @@ export default function ShiftPlannerLab({
       pluses: { ...entry.pluses },
       note: entry.note || undefined,
       color: entry.color || undefined,
+      label: entry.label || undefined,
     }))
 
     await Promise.resolve(onCommit(payload))
@@ -394,16 +405,18 @@ export default function ShiftPlannerLab({
     }
 
     const existing = activeEntry
-    const palette = existing
+    const baseType = existing?.type ?? "WORK"
+    const palette = existing?.color
       ? existing.color
-      : SHIFT_TYPES[0]?.defaultColor ?? "#2563eb"
+      : SHIFT_TYPES.find(({ value }) => value === baseType)?.defaultColor ?? "#2563eb"
 
     return {
       date: selectedDate,
       display: format(baseDate, "EEEE d 'de' MMMM yyyy", { locale: es }),
-      type: existing?.type ?? "WORK",
+      type: baseType,
       note: existing?.note ?? "",
       color: palette,
+      label: existing?.label ?? SHIFT_LABELS[baseType],
       pluses: existing?.pluses ? { ...existing.pluses } : { ...INITIAL_PLUSES },
     }
   }, [selectedDate, activeEntry])
@@ -458,9 +471,9 @@ export default function ShiftPlannerLab({
               </div>
             </div>
             <div>
-              <p className="uppercase tracking-wide text-white/40">Total pluses</p>
-              <p className="text-2xl font-semibold text-fuchsia-300">€{stats.totalPluses.toFixed(2)}</p>
-              <p className="text-[10px] uppercase tracking-[0.3em] text-white/30">+ proyección anual: €{(stats.totalPluses * 12).toFixed(2)}</p>
+              <p className="uppercase tracking-wide text-white/40">Total pluses (niveles)</p>
+              <p className="text-2xl font-semibold text-fuchsia-300">{stats.totalPluses}</p>
+              <p className="text-[10px] uppercase tracking-[0.3em] text-white/30">Equivale a {stats.totalPluses * 12} niveles anuales</p>
             </div>
             <div>
               <p className="uppercase tracking-wide text-white/40">Plan actual</p>
@@ -546,6 +559,11 @@ export default function ShiftPlannerLab({
                 const entry = entries[key]
                 const isCurrent = isSameMonth(day, currentMonth)
                 const isCurrentDay = isToday(day)
+                const accentColor = entry
+                  ? entry.color ||
+                    SHIFT_TYPES.find(({ value }) => value === entry.type)?.defaultColor ||
+                    "#2563eb"
+                  : "#2563eb"
 
                 return (
                   <button
@@ -560,9 +578,9 @@ export default function ShiftPlannerLab({
                     {entry ? (
                       <span
                         className="mt-1 inline-flex items-center gap-2 rounded-xl px-2 py-1 text-[10px] font-semibold uppercase tracking-wider text-white"
-                        style={{ backgroundColor: `${entry.color}22`, color: entry.color }}
+                        style={{ backgroundColor: `${accentColor}22`, color: accentColor }}
                       >
-                        {SHIFT_LABELS[entry.type]}
+                        {entry.label || SHIFT_LABELS[entry.type]}
                       </span>
                     ) : (
                       <span className="text-[10px] uppercase tracking-wide text-white/30">Configurar</span>
@@ -571,7 +589,7 @@ export default function ShiftPlannerLab({
                       <span className="line-clamp-2 text-[10px] text-white/50">{entry.note}</span>
                     ) : null}
                     {entry && sumPluses(entry.pluses) > 0 ? (
-                      <span className="text-[10px] font-medium text-emerald-200">€{sumPluses(entry.pluses).toFixed(2)}</span>
+                      <span className="text-[10px] font-medium text-emerald-200">{sumPluses(entry.pluses)} niveles</span>
                     ) : null}
                   </button>
                 )
@@ -584,14 +602,14 @@ export default function ShiftPlannerLab({
           <section className="space-y-4 rounded-2xl border border-white/10 bg-slate-950/60 p-5">
             <header>
               <p className="text-xs uppercase tracking-[0.35em] text-white/40">Resumen mensual</p>
-              <h3 className="mt-2 text-xl font-semibold text-white">Control de pluses y salario</h3>
+              <h3 className="mt-2 text-xl font-semibold text-white">Control de pluses por nivel</h3>
             </header>
 
             <div className="space-y-3 text-sm text-white/70">
               <p>
-                Total ganado en el mes: <strong className="text-emerald-300">€{stats.totalPluses.toFixed(2)}</strong>
+                Total de pluses del mes: <strong className="text-emerald-300">{stats.totalPluses}</strong>
               </p>
-              <p className="text-xs text-white/50">Ajusta los importes por turno para nocturnidad, festivos, disponibilidad y horas extra.</p>
+              <p className="text-xs text-white/50">Ajusta los niveles por turno para nocturnidad, festivos, disponibilidad y horas extra.</p>
             </div>
 
             <div className="space-y-3">
@@ -608,7 +626,7 @@ export default function ShiftPlannerLab({
                   <div key={key} className="space-y-1">
                     <div className="flex items-center justify-between text-xs text-white/60">
                       <span>{labels[key]}</span>
-                      <span>€{value.toFixed(2)}</span>
+                      <span>{value}</span>
                     </div>
                     <div className="h-2 rounded-full bg-white/10">
                       <div className="h-2 rounded-full bg-gradient-to-r from-sky-500 via-cyan-500 to-fuchsia-500" style={{ width: `${width}%` }} />
@@ -714,6 +732,7 @@ export default function ShiftPlannerLab({
                     type: data.type,
                     note: data.note,
                     color: data.color,
+                    label: data.label,
                     pluses: data.pluses,
                   })
                 }
@@ -734,9 +753,16 @@ type EditorFormProps = {
     type: ShiftType
     note: string
     color: string
+    label: string
     pluses: PlannerPluses
   }
-  onSave: (entry: { type: ShiftType; note: string; color: string; pluses: PlannerPluses }) => void
+  onSave: (entry: {
+    type: ShiftType
+    note: string
+    color: string
+    label: string
+    pluses: PlannerPluses
+  }) => void
   onRemove: () => void
 }
 
@@ -744,12 +770,14 @@ function EditorForm({ defaults, onSave, onRemove }: EditorFormProps) {
   const [type, setType] = useState<ShiftType>(defaults.type)
   const [note, setNote] = useState(defaults.note)
   const [color, setColor] = useState(defaults.color)
+  const [label, setLabel] = useState(defaults.label)
   const [pluses, setPluses] = useState<PlannerPluses>({ ...defaults.pluses })
 
   useEffect(() => {
     setType(defaults.type)
     setNote(defaults.note)
     setColor(defaults.color)
+    setLabel(defaults.label)
     setPluses({ ...defaults.pluses })
   }, [defaults])
 
@@ -758,7 +786,13 @@ function EditorForm({ defaults, onSave, onRemove }: EditorFormProps) {
       className="mt-6 space-y-6"
       onSubmit={(event) => {
         event.preventDefault()
-        onSave({ type, note: note.trim(), color, pluses })
+        onSave({
+          type,
+          note: note.trim(),
+          color,
+          label: label.trim().length > 0 ? label.trim() : SHIFT_LABELS[type],
+          pluses,
+        })
       }}
     >
       <div className="space-y-4">
@@ -771,8 +805,18 @@ function EditorForm({ defaults, onSave, onRemove }: EditorFormProps) {
                 type="button"
                 onClick={() => {
                   setType(option.value)
-                  if (!defaults.color || defaults.type === option.value) {
+                  const isUsingDefaultColor =
+                    color === defaults.color ||
+                    color === SHIFT_TYPES.find((item) => item.value === type)?.defaultColor
+                  if (!defaults.color || defaults.type === option.value || isUsingDefaultColor) {
                     setColor(option.defaultColor)
+                  }
+                  if (
+                    label.trim().length === 0 ||
+                    label === SHIFT_LABELS[type] ||
+                    label === defaults.label
+                  ) {
+                    setLabel(SHIFT_LABELS[option.value])
                   }
                 }}
                 className={`rounded-2xl border px-3 py-2 text-left text-sm font-semibold transition ${type === option.value ? "border-white/80 bg-white/10" : "border-white/10 bg-white/5 hover:border-sky-400/40"}`}
@@ -783,6 +827,17 @@ function EditorForm({ defaults, onSave, onRemove }: EditorFormProps) {
             ))}
           </div>
         </div>
+
+        <label className="flex flex-col gap-2 text-xs text-white/70">
+          Texto del turno
+          <input
+            type="text"
+            value={label}
+            onChange={(event) => setLabel(event.target.value)}
+            className="w-full rounded-2xl border border-white/10 bg-white/5 px-3 py-2 text-sm text-white placeholder:text-white/40 focus:border-sky-400 focus:outline-none focus:ring-2 focus:ring-sky-400/40"
+            placeholder="Etiqueta que verás en el calendario"
+          />
+        </label>
 
         <label className="flex flex-col gap-2 text-xs text-white/70">
           Color del turno
@@ -818,9 +873,10 @@ function EditorForm({ defaults, onSave, onRemove }: EditorFormProps) {
               {label}
               <input
                 type="number"
-                inputMode="decimal"
+                inputMode="numeric"
                 min={0}
-                step="0.01"
+                max={3}
+                step={1}
                 value={pluses[key]}
                 onChange={(event) =>
                   setPluses((prev) => ({
@@ -850,6 +906,7 @@ function EditorForm({ defaults, onSave, onRemove }: EditorFormProps) {
               setType(defaults.type)
               setNote(defaults.note)
               setColor(defaults.color)
+              setLabel(defaults.label)
               setPluses({ ...defaults.pluses })
             }}
             className="inline-flex items-center justify-center rounded-full border border-white/10 bg-white/5 px-4 py-2 text-xs font-semibold uppercase tracking-wide text-white/70 transition hover:bg-white/10"

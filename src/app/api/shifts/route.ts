@@ -74,7 +74,18 @@ export async function GET(request: NextRequest) {
 export async function POST(request: Request) {
   try {
     const payload = (await request.json().catch(() => null)) as
-      | { date?: unknown; type?: unknown; note?: unknown; userId?: unknown }
+      | {
+          date?: unknown
+          type?: unknown
+          note?: unknown
+          label?: unknown
+          color?: unknown
+          plusNight?: unknown
+          plusHoliday?: unknown
+          plusAvailability?: unknown
+          plusOther?: unknown
+          userId?: unknown
+        }
       | null
 
     if (!payload || typeof payload.type !== "string") {
@@ -104,6 +115,93 @@ export async function POST(request: Request) {
       typeof payload.note === "string" && payload.note.trim().length > 0
         ? payload.note.trim()
         : null
+
+    const label =
+      typeof payload.label === "string" && payload.label.trim().length > 0
+        ? payload.label.trim().slice(0, 100)
+        : null
+
+    let color: string | null = null
+    if (typeof payload.color === "string") {
+      const trimmedColor = payload.color.trim()
+      if (trimmedColor.length > 0) {
+        const normalizedColor = trimmedColor.toLowerCase()
+        const isHexColor = /^#([0-9a-f]{3}|[0-9a-f]{6}|[0-9a-f]{8})$/i.test(
+          normalizedColor,
+        )
+
+        if (!isHexColor) {
+          return NextResponse.json(
+            { error: "El color del turno debe ser un código hexadecimal válido" },
+            { status: 400 },
+          )
+        }
+
+        color = normalizedColor
+      }
+    }
+
+    const parsePlus = (
+      value: unknown,
+      field: string,
+    ): number | { error: string } => {
+      if (value === undefined || value === null) {
+        return 0
+      }
+
+      const parsed =
+        typeof value === "number" && Number.isFinite(value)
+          ? value
+          : typeof value === "string" && value.trim().length > 0
+            ? Number.parseInt(value.trim(), 10)
+            : Number.NaN
+
+      if (Number.isNaN(parsed)) {
+        return { error: `El campo ${field} debe ser un número entre 0 y 3` }
+      }
+
+      return Math.min(3, Math.max(0, Math.round(parsed)))
+    }
+
+    const plusNightResult = parsePlus(payload.plusNight, "plusNight")
+    if (typeof plusNightResult === "object" && "error" in plusNightResult) {
+      return NextResponse.json({ error: plusNightResult.error }, { status: 400 })
+    }
+
+    const plusHolidayResult = parsePlus(payload.plusHoliday, "plusHoliday")
+    if (typeof plusHolidayResult === "object" && "error" in plusHolidayResult) {
+      return NextResponse.json({ error: plusHolidayResult.error }, { status: 400 })
+    }
+
+    const plusAvailabilityResult = parsePlus(
+      payload.plusAvailability,
+      "plusAvailability",
+    )
+    if (
+      typeof plusAvailabilityResult === "object" &&
+      "error" in plusAvailabilityResult
+    ) {
+      return NextResponse.json(
+        { error: plusAvailabilityResult.error },
+        { status: 400 },
+      )
+    }
+
+    const plusOtherResult = parsePlus(payload.plusOther, "plusOther")
+    if (typeof plusOtherResult === "object" && "error" in plusOtherResult) {
+      return NextResponse.json({ error: plusOtherResult.error }, { status: 400 })
+    }
+
+    const plusNight =
+      typeof plusNightResult === "number" ? plusNightResult : 0
+    const plusHoliday =
+      typeof plusHolidayResult === "number" ? plusHolidayResult : 0
+    const plusAvailability =
+      typeof plusAvailabilityResult === "number"
+        ? plusAvailabilityResult
+        : 0
+    const plusOther =
+      typeof plusOtherResult === "number" ? plusOtherResult : 0
 
     let userId: number | null = null
     if ("userId" in payload && payload.userId !== undefined) {
@@ -135,9 +233,21 @@ export async function POST(request: Request) {
     const { startAt, endAt } = buildDateRange(date)
 
     const result = await execute(
-      `INSERT INTO shifts (calendar_id, shift_type_code, start_at, end_at, all_day, note)
-       VALUES (?, ?, ?, ?, 1, ?)`,
-      [calendarId, type, startAt, endAt, note]
+      `INSERT INTO shifts (calendar_id, shift_type_code, start_at, end_at, all_day, note, label, color, plus_night, plus_holiday, plus_availability, plus_other)
+       VALUES (?, ?, ?, ?, 1, ?, ?, ?, ?, ?, ?, ?)`,
+      [
+        calendarId,
+        type,
+        startAt,
+        endAt,
+        note,
+        label,
+        color,
+        plusNight,
+        plusHoliday,
+        plusAvailability,
+        plusOther,
+      ],
     )
 
     if (!result.insertId) {

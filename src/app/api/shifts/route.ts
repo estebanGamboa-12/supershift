@@ -23,20 +23,27 @@ function getCalendarId(): number {
   return Number.isNaN(DEFAULT_CALENDAR_ID) ? 2 : DEFAULT_CALENDAR_ID
 }
 
-function parseUserId(param: string | null): number | null {
-  if (!param) {
-    return null
+function normalizeUserId(value: unknown): string | null {
+  if (typeof value === "string") {
+    const trimmed = value.trim()
+    return trimmed.length > 0 ? trimmed : null
   }
-  const userId = Number.parseInt(param, 10)
-  if (Number.isNaN(userId) || userId <= 0) {
-    return null
+
+  if (typeof value === "number" && Number.isFinite(value) && value > 0) {
+    return String(Math.trunc(value))
   }
-  return userId
+
+  if (typeof value === "bigint") {
+    const candidate = value.toString()
+    return candidate.length > 0 ? candidate : null
+  }
+
+  return null
 }
 
 export async function GET(request: NextRequest) {
   try {
-    const userId = parseUserId(request.nextUrl.searchParams.get("userId"))
+    const userId = normalizeUserId(request.nextUrl.searchParams.get("userId"))
     const calendarId = userId
       ? await getOrCreateCalendarForUser(userId)
       : getCalendarId()
@@ -213,10 +220,10 @@ export async function POST(request: Request) {
     const plusOther =
       typeof plusOtherResult === "number" ? plusOtherResult : 0
 
-    let userId: number | null = null
+    let userId: string | null = null
     if ("userId" in payload && payload.userId !== undefined) {
-      const parsedUserId = Number(payload.userId)
-      if (Number.isNaN(parsedUserId) || parsedUserId <= 0) {
+      const parsedUserId = normalizeUserId(payload.userId)
+      if (!parsedUserId) {
         return NextResponse.json(
           { error: "El identificador del usuario no es válido" },
           { status: 400 }

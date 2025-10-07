@@ -8,12 +8,21 @@ function normalizeCalendarId(value: unknown): number | null {
   return parsed
 }
 
+function normalizeUserId(userId: string): string {
+  const trimmed = userId.trim()
+  if (!trimmed) {
+    throw new Error("El identificador del usuario no es válido")
+  }
+  return trimmed
+}
+
 export async function ensureCalendarForUser(
-  userId: number,
+  userId: string,
   name: string,
   timezone: string,
 ): Promise<number> {
-  const existing = await findCalendarIdForUser(userId)
+  const normalizedUserId = normalizeUserId(userId)
+  const existing = await findCalendarIdForUser(normalizedUserId)
   if (existing) {
     return existing
   }
@@ -23,7 +32,7 @@ export async function ensureCalendarForUser(
     .from("calendars")
     .insert({
       name,
-      owner_user_id: userId,
+      owner_user_id: normalizedUserId,
       timezone,
       color: "#38bdf8",
     })
@@ -44,9 +53,10 @@ export async function ensureCalendarForUser(
 }
 
 export async function getOrCreateCalendarForUser(
-  userId: number,
+  userId: string,
 ): Promise<number | null> {
-  const existing = await findCalendarIdForUser(userId)
+  const normalizedUserId = normalizeUserId(userId)
+  const existing = await findCalendarIdForUser(normalizedUserId)
   if (existing) {
     return existing
   }
@@ -55,7 +65,7 @@ export async function getOrCreateCalendarForUser(
   const { data: userRow, error } = await supabase
     .from("users")
     .select("name, timezone")
-    .eq("id", userId)
+    .eq("id", normalizedUserId)
     .maybeSingle()
 
   if (error) {
@@ -75,17 +85,20 @@ export async function getOrCreateCalendarForUser(
   const calendarName =
     trimmedName.length > 0
       ? `Calendario de ${trimmedName}`
-      : `Calendario usuario ${userId}`
+      : `Calendario usuario ${normalizedUserId}`
 
-  return ensureCalendarForUser(userId, calendarName, timezone)
+  return ensureCalendarForUser(normalizedUserId, calendarName, timezone)
 }
 
-export async function findCalendarIdForUser(userId: number): Promise<number | null> {
+export async function findCalendarIdForUser(
+  userId: string,
+): Promise<number | null> {
+  const normalizedUserId = normalizeUserId(userId)
   const supabase = getSupabaseClient()
   const { data, error } = await supabase
     .from("calendars")
     .select("id")
-    .eq("owner_user_id", userId)
+    .eq("owner_user_id", normalizedUserId)
     .order("id", { ascending: true })
     .limit(1)
     .maybeSingle()
@@ -97,3 +110,4 @@ export async function findCalendarIdForUser(userId: number): Promise<number | nu
 
   return normalizeCalendarId(data?.id)
 }
+

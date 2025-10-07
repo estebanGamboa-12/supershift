@@ -25,8 +25,10 @@ async function listUsers() {
   }
 
   const users = userRows ?? []
-  const userIds = users.map((user) => Number(user.id))
-  const calendarByUser = new Map<number, number>()
+  const userIds = users
+    .map((user) => (user.id != null ? String(user.id) : null))
+    .filter((id): id is string => Boolean(id))
+  const calendarByUser = new Map<string, number>()
 
   if (userIds.length > 0) {
     const { data: calendarRows, error: calendarsError } = await supabase
@@ -40,19 +42,22 @@ async function listUsers() {
     }
 
     for (const calendar of calendarRows ?? []) {
-      const ownerId = Number(calendar.owner_user_id)
+      if (calendar.owner_user_id == null) {
+        continue
+      }
+      const ownerId = String(calendar.owner_user_id)
       const calendarId = Number(calendar.id)
-      if (!calendarByUser.has(ownerId)) {
+      if (!calendarByUser.has(ownerId) && Number.isFinite(calendarId)) {
         calendarByUser.set(ownerId, calendarId)
       }
     }
   }
 
   return users.map((user) => ({
-    id: Number(user.id),
+    id: String(user.id),
     name: String(user.name ?? ""),
     email: String(user.email ?? ""),
-    calendarId: calendarByUser.get(Number(user.id)) ?? null,
+    calendarId: calendarByUser.get(String(user.id)) ?? null,
   }))
 }
 
@@ -83,7 +88,7 @@ async function createUser({
     throw new Error("Supabase no devolvió el identificador del nuevo usuario")
   }
 
-  const userId = Number(data.id)
+  const userId = String(data.id)
   const calendarName = `Calendario de ${name}`
 
   try {

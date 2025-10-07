@@ -57,13 +57,31 @@ function toPositiveInteger(value: unknown): number | null {
   return integerValue
 }
 
+function sanitizeUserId(value: unknown): string | null {
+  if (typeof value === "string") {
+    const trimmed = value.trim()
+    return trimmed.length > 0 ? trimmed : null
+  }
+
+  if (typeof value === "number" && Number.isFinite(value) && value > 0) {
+    return String(Math.trunc(value))
+  }
+
+  if (typeof value === "bigint") {
+    const candidate = value.toString()
+    return candidate.length > 0 ? candidate : null
+  }
+
+  return null
+}
+
 function sanitizeUserSummary(value: unknown): UserSummary | null {
   if (!value || typeof value !== "object") {
     return null
   }
 
   const candidate = value as Partial<UserSummary>
-  const id = toPositiveInteger(
+  const id = sanitizeUserId(
     candidate.id ?? (candidate as { userId?: unknown }).userId
   )
 
@@ -74,7 +92,7 @@ function sanitizeUserSummary(value: unknown): UserSummary | null {
   const calendarId =
     toPositiveInteger(
       candidate.calendarId ?? (candidate as { calendar_id?: unknown }).calendar_id
-    ) ?? id
+    ) ?? null
 
   const name =
     typeof candidate.name === "string" && candidate.name.trim().length > 0
@@ -186,7 +204,7 @@ export default function Home() {
   }, [])
 
   const fetchShiftsFromApi = useCallback(
-    async (userId: number) => {
+    async (userId: string) => {
       const response = await fetch(`/api/shifts?userId=${userId}`, {
         cache: "no-store",
       })
@@ -648,7 +666,11 @@ export default function Home() {
       try {
         setIsLoadingUsers(true)
         const response = await fetch("/api/users", { cache: "no-store" })
-        const data = await parseJsonResponse<{ users: (UserSummary & { calendarId?: number })[] }>(
+        const data = await parseJsonResponse<{
+          users: Array<
+            Omit<UserSummary, "calendarId"> & { calendarId?: number | null }
+          >
+        }>(
           response
         )
 

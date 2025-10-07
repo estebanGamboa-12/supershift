@@ -177,7 +177,7 @@ export default function ShiftPlannerLab({
       }))
       .sort((a, b) => a.date.localeCompare(b.date))
 
-    void Promise.resolve(callback(payload))
+    void Promise.resolve().then(() => callback(payload))
   }, [])
 
   const updateEntries = useCallback(

@@ -15,6 +15,22 @@ const typeColor: Record<ShiftType, string> = {
   CUSTOM: "#0ea5e9",
 }
 
+function resolveColor(shift: ShiftEvent) {
+  return shift.color ?? typeColor[shift.type]
+}
+
+const shiftLabels: Record<ShiftType, string> = {
+  WORK: "Trabajo",
+  REST: "Descanso",
+  NIGHT: "Nocturno",
+  VACATION: "Vacaciones",
+  CUSTOM: "Personalizado",
+}
+
+function resolveLabel(shift: ShiftEvent) {
+  return shift.label ?? shiftLabels[shift.type]
+}
+
 type CalendarSlot = { start: Date }
 
 type CalendarViewProps = {
@@ -158,29 +174,32 @@ export default function CalendarView({
 
                 {/* Eventos */}
                 <div className="flex flex-col gap-1 overflow-hidden">
-                  {dayEvents.map((shift) => (
-                    <button
-                      key={shift.id}
-                      onClick={(e) => {
-                        e.stopPropagation()
-                        const handler = onSelectShift ?? onSelectEvent
-                        handler?.(shift)
-                      }}
-                      className="truncate rounded-lg border px-1.5 py-1 text-left text-[11px] font-semibold shadow-sm transition hover:scale-[1.01] sm:text-[10px]"
-                      style={{
-                        backgroundColor: `${typeColor[shift.type]}26`,
-                        borderColor: `${typeColor[shift.type]}40`,
-                        color: typeColor[shift.type],
-                      }}
-                    >
-                      {shift.type}
-                      {shift.note && (
-                        <p className="truncate text-[10px] text-white/70">
-                          {shift.note}
-                        </p>
-                      )}
-                    </button>
-                  ))}
+                  {dayEvents.map((shift) => {
+                    const accent = resolveColor(shift)
+                    return (
+                      <button
+                        key={shift.id}
+                        onClick={(e) => {
+                          e.stopPropagation()
+                          const handler = onSelectShift ?? onSelectEvent
+                          handler?.(shift)
+                        }}
+                        className="truncate rounded-lg border px-1.5 py-1 text-left text-[11px] font-semibold shadow-sm transition hover:scale-[1.01] sm:text-[10px]"
+                        style={{
+                          backgroundColor: `${accent}1a`,
+                          borderColor: `${accent}33`,
+                          color: accent,
+                        }}
+                      >
+                        {resolveLabel(shift)}
+                        {shift.note && (
+                          <p className="truncate text-[10px] text-white/70">
+                            {shift.note}
+                          </p>
+                        )}
+                      </button>
+                    )
+                  })}
                 </div>
               </div>
             )

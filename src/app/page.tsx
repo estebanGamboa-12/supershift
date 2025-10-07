@@ -3,7 +3,7 @@
 import { useState, useMemo, useCallback, useEffect } from "react"
 import { differenceInCalendarDays, format } from "date-fns"
 import { es } from "date-fns/locale"
-import type { ShiftEvent, ShiftType } from "@/types/shifts"
+import type { ShiftEvent, ShiftPluses, ShiftType } from "@/types/shifts"
 import EditShiftModal from "@/components/EditShiftModal"
 import type { ManualRotationDay } from "@/components/ManualRotationBuilder"
 import ShiftPlannerLab from "@/components/ShiftPlannerLab"
@@ -27,6 +27,12 @@ type ApiShift = {
   date: string
   type: ShiftType
   note?: string | null
+  label?: string | null
+  color?: string | null
+  plusNight?: number | null
+  plusHoliday?: number | null
+  plusAvailability?: number | null
+  plusOther?: number | null
 }
 
 const SHIFT_TYPE_LABELS: Record<ShiftType, string> = {
@@ -65,6 +71,12 @@ export default function Home() {
   const [rotationBuilderResetKey, setRotationBuilderResetKey] = useState(0)
 
   const mapApiShift = useCallback((shift: ApiShift): ShiftEvent => {
+    const plusNight = shift.plusNight ?? 0
+    const plusHoliday = shift.plusHoliday ?? 0
+    const plusAvailability = shift.plusAvailability ?? 0
+    const plusOther = shift.plusOther ?? 0
+    const hasPluses =
+      plusNight > 0 || plusHoliday > 0 || plusAvailability > 0 || plusOther > 0
     return {
       id: shift.id,
       date: shift.date,
@@ -73,6 +85,22 @@ export default function Home() {
       end: new Date(shift.date),
       ...(shift.note && shift.note.trim().length > 0
         ? { note: shift.note }
+        : {}),
+      ...(shift.label && shift.label.trim().length > 0
+        ? { label: shift.label }
+        : {}),
+      ...(shift.color && shift.color.trim().length > 0
+        ? { color: shift.color }
+        : {}),
+      ...(hasPluses
+        ? {
+            pluses: {
+              night: plusNight,
+              holiday: plusHoliday,
+              availability: plusAvailability,
+              other: plusOther,
+            },
+          }
         : {}),
     }
   }, [])
@@ -171,10 +199,16 @@ export default function Home() {
       date,
       type,
       note,
+      label,
+      color,
+      pluses,
     }: {
       date: string
       type: ShiftType
       note?: string
+      label?: string
+      color?: string
+      pluses?: ShiftPluses
     }) => {
       if (!currentUser) {
         throw new Error("Selecciona un usuario antes de crear turnos")
@@ -188,6 +222,16 @@ export default function Home() {
             date,
             type,
             ...(note ? { note } : {}),
+            ...(label ? { label } : {}),
+            ...(color ? { color } : {}),
+            ...(pluses
+              ? {
+                  plusNight: pluses.night,
+                  plusHoliday: pluses.holiday,
+                  plusAvailability: pluses.availability,
+                  plusOther: pluses.other,
+                }
+              : {}),
             userId: currentUser.id,
           }),
         })
@@ -235,6 +279,9 @@ export default function Home() {
             date: entry.date,
             type: entry.type,
             ...(entry.note ? { note: entry.note } : {}),
+            ...(entry.label ? { label: entry.label } : {}),
+            ...(entry.color ? { color: entry.color } : {}),
+            pluses: entry.pluses,
           })
         }
 

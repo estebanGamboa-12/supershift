@@ -14,6 +14,12 @@ export type ShiftRow = RowDataPacket & {
   date: string
   type: string
   note: string | null
+  label: string | null
+  color: string | null
+  plusNight: number | null
+  plusHoliday: number | null
+  plusAvailability: number | null
+  plusOther: number | null
   calendarId?: number
 }
 
@@ -22,15 +28,30 @@ export type ApiShift = {
   date: string
   type: ShiftType
   note?: string
+  label?: string
+  color?: string
+  plusNight?: number
+  plusHoliday?: number
+  plusAvailability?: number
+  plusOther?: number
 }
 
 export const SHIFT_SELECT_BASE =
-  "SELECT id, calendar_id AS calendarId, DATE_FORMAT(start_at, '%Y-%m-%d') AS date, shift_type_code AS type, note FROM shifts"
+  "SELECT id, calendar_id AS calendarId, DATE_FORMAT(start_at, '%Y-%m-%d') AS date, shift_type_code AS type, note, label, color, plus_night AS plusNight, plus_holiday AS plusHoliday, plus_availability AS plusAvailability, plus_other AS plusOther FROM shifts"
 
 export function mapShiftRow(row: ShiftRow): ApiShift {
   const type = VALID_SHIFT_TYPES.has(row.type as ShiftType)
     ? (row.type as ShiftType)
     : "CUSTOM"
+
+  const label = typeof row.label === "string" ? row.label.trim() : ""
+  const color = typeof row.color === "string" ? row.color.trim() : ""
+
+  const plusNight = typeof row.plusNight === "number" ? row.plusNight : 0
+  const plusHoliday = typeof row.plusHoliday === "number" ? row.plusHoliday : 0
+  const plusAvailability =
+    typeof row.plusAvailability === "number" ? row.plusAvailability : 0
+  const plusOther = typeof row.plusOther === "number" ? row.plusOther : 0
 
   return {
     id: row.id,
@@ -39,6 +60,14 @@ export function mapShiftRow(row: ShiftRow): ApiShift {
     ...(row.note != null && row.note.trim().length > 0
       ? { note: row.note }
       : {}),
+    ...(label.length > 0 ? { label } : {}),
+    ...(color.length > 0 ? { color } : {}),
+    ...((plusNight || plusHoliday || plusAvailability || plusOther) && {
+      plusNight,
+      plusHoliday,
+      plusAvailability,
+      plusOther,
+    }),
   }
 }
 

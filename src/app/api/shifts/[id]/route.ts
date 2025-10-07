@@ -15,7 +15,7 @@ import { findCalendarIdForUser } from "@/lib/calendars"
 export const runtime = "nodejs"
 
 type Params = {
-  params: { id: string }
+  params: Promise<{ id: string }>
 }
 
 const DEFAULT_CALENDAR_ID = Number.parseInt(
@@ -49,7 +49,8 @@ function normalizeUserId(param: string | null): string | null {
 }
 
 export async function PATCH(request: NextRequest, context: Params) {
-  const id = parseId(context.params.id)
+  const params = await context.params
+  const id = parseId(params.id)
   if (!id) {
     return NextResponse.json(
       { error: "El identificador del turno no es válido" },
@@ -278,7 +279,8 @@ export async function PATCH(request: NextRequest, context: Params) {
 }
 
 export async function DELETE(request: NextRequest, context: Params) {
-  const id = parseId(context.params.id)
+  const params = await context.params
+  const id = parseId(params.id)
   if (!id) {
     return NextResponse.json(
       { error: "El identificador del turno no es válido" },

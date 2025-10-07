@@ -131,6 +131,12 @@ CREATE TABLE `shifts` (
   `end_at` datetime NOT NULL,
   `all_day` tinyint(1) NOT NULL DEFAULT 1,
   `note` text DEFAULT NULL,
+  `label` varchar(100) DEFAULT NULL,
+  `color` varchar(16) DEFAULT NULL,
+  `plus_night` tinyint(3) UNSIGNED NOT NULL DEFAULT 0,
+  `plus_holiday` tinyint(3) UNSIGNED NOT NULL DEFAULT 0,
+  `plus_availability` tinyint(3) UNSIGNED NOT NULL DEFAULT 0,
+  `plus_other` tinyint(3) UNSIGNED NOT NULL DEFAULT 0,
   `created_at` datetime NOT NULL DEFAULT current_timestamp(),
   `updated_at` datetime NOT NULL DEFAULT current_timestamp() ON UPDATE current_timestamp(),
   PRIMARY KEY (`id`),
@@ -188,9 +194,9 @@ INSERT INTO `rotation_steps` (`id`, `template_id`, `day_offset`, `shift_type_cod
   (5, 1, 4, 'REST'),
   (6, 1, 5, 'REST');
 
-INSERT INTO `shifts` (`id`, `calendar_id`, `assignee_user_id`, `shift_type_code`, `start_at`, `end_at`, `all_day`, `note`, `created_at`, `updated_at`) VALUES
-  (1, 2, 2, 'WORK', '2025-10-01 00:00:00', '2025-10-01 23:59:59', 1, 'Entrega de reporte mensual', current_timestamp(), current_timestamp()),
-  (2, 2, 2, 'REST', '2025-10-02 00:00:00', '2025-10-02 23:59:59', 1, 'Recuperar horas de sueño', current_timestamp(), current_timestamp()),
-  (3, 2, 2, 'NIGHT', '2025-10-03 00:00:00', '2025-10-03 23:59:59', 1, 'Cobertura guardia', current_timestamp(), current_timestamp());
+INSERT INTO `shifts` (`id`, `calendar_id`, `assignee_user_id`, `shift_type_code`, `start_at`, `end_at`, `all_day`, `note`, `label`, `color`, `plus_night`, `plus_holiday`, `plus_availability`, `plus_other`, `created_at`, `updated_at`) VALUES
+  (1, 2, 2, 'WORK', '2025-10-01 00:00:00', '2025-10-01 23:59:59', 1, 'Entrega de reporte mensual', 'Trabajo', '#2563eb', 0, 1, 0, 0, current_timestamp(), current_timestamp()),
+  (2, 2, 2, 'REST', '2025-10-02 00:00:00', '2025-10-02 23:59:59', 1, 'Recuperar horas de sueño', 'Descanso', '#64748b', 0, 0, 0, 0, current_timestamp(), current_timestamp()),
+  (3, 2, 2, 'NIGHT', '2025-10-03 00:00:00', '2025-10-03 23:59:59', 1, 'Cobertura guardia', 'Nocturno', '#7c3aed', 2, 0, 1, 0, current_timestamp(), current_timestamp());
 
 SET FOREIGN_KEY_CHECKS = @OLD_FOREIGN_KEY_CHECKS;

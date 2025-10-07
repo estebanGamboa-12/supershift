@@ -9,11 +9,11 @@ type TeamSpotlightProps = {
 }
 
 const typeColor: Record<ShiftType, string> = {
-  WORK: "bg-blue-500",
-  REST: "bg-slate-400",
-  NIGHT: "bg-violet-500",
-  VACATION: "bg-orange-500",
-  CUSTOM: "bg-sky-400",
+  WORK: "#2563eb",
+  REST: "#64748b",
+  NIGHT: "#7c3aed",
+  VACATION: "#f97316",
+  CUSTOM: "#0ea5e9",
 }
 
 const TeamSpotlight: FC<TeamSpotlightProps> = ({
@@ -55,9 +55,19 @@ const TeamSpotlight: FC<TeamSpotlightProps> = ({
                     {format(new Date(shift.date), "EEEE d MMMM", { locale: es })}
                   </p>
                 </div>
-                <span className="inline-flex items-center gap-2 rounded-full border border-white/15 bg-white/5 px-3 py-1 text-xs font-medium text-white/80">
-                  <span className={`h-2 w-2 rounded-full ${typeColor[shift.type]}`} />
-                  {shiftTypeLabels[shift.type] ?? shift.type}
+                <span
+                  className="inline-flex items-center gap-2 rounded-full border px-3 py-1 text-xs font-medium"
+                  style={{
+                    color: shift.color ?? typeColor[shift.type],
+                    backgroundColor: `${(shift.color ?? typeColor[shift.type])}1a`,
+                    borderColor: `${(shift.color ?? typeColor[shift.type])}33`,
+                  }}
+                >
+                  <span
+                    className="h-2 w-2 rounded-full"
+                    style={{ backgroundColor: shift.color ?? typeColor[shift.type] }}
+                  />
+                  {shift.label ?? shiftTypeLabels[shift.type] ?? shift.type}
                 </span>
               </li>
             ))}

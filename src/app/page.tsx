@@ -767,7 +767,7 @@ export default function Home() {
 
     setUsers((current) => {
       const filtered = current.filter((item) => item.id !== sanitized.id)
-      return [...filtered, sanitized].sort((a, b) => a.id - b.id)
+      return [...filtered, sanitized].sort((a, b) => a.id.localeCompare(b.id))
     })
   }, [])
 

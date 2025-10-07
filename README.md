@@ -30,6 +30,8 @@ Variables disponibles:
 - `DB_PASSWORD`: contraseña del usuario
 - `DB_NAME`: nombre de la base de datos importada (`supershift`)
 - `DEFAULT_CALENDAR_ID`: identificador del calendario por defecto al crear turnos (usa `2` para el calendario de Esteban incluido en la base de datos de ejemplo)
+- `NEXT_PUBLIC_SUPABASE_URL`: URL del proyecto Supabase si deseas habilitar integraciones desde el cliente
+- `NEXT_PUBLIC_SUPABASE_ANON_KEY`: clave pública (anon) del proyecto Supabase
 
 ### Usuarios de ejemplo
 

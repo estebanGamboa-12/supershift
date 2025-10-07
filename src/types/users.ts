@@ -1,6 +1,6 @@
 export type UserSummary = {
-  id: number
+  id: string
   name: string
   email: string
-  calendarId: number
+  calendarId: number | null
 }

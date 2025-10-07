@@ -1,6 +1,5 @@
 import { NextResponse } from "next/server"
-import type { PoolConnection, ResultSetHeader, RowDataPacket } from "mysql2/promise"
-import { getPool } from "@/lib/db"
+import { getSupabaseClient } from "@/lib/supabase"
 import { ensureCalendarForUser } from "@/lib/calendars"
 import { hashPassword } from "@/lib/passwords"
 
@@ -15,57 +14,89 @@ function sanitizeString(value: unknown): string | null {
 }
 
 async function listUsers() {
-  const pool = await getPool()
-  const [rows] = await pool.query<RowDataPacket[]>(
-    `SELECT u.id, u.name, u.email,
-            (SELECT id FROM calendars WHERE owner_user_id = u.id ORDER BY id ASC LIMIT 1) AS calendarId
-       FROM users u
-       ORDER BY u.created_at ASC`
-  )
+  const supabase = getSupabaseClient()
+  const { data: userRows, error: usersError } = await supabase
+    .from("users")
+    .select("id, name, email")
+    .order("created_at", { ascending: true })
 
-  return rows.map((row) => ({
-    id: Number(row.id),
-    name: String(row.name),
-    email: String(row.email),
-    calendarId: row.calendarId != null ? Number(row.calendarId) : null,
+  if (usersError) {
+    throw usersError
+  }
+
+  const users = userRows ?? []
+  const userIds = users.map((user) => Number(user.id))
+  const calendarByUser = new Map<number, number>()
+
+  if (userIds.length > 0) {
+    const { data: calendarRows, error: calendarsError } = await supabase
+      .from("calendars")
+      .select("id, owner_user_id")
+      .in("owner_user_id", userIds)
+      .order("id", { ascending: true })
+
+    if (calendarsError) {
+      throw calendarsError
+    }
+
+    for (const calendar of calendarRows ?? []) {
+      const ownerId = Number(calendar.owner_user_id)
+      const calendarId = Number(calendar.id)
+      if (!calendarByUser.has(ownerId)) {
+        calendarByUser.set(ownerId, calendarId)
+      }
+    }
+  }
+
+  return users.map((user) => ({
+    id: Number(user.id),
+    name: String(user.name ?? ""),
+    email: String(user.email ?? ""),
+    calendarId: calendarByUser.get(Number(user.id)) ?? null,
   }))
 }
 
-async function createUser(
-  connection: PoolConnection,
-  {
-    name,
-    email,
-    password,
-  }: { name: string; email: string; password: string }
-) {
+async function createUser({
+  name,
+  email,
+  password,
+}: {
+  name: string
+  email: string
+  password: string
+}) {
+  const supabase = getSupabaseClient()
   const timezone = "Europe/Madrid"
   const passwordHash = await hashPassword(password)
 
-  const [userResult] = await connection.execute<ResultSetHeader>(
-    `INSERT INTO users (name, email, password_hash, timezone)
-     VALUES (?, ?, ?, ?)` ,
-    [name, email, passwordHash, timezone]
-  )
+  const { data, error } = await supabase
+    .from("users")
+    .insert({ name, email, password_hash: passwordHash, timezone })
+    .select("id")
+    .maybeSingle()
 
-  if (!userResult.insertId) {
-    throw new Error("No se pudo crear el usuario")
+  if (error) {
+    throw error
   }
 
-  const userId = Number(userResult.insertId)
-  const calendarName = `Calendario de ${name}`
-  const calendarId = await ensureCalendarForUser(
-    userId,
-    calendarName,
-    timezone,
-    connection
-  )
+  if (!data?.id) {
+    throw new Error("Supabase no devolvió el identificador del nuevo usuario")
+  }
 
-  return {
-    id: userId,
-    name,
-    email,
-    calendarId,
+  const userId = Number(data.id)
+  const calendarName = `Calendario de ${name}`
+
+  try {
+    const calendarId = await ensureCalendarForUser(userId, calendarName, timezone)
+    return {
+      id: userId,
+      name,
+      email,
+      calendarId,
+    }
+  } catch (calendarError) {
+    await supabase.from("users").delete().eq("id", userId)
+    throw calendarError
   }
 }
 
@@ -74,7 +105,7 @@ export async function GET() {
     const users = await listUsers()
     return NextResponse.json({ users })
   } catch (error) {
-    console.error("Error fetching users", error)
+    console.error("Error fetching users from Supabase", error)
     return NextResponse.json(
       { error: "No se pudieron cargar los usuarios" },
       { status: 500 }
@@ -114,23 +145,15 @@ export async function POST(request: Request) {
     )
   }
 
-  const pool = await getPool()
-  const connection = await pool.getConnection()
-
   try {
-    await connection.beginTransaction()
-    const user = await createUser(connection, { name, email, password })
-    await connection.commit()
-
+    const user = await createUser({ name, email, password })
     return NextResponse.json({ user }, { status: 201 })
   } catch (error) {
-    await connection.rollback()
-
     if (
       error &&
       typeof error === "object" &&
       "code" in error &&
-      error.code === "ER_DUP_ENTRY"
+      ["23505", "1062"].includes(String((error as { code?: string }).code))
     ) {
       return NextResponse.json(
         { error: "El correo ya está registrado" },
@@ -138,12 +161,10 @@ export async function POST(request: Request) {
       )
     }
 
-    console.error("Error creating user", error)
+    console.error("Error creating user in Supabase", error)
     return NextResponse.json(
       { error: "No se pudo crear el usuario" },
       { status: 500 }
     )
-  } finally {
-    connection.release()
   }
 }

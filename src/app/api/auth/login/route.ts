@@ -1,6 +1,5 @@
 import { NextResponse } from "next/server"
-import type { RowDataPacket } from "mysql2/promise"
-import { queryRows } from "@/lib/db"
+import { getSupabaseClient } from "@/lib/supabase"
 import { getOrCreateCalendarForUser } from "@/lib/calendars"
 import { verifyPassword } from "@/lib/passwords"
 
@@ -29,19 +28,28 @@ export async function POST(request: Request) {
   }
 
   try {
-    const rows = await queryRows<RowDataPacket[]>(
-      `SELECT id, name, email, password_hash FROM users WHERE email = ?`,
-      [email]
-    )
+    const supabase = getSupabaseClient()
+    const { data: userRow, error } = await supabase
+      .from("users")
+      .select("id, name, email, password_hash")
+      .eq("email", email)
+      .maybeSingle()
 
-    if (!rows.length) {
+    if (error) {
+      console.error("Supabase error during login", error)
+      return NextResponse.json(
+        { error: "No se pudo iniciar sesión" },
+        { status: 500 }
+      )
+    }
+
+    if (!userRow) {
       return NextResponse.json(
         { error: "Credenciales no válidas" },
         { status: 401 }
       )
     }
 
-    const userRow = rows[0]
     const passwordHash = userRow.password_hash as string | null
 
     const isValid = await verifyPassword(password, passwordHash)

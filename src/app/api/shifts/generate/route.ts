@@ -1,7 +1,6 @@
 import { NextResponse } from "next/server"
 import { format } from "date-fns"
-import type { PoolConnection, RowDataPacket } from "mysql2/promise"
-import { getPool } from "@/lib/db"
+import { getSupabaseClient } from "@/lib/supabase"
 import { generateRotation } from "@/lib/generateRotation"
 import { getOrCreateCalendarForUser } from "@/lib/calendars"
 
@@ -45,73 +44,73 @@ export async function POST(request: Request) {
   const horizon = getHorizon()
   const rotation = generateRotation(startDate, cycle, horizon)
 
-  const pool = await getPool()
-  let connection: PoolConnection | null = null
+  const calendarId = userId
+    ? await getOrCreateCalendarForUser(userId)
+    : getDefaultCalendarId()
+
+  if (!calendarId) {
+    return NextResponse.json(
+      {
+        message: userId
+          ? "No se encontró un calendario para el usuario"
+          : "No se encontró un calendario predeterminado",
+      },
+      { status: 404 },
+    )
+  }
+
+  const supabase = getSupabaseClient()
 
   try {
-    connection = await pool.getConnection()
-    await connection.beginTransaction()
+    const { error: deleteError } = await supabase
+      .from("shifts")
+      .delete()
+      .eq("calendar_id", calendarId)
 
-    const calendarId = userId
-      ? await getOrCreateCalendarForUser(userId, connection)
-      : getDefaultCalendarId()
-
-    if (!calendarId) {
-      await connection.rollback()
-      return NextResponse.json(
-        {
-          message: userId
-            ? "No se encontró un calendario para el usuario"
-            : "No se encontró un calendario predeterminado",
-        },
-        { status: 404 },
-      )
+    if (deleteError) {
+      throw deleteError
     }
-
-    await connection.execute(`DELETE FROM shifts WHERE calendar_id = ?`, [calendarId])
 
     if (rotation.length > 0) {
-      const values = rotation.map((shift) => [
-        calendarId,
-        shift.type,
-        `${shift.date} 00:00:00`,
-        `${shift.date} 23:59:59`,
-        1,
-        null,
-      ])
+      const payload = rotation.map((shift) => ({
+        calendar_id: calendarId,
+        shift_type_code: shift.type,
+        start_at: `${shift.date} 00:00:00`,
+        end_at: `${shift.date} 23:59:59`,
+        all_day: 1,
+        note: null,
+      }))
 
-      await connection.query(
-        `INSERT INTO shifts (calendar_id, shift_type_code, start_at, end_at, all_day, note)
-         VALUES ?`,
-        [values]
-      )
+      const { error: insertError } = await supabase.from("shifts").insert(payload)
+      if (insertError) {
+        throw insertError
+      }
     }
 
-    await connection.commit()
+    const { data, error: selectError } = await supabase
+      .from("shifts")
+      .select("id, calendar_id, shift_type_code, start_at, note")
+      .eq("calendar_id", calendarId)
+      .order("start_at", { ascending: true })
 
-    const [rows] = await connection.query<RowDataPacket[]>(
-      `SELECT id, calendar_id AS calendarId, shift_type_code AS type, start_at AS startAt, note
-       FROM shifts WHERE calendar_id = ?
-       ORDER BY start_at`,
-      [calendarId]
-    )
+    if (selectError) {
+      throw selectError
+    }
 
-    const shifts = rows.map((row) => ({
-      id: row.id as number,
-      calendarId: row.calendarId as number,
-      type: row.type as string,
-      date: toDateOnly(row.startAt),
+    const shifts = (data ?? []).map((row) => ({
+      id: Number(row.id),
+      calendarId: Number(row.calendar_id),
+      type: String(row.shift_type_code ?? ""),
+      date: toDateOnly(row.start_at as string | null),
       note: (row.note as string | null) ?? "",
     }))
 
     return NextResponse.json({ shifts })
   } catch (error) {
-    if (connection) {
-      await connection.rollback()
-    }
-    console.error("Failed to regenerate shifts", error)
-    return NextResponse.json({ message: "No se pudieron generar los turnos" }, { status: 500 })
-  } finally {
-    connection?.release()
+    console.error("Failed to regenerate shifts in Supabase", error)
+    return NextResponse.json(
+      { message: "No se pudieron generar los turnos" },
+      { status: 500 }
+    )
   }
 }

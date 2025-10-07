@@ -9,7 +9,7 @@ export type GeneratedRotationShift = {
 export function generateRotation(
   startDate: string,
   cycle: number[],
-  length: number = 60
+  length: number = 365
 ): GeneratedRotationShift[] {
   if (!startDate || !cycle.length) return []
 

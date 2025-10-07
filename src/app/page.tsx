@@ -68,7 +68,6 @@ export default function Home() {
   const [userError, setUserError] = useState<string | null>(null)
   const [isCommittingRotation, setIsCommittingRotation] = useState(false)
   const [rotationError, setRotationError] = useState<string | null>(null)
-  const [rotationBuilderResetKey, setRotationBuilderResetKey] = useState(0)
 
   const mapApiShift = useCallback((shift: ApiShift): ShiftEvent => {
     const plusNight = shift.plusNight ?? 0
@@ -270,10 +269,6 @@ export default function Home() {
 
   const handleManualRotationConfirm = useCallback(
     async (days: ManualRotationDay[]) => {
-      if (!days.length) {
-        return
-      }
-
       if (!currentUser) {
         setRotationError(
           "Selecciona un usuario antes de crear una rotación manual.",
@@ -281,15 +276,79 @@ export default function Home() {
         return
       }
 
+      const normalizeText = (value?: string | null) => (value ?? "").trim()
+      const normalizeColor = (value?: string | null) =>
+        normalizeText(value).toLowerCase()
+      const ensurePluses = (pluses?: ShiftPluses) => ({
+        night: pluses?.night ?? 0,
+        holiday: pluses?.holiday ?? 0,
+        availability: pluses?.availability ?? 0,
+        other: pluses?.other ?? 0,
+      })
+
+      const desiredByDate = new Map(days.map((day) => [day.date, day]))
+      const existingByDate = new Map(shifts.map((shift) => [shift.date, shift]))
+
+      const additions: ManualRotationDay[] = []
+      const updates: { day: ManualRotationDay; shift: ShiftEvent }[] = []
+      const deletions: ShiftEvent[] = []
+
+      for (const shift of shifts) {
+        if (!desiredByDate.has(shift.date)) {
+          deletions.push(shift)
+        }
+      }
+
+      for (const day of days) {
+        const existing = existingByDate.get(day.date)
+        if (!existing) {
+          additions.push(day)
+          continue
+        }
+
+        const existingPluses = ensurePluses(existing.pluses)
+        const dayPluses = ensurePluses(day.pluses)
+
+        const requiresUpdate =
+          existing.type !== day.type ||
+          normalizeText(existing.note) !== normalizeText(day.note) ||
+          normalizeText(existing.label) !== normalizeText(day.label) ||
+          normalizeColor(existing.color) !== normalizeColor(day.color) ||
+          existingPluses.night !== dayPluses.night ||
+          existingPluses.holiday !== dayPluses.holiday ||
+          existingPluses.availability !== dayPluses.availability ||
+          existingPluses.other !== dayPluses.other
+
+        if (requiresUpdate) {
+          updates.push({ day, shift: existing })
+        }
+      }
+
+      if (!additions.length && !updates.length && !deletions.length) {
+        return
+      }
+
       try {
         setIsCommittingRotation(true)
         setRotationError(null)
 
-        const queue = [...days].sort(
-          (a, b) => new Date(a.date).getTime() - new Date(b.date).getTime(),
-        )
+        for (const shift of deletions) {
+          await handleDeleteShift(shift.id)
+        }
 
-        for (const entry of queue) {
+        for (const { day, shift } of updates) {
+          await handleUpdateShift({
+            id: shift.id,
+            date: day.date,
+            type: day.type,
+            note: day.note,
+            label: day.label,
+            color: day.color,
+            pluses: day.pluses,
+          })
+        }
+
+        for (const entry of additions) {
           await handleAddShift({
             date: entry.date,
             type: entry.type,
@@ -299,19 +358,17 @@ export default function Home() {
             pluses: entry.pluses,
           })
         }
-
-        setRotationBuilderResetKey((current) => current + 1)
       } catch (error) {
         const message =
           error instanceof Error
             ? error.message
-            : "No se pudo guardar la rotación manual. Inténtalo más tarde."
+            : "No se pudieron guardar los cambios. Inténtalo más tarde."
         setRotationError(message)
       } finally {
         setIsCommittingRotation(false)
       }
     },
-    [currentUser, handleAddShift],
+    [currentUser, handleAddShift, handleDeleteShift, handleUpdateShift, shifts],
   )
 
   const handleSelectShift = useCallback((shift: ShiftEvent) => {
@@ -324,11 +381,17 @@ export default function Home() {
       date,
       type,
       note,
+      label,
+      color,
+      pluses,
     }: {
       id: number
       date: string
       type: ShiftType
       note?: string
+      label?: string
+      color?: string
+      pluses?: ShiftPluses
     }) => {
       try {
         if (!currentUser) {
@@ -342,6 +405,12 @@ export default function Home() {
             date,
             type,
             note: note ?? null,
+            label: label ?? null,
+            color: color ?? null,
+            plusNight: pluses?.night ?? 0,
+            plusHoliday: pluses?.holiday ?? 0,
+            plusAvailability: pluses?.availability ?? 0,
+            plusOther: pluses?.other ?? 0,
             userId: currentUser.id,
           }),
         })
@@ -412,6 +481,24 @@ export default function Home() {
   const orderedShifts = useMemo(
     () => sortByDate(shifts),
     [shifts, sortByDate]
+  )
+
+  const plannerDays = useMemo(
+    () =>
+      orderedShifts.map((shift) => ({
+        date: shift.date,
+        type: shift.type,
+        pluses: {
+          night: shift.pluses?.night ?? 0,
+          holiday: shift.pluses?.holiday ?? 0,
+          availability: shift.pluses?.availability ?? 0,
+          other: shift.pluses?.other ?? 0,
+        },
+        ...(shift.note ? { note: shift.note } : {}),
+        ...(shift.label ? { label: shift.label } : {}),
+        ...(shift.color ? { color: shift.color } : {}),
+      })),
+    [orderedShifts],
   )
 
   const upcomingShifts = useMemo(() => {
@@ -690,7 +777,7 @@ export default function Home() {
                   /> */}
 
                   <ShiftPlannerLab
-                    resetSignal={rotationBuilderResetKey}
+                    initialEntries={plannerDays}
                     onCommit={handleManualRotationConfirm}
                     isCommitting={isCommittingRotation}
                     errorMessage={rotationError}
@@ -819,7 +906,7 @@ export default function Home() {
                   {activeMobileTab === "settings" && (
                     <div className="flex flex-col gap-6">
                       <ShiftPlannerLab
-                        resetSignal={rotationBuilderResetKey}
+                        initialEntries={plannerDays}
                         onCommit={handleManualRotationConfirm}
                         isCommitting={isCommittingRotation}
                         errorMessage={rotationError}

@@ -14,6 +14,14 @@ const NextShiftCard: FC<NextShiftCardProps> = ({
   daysUntilNextShift,
   shiftTypeLabels,
 }) => {
+  const fallbackColors: Record<ShiftType, string> = {
+    WORK: "#2563eb",
+    REST: "#64748b",
+    NIGHT: "#7c3aed",
+    VACATION: "#f97316",
+    CUSTOM: "#0ea5e9",
+  }
+
   return (
     <article className="group relative overflow-hidden rounded-3xl border border-white/10 bg-slate-950/70 p-6 shadow-xl shadow-blue-500/10 backdrop-blur">
       {/* Glow de fondo */}
@@ -39,12 +47,20 @@ const NextShiftCard: FC<NextShiftCardProps> = ({
 
           {/* Etiquetas */}
           <div className="flex flex-wrap items-center gap-2 text-sm text-white/70">
-            <span className="inline-flex items-center gap-2 rounded-full border border-emerald-400/30 bg-emerald-500/10 px-3 py-1 text-emerald-100">
+            <span
+              className="inline-flex items-center gap-2 rounded-full px-3 py-1 text-xs font-semibold uppercase tracking-wide"
+              style={{
+                color: nextShift.color ?? fallbackColors[nextShift.type],
+                backgroundColor: `${(nextShift.color ?? fallbackColors[nextShift.type])}1a`,
+                border: `1px solid ${(nextShift.color ?? fallbackColors[nextShift.type])}33`,
+              }}
+            >
               <span
-                className="h-1.5 w-1.5 rounded-full bg-emerald-300"
+                className="h-1.5 w-1.5 rounded-full"
+                style={{ backgroundColor: nextShift.color ?? fallbackColors[nextShift.type] }}
                 aria-hidden
               />
-              {shiftTypeLabels[nextShift.type] ?? nextShift.type}
+              {nextShift.label ?? shiftTypeLabels[nextShift.type] ?? nextShift.type}
             </span>
 
             {daysUntilNextShift !== null && (

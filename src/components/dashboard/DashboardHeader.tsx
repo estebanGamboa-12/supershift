@@ -57,7 +57,7 @@ const DashboardHeader: FC<DashboardHeaderProps> = ({
         const dateLabel = format(new Date(shift.date), "EEEE d 'de' MMMM yyyy", {
           locale: es,
         })
-        const typeLabel = shiftTypeLabels[shift.type] ?? shift.type
+        const typeLabel = shift.label ?? shiftTypeLabels[shift.type] ?? shift.type
         const haystack = [
           note.toLowerCase(),
           dateLabel.toLowerCase(),
@@ -168,7 +168,7 @@ const DashboardHeader: FC<DashboardHeaderProps> = ({
                                   <p className="mt-1 text-xs text-white/50">Sin nota adicional</p>
                                 )}
                               </div>
-                              <span className="inline-flex items-center rounded-full border border-white/10 bg-white/10 px-2 py-1 text-[11px] font-semibold uppercase tracking-wide text-white/80">
+                      <span className="inline-flex items-center rounded-full border border-white/10 bg-white/10 px-2 py-1 text-[11px] font-semibold uppercase tracking-wide text-white/80">
                                 {typeLabel}
                               </span>
                             </div>

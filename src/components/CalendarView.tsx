@@ -33,6 +33,14 @@ const shiftTypeLabels: Record<ShiftType, string> = {
   CUSTOM: "Personalizado",
 }
 
+function resolveColor(shift: ShiftEvent) {
+  return shift.color ?? typeColor[shift.type]
+}
+
+function resolveLabel(shift: ShiftEvent) {
+  return shift.label ?? shiftTypeLabels[shift.type]
+}
+
 type CalendarSlot = { start: Date }
 
 type CalendarViewProps = {
@@ -186,29 +194,35 @@ export default function CalendarView({
 
                   {/* Eventos con dots */}
                   <div className="flex flex-col gap-1 overflow-hidden">
-                    {dayEvents.map((shift) => (
-                      <button
-                        key={shift.id}
-                        onClick={(e) => {
-                          e.stopPropagation()
-                          onSelectEvent(shift)
-                        }}
-                        className="flex items-center gap-1 truncate rounded px-1 py-0.5 text-left text-[10px] font-medium transition hover:scale-[1.01] sm:text-[11px]"
-                      >
-                        <span
-                          className="h-2 w-2 flex-shrink-0 rounded-full"
-                          style={{ backgroundColor: typeColor[shift.type] }}
-                        />
-                        <span className="truncate" style={{ color: typeColor[shift.type] }}>
-                          {shiftTypeLabels[shift.type]}
-                        </span>
-                        {shift.note && (
-                          <span className="truncate text-[10px] text-white/60">
-                            – {shift.note}
-                          </span>
-                        )}
-                      </button>
-                    ))}
+                    {dayEvents.map((shift) => {
+                      const accent = resolveColor(shift)
+                      return (
+                        <button
+                          key={shift.id}
+                          onClick={(e) => {
+                            e.stopPropagation()
+                            onSelectEvent(shift)
+                          }}
+                          className="flex items-center gap-1 truncate rounded px-1 py-0.5 text-left text-[10px] font-medium transition hover:scale-[1.01] sm:text-[11px]"
+                          style={{
+                            color: accent,
+                            backgroundColor: `${accent}1a`,
+                            border: `1px solid ${accent}33`,
+                          }}
+                        >
+                          <span
+                            className="h-2 w-2 flex-shrink-0 rounded-full"
+                            style={{ backgroundColor: accent }}
+                          />
+                          <span className="truncate">{resolveLabel(shift)}</span>
+                          {shift.note && (
+                            <span className="truncate text-[10px] text-white/70">
+                              – {shift.note}
+                            </span>
+                          )}
+                        </button>
+                      )
+                    })}
                   </div>
                 </div>
               )

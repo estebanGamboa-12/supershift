@@ -25,8 +25,26 @@ function getDefaultCalendarId() {
   return Number.isNaN(DEFAULT_CALENDAR_ID) ? 1 : DEFAULT_CALENDAR_ID
 }
 
+function normalizeUserId(value: unknown): string | null {
+  if (typeof value === "string") {
+    const trimmed = value.trim()
+    return trimmed.length > 0 ? trimmed : null
+  }
+
+  if (typeof value === "number" && Number.isFinite(value) && value > 0) {
+    return String(Math.trunc(value))
+  }
+
+  if (typeof value === "bigint") {
+    const candidate = value.toString()
+    return candidate.length > 0 ? candidate : null
+  }
+
+  return null
+}
+
 export async function POST(request: Request) {
-  let body: { startDate?: string; cycle?: number[]; userId?: number }
+  let body: { startDate?: string; cycle?: number[]; userId?: unknown }
   try {
     body = await request.json()
   } catch {
@@ -44,14 +62,25 @@ export async function POST(request: Request) {
   const horizon = getHorizon()
   const rotation = generateRotation(startDate, cycle, horizon)
 
-  const calendarId = userId
-    ? await getOrCreateCalendarForUser(userId)
+  let normalizedUserId: string | null = null
+  if (userId !== undefined) {
+    normalizedUserId = normalizeUserId(userId)
+    if (!normalizedUserId) {
+      return NextResponse.json(
+        { message: "El identificador del usuario no es válido" },
+        { status: 400 },
+      )
+    }
+  }
+
+  const calendarId = normalizedUserId
+    ? await getOrCreateCalendarForUser(normalizedUserId)
     : getDefaultCalendarId()
 
   if (!calendarId) {
     return NextResponse.json(
       {
-        message: userId
+        message: normalizedUserId
           ? "No se encontró un calendario para el usuario"
           : "No se encontró un calendario predeterminado",
       },

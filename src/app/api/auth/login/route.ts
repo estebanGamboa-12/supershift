@@ -60,7 +60,7 @@ export async function POST(request: Request) {
       )
     }
 
-    const userId = Number(userRow.id)
+    const userId = String(userRow.id)
     const calendarId = await getOrCreateCalendarForUser(userId)
 
     if (!calendarId) {

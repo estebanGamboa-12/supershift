@@ -35,15 +35,17 @@ function parseId(idParam: string): number | null {
   return id
 }
 
-function parseUserId(param: string | null): number | null {
-  if (!param) {
+function normalizeUserId(param: string | null): string | null {
+  if (typeof param !== "string") {
     return null
   }
-  const userId = Number.parseInt(param, 10)
-  if (Number.isNaN(userId) || userId <= 0) {
-    return null
+
+  const trimmed = param.trim()
+  if (trimmed.length > 0) {
+    return trimmed
   }
-  return userId
+
+  return null
 }
 
 export async function PATCH(request: NextRequest, { params }: Params) {
@@ -77,7 +79,7 @@ export async function PATCH(request: NextRequest, { params }: Params) {
       )
     }
 
-    const userId = parseUserId(request.nextUrl.searchParams.get("userId"))
+    const userId = normalizeUserId(request.nextUrl.searchParams.get("userId"))
     const calendarId = userId
       ? (await findCalendarIdForUser(userId)) ?? getFallbackCalendarId()
       : getFallbackCalendarId()
@@ -285,7 +287,7 @@ export async function DELETE(request: NextRequest, { params }: Params) {
   }
 
   try {
-    const userId = parseUserId(request.nextUrl.searchParams.get("userId"))
+    const userId = normalizeUserId(request.nextUrl.searchParams.get("userId"))
     const calendarId = userId
       ? (await findCalendarIdForUser(userId)) ?? getFallbackCalendarId()
       : getFallbackCalendarId()

@@ -149,6 +149,30 @@ export async function POST(request: Request) {
     const user = await createUser({ name, email, password })
     return NextResponse.json({ user }, { status: 201 })
   } catch (error) {
+    if (error instanceof Error) {
+      const message = error.message ?? ""
+
+      if (message.includes("Supabase URL no configurada")) {
+        return NextResponse.json(
+          {
+            error:
+              "Configura la variable de entorno SUPABASE_URL (o NEXT_PUBLIC_SUPABASE_URL) para poder crear usuarios.",
+          },
+          { status: 500 }
+        )
+      }
+
+      if (message.includes("Supabase key no configurada")) {
+        return NextResponse.json(
+          {
+            error:
+              "Configura la variable SUPABASE_SERVICE_ROLE_KEY (o NEXT_PUBLIC_SUPABASE_ANON_KEY) para poder crear usuarios.",
+          },
+          { status: 500 }
+        )
+      }
+    }
+
     if (
       error &&
       typeof error === "object" &&
@@ -159,6 +183,29 @@ export async function POST(request: Request) {
         { error: "El correo ya está registrado" },
         { status: 409 }
       )
+    }
+
+    const supabaseMessage =
+      typeof error === "object" && error && "message" in error
+        ? String((error as { message?: unknown }).message ?? "")
+        : ""
+
+    if (supabaseMessage) {
+      const normalizedMessage = supabaseMessage.toLowerCase()
+      if (
+        normalizedMessage.includes("row-level security") ||
+        normalizedMessage.includes("permission denied") ||
+        normalizedMessage.includes("policy") ||
+        normalizedMessage.includes("rls")
+      ) {
+        return NextResponse.json(
+          {
+            error:
+              "El usuario de Supabase no tiene permisos para insertar en las tablas requeridas. Revisa las políticas de RLS o usa la clave SUPABASE_SERVICE_ROLE_KEY.",
+          },
+          { status: 500 }
+        )
+      }
     }
 
     console.error("Error creating user in Supabase", error)

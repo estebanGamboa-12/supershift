@@ -261,6 +261,109 @@ export default function Home() {
     [currentUser, mapApiShift, parseJsonResponse, sortByDate]
   )
 
+  const handleUpdateShift = useCallback(
+    async ({
+      id,
+      date,
+      type,
+      note,
+      label,
+      color,
+      pluses,
+    }: {
+      id: number
+      date: string
+      type: ShiftType
+      note?: string
+      label?: string
+      color?: string
+      pluses?: ShiftPluses
+    }) => {
+      try {
+        if (!currentUser) {
+          throw new Error("Selecciona un usuario antes de actualizar turnos")
+        }
+
+        const response = await fetch(`/api/shifts/${id}?userId=${currentUser.id}`, {
+          method: "PATCH",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            date,
+            type,
+            note: note ?? null,
+            label: label ?? null,
+            color: color ?? null,
+            plusNight: pluses?.night ?? 0,
+            plusHoliday: pluses?.holiday ?? 0,
+            plusAvailability: pluses?.availability ?? 0,
+            plusOther: pluses?.other ?? 0,
+            userId: currentUser.id,
+          }),
+        })
+
+        const data = await parseJsonResponse<{ shift: ApiShift }>(response)
+        const updatedShift = mapApiShift(data.shift)
+        setShifts((current) =>
+          sortByDate(
+            current.map((shift) =>
+              shift.id === id ? updatedShift : shift
+            )
+          )
+        )
+      } catch (error) {
+        if (error instanceof ApiError && error.status === 404) {
+          setShifts((current) => current.filter((shift) => shift.id !== id))
+          setSelectedShift((current) =>
+            current && current.id === id ? null : current
+          )
+
+          console.error(`No se pudo actualizar el turno ${id}`, error)
+          throw new Error(
+            "El turno que intentabas editar ya no existe. Se ha eliminado de la vista."
+          )
+        }
+
+        console.error(`No se pudo actualizar el turno ${id}`, error)
+        throw error
+      }
+    },
+    [currentUser, mapApiShift, parseJsonResponse, sortByDate]
+  )
+
+  const handleDeleteShift = useCallback(
+    async (id: number) => {
+      if (!currentUser) {
+        throw new Error("Selecciona un usuario antes de eliminar turnos")
+      }
+
+      try {
+        const response = await fetch(
+          `/api/shifts/${id}?userId=${currentUser.id}`,
+          {
+            method: "DELETE",
+          }
+        )
+
+        if (!response.ok && response.status !== 204) {
+          const payload = (await response.json().catch(() => null)) as
+            | { error?: string }
+            | null
+          const message =
+            payload && payload.error
+              ? payload.error
+              : `Error al eliminar el turno (${response.status})`
+          throw new Error(message)
+        }
+
+        setShifts((current) => current.filter((shift) => shift.id !== id))
+      } catch (error) {
+        console.error(`No se pudo eliminar el turno ${id}`, error)
+        throw error
+      }
+    },
+    [currentUser]
+  )
+
   const handleSelectSlot = useCallback((slot: { start: Date }) => {
     const date = format(slot.start, "yyyy-MM-dd")
     setSelectedDateFromCalendar(date)
@@ -374,109 +477,6 @@ export default function Home() {
   const handleSelectShift = useCallback((shift: ShiftEvent) => {
     setSelectedShift(shift)
   }, [])
-
-  const handleUpdateShift = useCallback(
-    async ({
-      id,
-      date,
-      type,
-      note,
-      label,
-      color,
-      pluses,
-    }: {
-      id: number
-      date: string
-      type: ShiftType
-      note?: string
-      label?: string
-      color?: string
-      pluses?: ShiftPluses
-    }) => {
-      try {
-        if (!currentUser) {
-          throw new Error("Selecciona un usuario antes de actualizar turnos")
-        }
-
-        const response = await fetch(`/api/shifts/${id}?userId=${currentUser.id}`, {
-          method: "PATCH",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            date,
-            type,
-            note: note ?? null,
-            label: label ?? null,
-            color: color ?? null,
-            plusNight: pluses?.night ?? 0,
-            plusHoliday: pluses?.holiday ?? 0,
-            plusAvailability: pluses?.availability ?? 0,
-            plusOther: pluses?.other ?? 0,
-            userId: currentUser.id,
-          }),
-        })
-
-        const data = await parseJsonResponse<{ shift: ApiShift }>(response)
-        const updatedShift = mapApiShift(data.shift)
-        setShifts((current) =>
-          sortByDate(
-            current.map((shift) =>
-              shift.id === id ? updatedShift : shift
-            )
-          )
-        )
-      } catch (error) {
-        if (error instanceof ApiError && error.status === 404) {
-          setShifts((current) => current.filter((shift) => shift.id !== id))
-          setSelectedShift((current) =>
-            current && current.id === id ? null : current
-          )
-
-          console.error(`No se pudo actualizar el turno ${id}`, error)
-          throw new Error(
-            "El turno que intentabas editar ya no existe. Se ha eliminado de la vista."
-          )
-        }
-
-        console.error(`No se pudo actualizar el turno ${id}`, error)
-        throw error
-      }
-    },
-    [currentUser, mapApiShift, parseJsonResponse, sortByDate]
-  )
-
-  const handleDeleteShift = useCallback(
-    async (id: number) => {
-      if (!currentUser) {
-        throw new Error("Selecciona un usuario antes de eliminar turnos")
-      }
-
-      try {
-        const response = await fetch(
-          `/api/shifts/${id}?userId=${currentUser.id}`,
-          {
-            method: "DELETE",
-          }
-        )
-
-        if (!response.ok && response.status !== 204) {
-          const payload = (await response.json().catch(() => null)) as
-            | { error?: string }
-            | null
-          const message =
-            payload && payload.error
-              ? payload.error
-              : `Error al eliminar el turno (${response.status})`
-          throw new Error(message)
-        }
-
-        setShifts((current) => current.filter((shift) => shift.id !== id))
-      } catch (error) {
-        console.error(`No se pudo eliminar el turno ${id}`, error)
-        throw error
-      }
-    },
-    [currentUser]
-  )
 
   const orderedShifts = useMemo(
     () => sortByDate(shifts),

@@ -1,5 +1,4 @@
 import type { ShiftType } from "@/types/shifts"
-import type { RowDataPacket } from "mysql2/promise"
 
 export const VALID_SHIFT_TYPES: ReadonlySet<ShiftType> = new Set([
   "WORK",
@@ -9,7 +8,7 @@ export const VALID_SHIFT_TYPES: ReadonlySet<ShiftType> = new Set([
   "CUSTOM",
 ])
 
-export type ShiftRow = RowDataPacket & {
+export type ShiftRow = {
   id: number
   date: string
   type: string
@@ -36,8 +35,61 @@ export type ApiShift = {
   plusOther?: number
 }
 
-export const SHIFT_SELECT_BASE =
-  "SELECT id, calendar_id AS calendarId, DATE_FORMAT(start_at, '%Y-%m-%d') AS date, shift_type_code AS type, note, label, color, plus_night AS plusNight, plus_holiday AS plusHoliday, plus_availability AS plusAvailability, plus_other AS plusOther FROM shifts"
+export const SHIFT_SELECT_COLUMNS =
+  "id, calendar_id, start_at, shift_type_code, note, label, color, plus_night, plus_holiday, plus_availability, plus_other"
+
+export type DatabaseShiftRow = {
+  id: number
+  calendar_id: number | null
+  start_at: string | null
+  shift_type_code: string | null
+  note: string | null
+  label: string | null
+  color: string | null
+  plus_night: number | null
+  plus_holiday: number | null
+  plus_availability: number | null
+  plus_other: number | null
+}
+
+function normalizeDateFromStart(startAt: string | null): string {
+  if (!startAt) {
+    throw new Error("El turno no tiene una fecha de inicio válida")
+  }
+
+  const trimmed = startAt.trim()
+  if (/^\d{4}-\d{2}-\d{2}$/.test(trimmed)) {
+    return trimmed
+  }
+
+  const candidate = trimmed.includes("T") ? trimmed : trimmed.replace(" ", "T")
+  const parsed = new Date(candidate)
+  if (Number.isNaN(parsed.getTime())) {
+    const fallback = trimmed.slice(0, 10)
+    if (/^\d{4}-\d{2}-\d{2}$/.test(fallback)) {
+      return fallback
+    }
+    throw new Error("No se pudo normalizar la fecha del turno")
+  }
+
+  return parsed.toISOString().slice(0, 10)
+}
+
+export function adaptDatabaseShiftRow(row: DatabaseShiftRow): ShiftRow {
+  return {
+    id: row.id,
+    date: normalizeDateFromStart(row.start_at),
+    type: row.shift_type_code ?? "CUSTOM",
+    note: row.note,
+    label: row.label,
+    color: row.color,
+    plusNight: row.plus_night,
+    plusHoliday: row.plus_holiday,
+    plusAvailability: row.plus_availability,
+    plusOther: row.plus_other,
+    ...(row.calendar_id ? { calendarId: row.calendar_id } : {}),
+  }
+}
 
 export function mapShiftRow(row: ShiftRow): ApiShift {
   const type = VALID_SHIFT_TYPES.has(row.type as ShiftType)

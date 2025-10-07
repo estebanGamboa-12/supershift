@@ -1,13 +1,14 @@
 import { NextResponse, type NextRequest } from "next/server"
-import { execute, queryRows } from "@/lib/db"
+import { getSupabaseClient } from "@/lib/supabase"
 import {
-  SHIFT_SELECT_BASE,
   VALID_SHIFT_TYPES,
+  adaptDatabaseShiftRow,
   buildDateRange,
+  SHIFT_SELECT_COLUMNS,
   mapShiftRow,
   normalizeDate,
   type ApiShift,
-  type ShiftRow,
+  type DatabaseShiftRow,
 } from "./utils"
 import { getOrCreateCalendarForUser } from "@/lib/calendars"
 
@@ -51,20 +52,29 @@ export async function GET(request: NextRequest) {
       )
     }
 
-    const rows = await queryRows<ShiftRow[]>(
-      `${SHIFT_SELECT_BASE} WHERE calendar_id = ? ORDER BY start_at ASC`,
-      [calendarId]
-    )
+    const supabase = getSupabaseClient()
+    const { data, error } = await supabase
+      .from("shifts")
+      .select(SHIFT_SELECT_COLUMNS)
+      .eq("calendar_id", calendarId)
+      .order("start_at", { ascending: true })
 
+    if (error) {
+      throw error
+    }
+
+    const rows = ((data ?? []) as DatabaseShiftRow[]).map((row) =>
+      adaptDatabaseShiftRow(row)
+    )
     const shifts = rows.map((row) => mapShiftRow(row))
 
     return NextResponse.json({ shifts })
   } catch (error) {
-    console.error("Error fetching shifts from database", error)
+    console.error("Error fetching shifts from Supabase", error)
     return NextResponse.json(
       {
         error:
-          "No se pudieron cargar los turnos desde la base de datos. Revisa la conexión con MySQL.",
+          "No se pudieron cargar los turnos desde Supabase. Revisa la conexión y vuelve a intentarlo.",
       },
       { status: 500 }
     )
@@ -127,7 +137,7 @@ export async function POST(request: Request) {
       if (trimmedColor.length > 0) {
         const normalizedColor = trimmedColor.toLowerCase()
         const isHexColor = /^#([0-9a-f]{3}|[0-9a-f]{6}|[0-9a-f]{8})$/i.test(
-          normalizedColor,
+          normalizedColor
         )
 
         if (!isHexColor) {
@@ -232,47 +242,51 @@ export async function POST(request: Request) {
 
     const { startAt, endAt } = buildDateRange(date)
 
-    const result = await execute(
-      `INSERT INTO shifts (calendar_id, shift_type_code, start_at, end_at, all_day, note, label, color, plus_night, plus_holiday, plus_availability, plus_other)
-       VALUES (?, ?, ?, ?, 1, ?, ?, ?, ?, ?, ?, ?)`,
-      [
-        calendarId,
-        type,
-        startAt,
-        endAt,
+    const supabase = getSupabaseClient()
+    const { data, error } = await supabase
+      .from("shifts")
+      .insert({
+        calendar_id: calendarId,
+        shift_type_code: type,
+        start_at: startAt,
+        end_at: endAt,
+        all_day: 1,
         note,
         label,
         color,
-        plusNight,
-        plusHoliday,
-        plusAvailability,
-        plusOther,
-      ],
-    )
+        plus_night: plusNight,
+        plus_holiday: plusHoliday,
+        plus_availability: plusAvailability,
+        plus_other: plusOther,
+      })
+      .select(SHIFT_SELECT_COLUMNS)
+      .maybeSingle()
 
-    if (!result.insertId) {
-      throw new Error("No se pudo obtener el identificador del nuevo turno")
+    if (error) {
+      console.error("Error creating shift in Supabase", error)
+      return NextResponse.json(
+        {
+          error:
+            "No se pudo crear el turno en Supabase. Revisa la conexión y los datos enviados.",
+        },
+        { status: 500 }
+      )
     }
 
-    const rows = await queryRows<ShiftRow[]>(
-      `${SHIFT_SELECT_BASE} WHERE id = ? AND calendar_id = ?`,
-      [result.insertId, calendarId]
-    )
-
-    if (!rows.length) {
-      throw new Error("No se pudo recuperar el turno insertado")
+    if (!data) {
+      throw new Error("Supabase no devolvió datos del turno insertado")
     }
 
-    const [row] = rows
+    const row = adaptDatabaseShiftRow(data as DatabaseShiftRow)
     const shift = mapShiftRow(row)
 
     return NextResponse.json({ shift }, { status: 201 })
   } catch (error) {
-    console.error("Error creating shift in database", error)
+    console.error("Error creating shift in Supabase", error)
     return NextResponse.json(
       {
         error:
-          "No se pudo crear el turno en la base de datos. Revisa la conexión con MySQL y los datos enviados.",
+          "No se pudo crear el turno en Supabase. Revisa la conexión y los datos enviados.",
       },
       { status: 500 }
     )

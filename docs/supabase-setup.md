@@ -35,3 +35,13 @@ Tras ejecutar el script, verifica que las tablas `users`, `teams`, `calendars`, 
 El script crea un usuario administrador con el correo `admin@supershift.local` y una cuenta de ejemplo `esteban@example.com`. Puedes iniciar sesión con cualquiera de ellas después de configurar los hashes de contraseña que utilice tu implementación.
 
 > **Nota:** Los hashes de contraseña incluidos son valores ficticios. Si tu aplicación usa un esquema distinto, actualiza las contraseñas una vez importado el script.
+
+## 7. Configurar credenciales en la aplicación
+
+Una vez creada la base de datos, añade las siguientes variables de entorno en tu `.env.local` para que la API de Supershift se conecte directamente a Supabase:
+
+- `SUPABASE_URL`: la URL del proyecto (aparece en la sección **Project Settings → API**).
+- `SUPABASE_SERVICE_ROLE_KEY`: la clave *service role* con permisos de lectura/escritura.
+- `SUPABASE_ANON_KEY`: opcional, para sobreescribir la clave pública en caso de que quieras usar otra.
+
+También debes mantener `NEXT_PUBLIC_SUPABASE_URL` y `NEXT_PUBLIC_SUPABASE_ANON_KEY` si necesitas exponer la configuración en el cliente.

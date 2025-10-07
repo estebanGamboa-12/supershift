@@ -1,18 +1,18 @@
 # Supershift
 
-Aplicación Next.js que muestra la planificación de turnos y ahora obtiene los datos desde una base de datos MySQL alojada en un servidor local XAMPP a través de una API interna.
+Aplicación Next.js que muestra la planificación de turnos y ahora obtiene los datos desde una base de datos MySQL alojada en Supabase a través de una API interna.
 
 ## Requisitos
 
 - Node.js 18 o superior
 - npm 9 o superior
-- Entorno XAMPP con MySQL/MariaDB activo
+- Proyecto Supabase con base de datos MySQL activa
 
 ## Configuración de la base de datos
 
-1. Inicia el servidor MySQL de XAMPP.
-2. Importa el fichero [`supershift.sql`](./supershift.sql) (o el situado en [`database/supershift.sql`](./database/supershift.sql)) desde phpMyAdmin u otra herramienta para crear la base de datos completa con todas las tablas y datos de ejemplo.
-3. Crea un usuario con permisos de lectura y escritura (por defecto se usa `root` sin contraseña, tal como viene en XAMPP).
+1. Crea un nuevo proyecto MySQL en Supabase.
+2. Importa el fichero [`supershift.sql`](./supershift.sql) (o el situado en [`database/supershift.sql`](./database/supershift.sql)) usando la CLI de Supabase o cualquier cliente MySQL apuntando al proyecto.
+3. Copia las credenciales del proyecto (URL y claves) para configurarlas en la aplicación.
 
 ## Variables de entorno
 
@@ -24,11 +24,9 @@ cp .env.example .env.local
 
 Variables disponibles:
 
-- `DB_HOST`: host de MySQL (normalmente `127.0.0.1`)
-- `DB_PORT`: puerto de MySQL (por defecto `3306`)
-- `DB_USER`: usuario con acceso a la base de datos
-- `DB_PASSWORD`: contraseña del usuario
-- `DB_NAME`: nombre de la base de datos importada (`supershift`)
+- `SUPABASE_URL`: URL base de tu proyecto Supabase
+- `SUPABASE_SERVICE_ROLE_KEY`: clave de servicio (server role) con permisos para las operaciones de escritura
+- `SUPABASE_ANON_KEY`: clave pública opcional si deseas sobreescribir la proporcionada por defecto
 - `DEFAULT_CALENDAR_ID`: identificador del calendario por defecto al crear turnos (usa `2` para el calendario de Esteban incluido en la base de datos de ejemplo)
 - `NEXT_PUBLIC_SUPABASE_URL`: URL del proyecto Supabase si deseas habilitar integraciones desde el cliente
 - `NEXT_PUBLIC_SUPABASE_ANON_KEY`: clave pública (anon) del proyecto Supabase
@@ -42,7 +40,7 @@ La importación crea dos cuentas listas para iniciar sesión en la aplicación:
 
 ## Instalación de dependencias
 
-Instala las dependencias del proyecto (incluyendo `mysql2` para la conexión a la base de datos):
+Instala las dependencias del proyecto (incluyendo `@supabase/supabase-js` para la conexión con Supabase):
 
 ```bash
 npm install

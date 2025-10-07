@@ -1,13 +1,14 @@
 import { NextResponse, type NextRequest } from "next/server"
-import { execute, queryRows } from "@/lib/db"
+import { getSupabaseClient } from "@/lib/supabase"
 import {
-  SHIFT_SELECT_BASE,
   VALID_SHIFT_TYPES,
+  adaptDatabaseShiftRow,
   buildDateRange,
   mapShiftRow,
   normalizeDate,
+  SHIFT_SELECT_COLUMNS,
   type ApiShift,
-  type ShiftRow,
+  type DatabaseShiftRow,
 } from "../utils"
 import { findCalendarIdForUser } from "@/lib/calendars"
 
@@ -43,14 +44,6 @@ function parseUserId(param: string | null): number | null {
     return null
   }
   return userId
-}
-
-async function fetchShiftById(id: number, calendarId: number) {
-  const rows = await queryRows<ShiftRow[]>(
-    `${SHIFT_SELECT_BASE} WHERE id = ? AND calendar_id = ?`,
-    [id, calendarId]
-  )
-  return rows.length ? mapShiftRow(rows[0]) : null
 }
 
 export async function PATCH(request: NextRequest, { params }: Params) {
@@ -89,8 +82,7 @@ export async function PATCH(request: NextRequest, { params }: Params) {
       ? (await findCalendarIdForUser(userId)) ?? getFallbackCalendarId()
       : getFallbackCalendarId()
 
-    const updates: string[] = []
-    const values: unknown[] = []
+    const updates: Record<string, unknown> = {}
 
     if ("date" in payload) {
       const date = normalizeDate(payload.date)
@@ -102,8 +94,8 @@ export async function PATCH(request: NextRequest, { params }: Params) {
       }
 
       const { startAt, endAt } = buildDateRange(date)
-      updates.push("start_at = ?", "end_at = ?")
-      values.push(startAt, endAt)
+      updates.start_at = startAt
+      updates.end_at = endAt
     }
 
     if ("type" in payload) {
@@ -122,8 +114,7 @@ export async function PATCH(request: NextRequest, { params }: Params) {
         )
       }
 
-      updates.push("shift_type_code = ?")
-      values.push(type)
+      updates.shift_type_code = type
     }
 
     if ("note" in payload) {
@@ -131,8 +122,7 @@ export async function PATCH(request: NextRequest, { params }: Params) {
         typeof payload.note === "string" && payload.note.trim().length > 0
           ? payload.note.trim()
           : null
-      updates.push("note = ?")
-      values.push(note)
+      updates.note = note
     }
 
     if ("label" in payload) {
@@ -140,8 +130,7 @@ export async function PATCH(request: NextRequest, { params }: Params) {
         typeof payload.label === "string" && payload.label.trim().length > 0
           ? payload.label.trim().slice(0, 100)
           : null
-      updates.push("label = ?")
-      values.push(label)
+      updates.label = label
     }
 
     if ("color" in payload) {
@@ -151,7 +140,7 @@ export async function PATCH(request: NextRequest, { params }: Params) {
         if (trimmedColor.length > 0) {
           const normalizedColor = trimmedColor.toLowerCase()
           const isHexColor = /^#([0-9a-f]{3}|[0-9a-f]{6}|[0-9a-f]{8})$/i.test(
-            normalizedColor,
+            normalizedColor
           )
 
           if (!isHexColor) {
@@ -167,8 +156,7 @@ export async function PATCH(request: NextRequest, { params }: Params) {
         }
       }
 
-      updates.push("color = ?")
-      values.push(color)
+      updates.color = color
     }
 
     const parsePlus = (
@@ -198,8 +186,8 @@ export async function PATCH(request: NextRequest, { params }: Params) {
       if (typeof plusNightResult === "object" && "error" in plusNightResult) {
         return NextResponse.json({ error: plusNightResult.error }, { status: 400 })
       }
-      updates.push("plus_night = ?")
-      values.push(typeof plusNightResult === "number" ? plusNightResult : 0)
+      updates.plus_night =
+        typeof plusNightResult === "number" ? plusNightResult : 0
     }
 
     if ("plusHoliday" in payload) {
@@ -207,8 +195,8 @@ export async function PATCH(request: NextRequest, { params }: Params) {
       if (typeof plusHolidayResult === "object" && "error" in plusHolidayResult) {
         return NextResponse.json({ error: plusHolidayResult.error }, { status: 400 })
       }
-      updates.push("plus_holiday = ?")
-      values.push(typeof plusHolidayResult === "number" ? plusHolidayResult : 0)
+      updates.plus_holiday =
+        typeof plusHolidayResult === "number" ? plusHolidayResult : 0
     }
 
     if ("plusAvailability" in payload) {
@@ -225,10 +213,8 @@ export async function PATCH(request: NextRequest, { params }: Params) {
           { status: 400 },
         )
       }
-      updates.push("plus_availability = ?")
-      values.push(
-        typeof plusAvailabilityResult === "number" ? plusAvailabilityResult : 0,
-      )
+      updates.plus_availability =
+        typeof plusAvailabilityResult === "number" ? plusAvailabilityResult : 0
     }
 
     if ("plusOther" in payload) {
@@ -236,40 +222,45 @@ export async function PATCH(request: NextRequest, { params }: Params) {
       if (typeof plusOtherResult === "object" && "error" in plusOtherResult) {
         return NextResponse.json({ error: plusOtherResult.error }, { status: 400 })
       }
-      updates.push("plus_other = ?")
-      values.push(typeof plusOtherResult === "number" ? plusOtherResult : 0)
+      updates.plus_other =
+        typeof plusOtherResult === "number" ? plusOtherResult : 0
     }
 
-    if (!updates.length) {
+    if (!Object.keys(updates).length) {
       return NextResponse.json(
         { error: "No se detectaron cambios para actualizar" },
         { status: 400 }
       )
     }
 
-    updates.push("updated_at = CURRENT_TIMESTAMP")
+    const supabase = getSupabaseClient()
+    const { data, error } = await supabase
+      .from("shifts")
+      .update(updates)
+      .eq("id", id)
+      .eq("calendar_id", calendarId)
+      .select(SHIFT_SELECT_COLUMNS)
+      .maybeSingle()
 
-    values.push(id, calendarId)
+    if (error) {
+      console.error(`Error updating shift ${id} en Supabase`, error)
+      return NextResponse.json(
+        {
+          error:
+            "No se pudo actualizar el turno en Supabase. Inténtalo de nuevo más tarde.",
+        },
+        { status: 500 }
+      )
+    }
 
-    const result = await execute(
-      `UPDATE shifts SET ${updates.join(", ")} WHERE id = ? AND calendar_id = ?`,
-      values
-    )
-
-    if (result.affectedRows === 0) {
+    if (!data) {
       return NextResponse.json(
         { error: "No se encontró el turno especificado" },
         { status: 404 }
       )
     }
 
-    const shift = await fetchShiftById(id, calendarId)
-    if (!shift) {
-      return NextResponse.json(
-        { error: "No se pudo recuperar el turno actualizado" },
-        { status: 500 }
-      )
-    }
+    const shift = mapShiftRow(adaptDatabaseShiftRow(data as DatabaseShiftRow))
 
     return NextResponse.json({ shift })
   } catch (error) {
@@ -277,14 +268,14 @@ export async function PATCH(request: NextRequest, { params }: Params) {
     return NextResponse.json(
       {
         error:
-          "No se pudo actualizar el turno en la base de datos. Inténtalo de nuevo más tarde.",
+          "No se pudo actualizar el turno en Supabase. Inténtalo de nuevo más tarde.",
       },
       { status: 500 }
     )
   }
 }
 
-export async function DELETE(_request: NextRequest, { params }: Params) {
+export async function DELETE(request: NextRequest, { params }: Params) {
   const id = parseId(params.id)
   if (!id) {
     return NextResponse.json(
@@ -294,16 +285,32 @@ export async function DELETE(_request: NextRequest, { params }: Params) {
   }
 
   try {
-    const userId = parseUserId(_request.nextUrl.searchParams.get("userId"))
+    const userId = parseUserId(request.nextUrl.searchParams.get("userId"))
     const calendarId = userId
       ? (await findCalendarIdForUser(userId)) ?? getFallbackCalendarId()
       : getFallbackCalendarId()
 
-    const result = await execute(
-      "DELETE FROM shifts WHERE id = ? AND calendar_id = ?",
-      [id, calendarId]
-    )
-    if (result.affectedRows === 0) {
+    const supabase = getSupabaseClient()
+    const { data, error } = await supabase
+      .from("shifts")
+      .delete()
+      .eq("id", id)
+      .eq("calendar_id", calendarId)
+      .select("id")
+      .maybeSingle()
+
+    if (error) {
+      console.error(`Error deleting shift ${id} en Supabase`, error)
+      return NextResponse.json(
+        {
+          error:
+            "No se pudo eliminar el turno de Supabase. Inténtalo de nuevo más tarde.",
+        },
+        { status: 500 }
+      )
+    }
+
+    if (!data) {
       return NextResponse.json(
         { error: "No se encontró el turno especificado" },
         { status: 404 }
@@ -316,7 +323,7 @@ export async function DELETE(_request: NextRequest, { params }: Params) {
     return NextResponse.json(
       {
         error:
-          "No se pudo eliminar el turno de la base de datos. Inténtalo de nuevo más tarde.",
+          "No se pudo eliminar el turno de Supabase. Inténtalo de nuevo más tarde.",
       },
       { status: 500 }
     )

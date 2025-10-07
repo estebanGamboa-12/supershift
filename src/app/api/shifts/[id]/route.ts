@@ -64,7 +64,17 @@ export async function PATCH(request: NextRequest, { params }: Params) {
 
   try {
     const payload = (await request.json().catch(() => null)) as
-      | { date?: unknown; type?: unknown; note?: unknown }
+      | {
+          date?: unknown
+          type?: unknown
+          note?: unknown
+          label?: unknown
+          color?: unknown
+          plusNight?: unknown
+          plusHoliday?: unknown
+          plusAvailability?: unknown
+          plusOther?: unknown
+        }
       | null
 
     if (!payload) {
@@ -123,6 +133,111 @@ export async function PATCH(request: NextRequest, { params }: Params) {
           : null
       updates.push("note = ?")
       values.push(note)
+    }
+
+    if ("label" in payload) {
+      const label =
+        typeof payload.label === "string" && payload.label.trim().length > 0
+          ? payload.label.trim().slice(0, 100)
+          : null
+      updates.push("label = ?")
+      values.push(label)
+    }
+
+    if ("color" in payload) {
+      let color: string | null = null
+      if (typeof payload.color === "string") {
+        const trimmedColor = payload.color.trim()
+        if (trimmedColor.length > 0) {
+          const normalizedColor = trimmedColor.toLowerCase()
+          const isHexColor = /^#([0-9a-f]{3}|[0-9a-f]{6}|[0-9a-f]{8})$/i.test(
+            normalizedColor,
+          )
+
+          if (!isHexColor) {
+            return NextResponse.json(
+              {
+                error: "El color del turno debe ser un código hexadecimal válido",
+              },
+              { status: 400 },
+            )
+          }
+
+          color = normalizedColor
+        }
+      }
+
+      updates.push("color = ?")
+      values.push(color)
+    }
+
+    const parsePlus = (
+      value: unknown,
+      field: string,
+    ): number | { error: string } => {
+      if (value === undefined || value === null) {
+        return 0
+      }
+
+      const parsed =
+        typeof value === "number" && Number.isFinite(value)
+          ? value
+          : typeof value === "string" && value.trim().length > 0
+            ? Number.parseInt(value.trim(), 10)
+            : Number.NaN
+
+      if (Number.isNaN(parsed)) {
+        return { error: `El campo ${field} debe ser un número entre 0 y 3` }
+      }
+
+      return Math.min(3, Math.max(0, Math.round(parsed)))
+    }
+
+    if ("plusNight" in payload) {
+      const plusNightResult = parsePlus(payload.plusNight, "plusNight")
+      if (typeof plusNightResult === "object" && "error" in plusNightResult) {
+        return NextResponse.json({ error: plusNightResult.error }, { status: 400 })
+      }
+      updates.push("plus_night = ?")
+      values.push(typeof plusNightResult === "number" ? plusNightResult : 0)
+    }
+
+    if ("plusHoliday" in payload) {
+      const plusHolidayResult = parsePlus(payload.plusHoliday, "plusHoliday")
+      if (typeof plusHolidayResult === "object" && "error" in plusHolidayResult) {
+        return NextResponse.json({ error: plusHolidayResult.error }, { status: 400 })
+      }
+      updates.push("plus_holiday = ?")
+      values.push(typeof plusHolidayResult === "number" ? plusHolidayResult : 0)
+    }
+
+    if ("plusAvailability" in payload) {
+      const plusAvailabilityResult = parsePlus(
+        payload.plusAvailability,
+        "plusAvailability",
+      )
+      if (
+        typeof plusAvailabilityResult === "object" &&
+        "error" in plusAvailabilityResult
+      ) {
+        return NextResponse.json(
+          { error: plusAvailabilityResult.error },
+          { status: 400 },
+        )
+      }
+      updates.push("plus_availability = ?")
+      values.push(
+        typeof plusAvailabilityResult === "number" ? plusAvailabilityResult : 0,
+      )
+    }
+
+    if ("plusOther" in payload) {
+      const plusOtherResult = parsePlus(payload.plusOther, "plusOther")
+      if (typeof plusOtherResult === "object" && "error" in plusOtherResult) {
+        return NextResponse.json({ error: plusOtherResult.error }, { status: 400 })
+      }
+      updates.push("plus_other = ?")
+      values.push(typeof plusOtherResult === "number" ? plusOtherResult : 0)
     }
 
     if (!updates.length) {

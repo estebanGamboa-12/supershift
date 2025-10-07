@@ -15,7 +15,7 @@ import { findCalendarIdForUser } from "@/lib/calendars"
 export const runtime = "nodejs"
 
 type Params = {
-  params: { id: string }
+  params: Promise<{ id: string }>
 }
 
 const DEFAULT_CALENDAR_ID = Number.parseInt(
@@ -48,7 +48,8 @@ function normalizeUserId(param: string | null): string | null {
   return null
 }
 
-export async function PATCH(request: NextRequest, { params }: Params) {
+export async function PATCH(request: NextRequest, context: Params) {
+  const params = await context.params
   const id = parseId(params.id)
   if (!id) {
     return NextResponse.json(
@@ -277,7 +278,8 @@ export async function PATCH(request: NextRequest, { params }: Params) {
   }
 }
 
-export async function DELETE(request: NextRequest, { params }: Params) {
+export async function DELETE(request: NextRequest, context: Params) {
+  const params = await context.params
   const id = parseId(params.id)
   if (!id) {
     return NextResponse.json(

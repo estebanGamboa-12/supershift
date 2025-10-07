@@ -35,6 +35,56 @@ type ApiShift = {
   plusOther?: number | null
 }
 
+function toPositiveInteger(value: unknown): number | null {
+  const numericValue =
+    typeof value === "number"
+      ? value
+      : typeof value === "string"
+        ? Number.parseInt(value, 10)
+        : Number.NaN
+
+  if (!Number.isFinite(numericValue)) {
+    return null
+  }
+
+  const integerValue = Math.trunc(numericValue)
+  if (integerValue <= 0) {
+    return null
+  }
+
+  return integerValue
+}
+
+function sanitizeUserSummary(value: unknown): UserSummary | null {
+  if (!value || typeof value !== "object") {
+    return null
+  }
+
+  const candidate = value as Partial<UserSummary>
+  const id = toPositiveInteger(candidate.id)
+  const calendarId = toPositiveInteger(candidate.calendarId)
+
+  if (!id || !calendarId) {
+    return null
+  }
+
+  const name =
+    typeof candidate.name === "string" && candidate.name.trim().length > 0
+      ? candidate.name
+      : ""
+  const email =
+    typeof candidate.email === "string" && candidate.email.trim().length > 0
+      ? candidate.email
+      : ""
+
+  return {
+    id,
+    name,
+    email,
+    calendarId,
+  }
+}
+
 const SHIFT_TYPE_LABELS: Record<ShiftType, string> = {
   WORK: "Trabajo",
   REST: "Descanso",
@@ -153,24 +203,32 @@ export default function Home() {
     if (!storedValue) {
       return
     }
-
     try {
       const parsed = JSON.parse(storedValue) as {
-        user?: UserSummary
-        expiresAt?: number
+        user?: unknown
+        expiresAt?: unknown
       }
 
-      if (!parsed?.user || typeof parsed.expiresAt !== "number") {
+      const expiresAt =
+        typeof parsed.expiresAt === "number"
+          ? parsed.expiresAt
+          : typeof parsed.expiresAt === "string"
+            ? Number.parseInt(parsed.expiresAt, 10)
+            : Number.NaN
+
+      const user = sanitizeUserSummary(parsed.user)
+
+      if (!user || !Number.isFinite(expiresAt)) {
         window.localStorage.removeItem(SESSION_STORAGE_KEY)
         return
       }
 
-      if (parsed.expiresAt <= Date.now()) {
+      if (expiresAt <= Date.now()) {
         window.localStorage.removeItem(SESSION_STORAGE_KEY)
         return
       }
 
-      setCurrentUser(parsed.user)
+      setCurrentUser(user)
     } catch {
       window.localStorage.removeItem(SESSION_STORAGE_KEY)
     }
@@ -185,8 +243,13 @@ export default function Home() {
       return
     }
 
+    const sanitizedUser = sanitizeUserSummary(user)
+    if (!sanitizedUser) {
+      return
+    }
+
     const payload = {
-      user,
+      user: sanitizedUser,
       expiresAt: Date.now() + SESSION_DURATION_MS,
     }
 
@@ -586,11 +649,8 @@ export default function Home() {
         }
 
         const sanitizedUsers = data.users
-          .filter((user) => typeof user.calendarId === "number")
-          .map((user) => ({
-            ...user,
-            calendarId: Number(user.calendarId),
-          }))
+          .map((user) => sanitizeUserSummary(user))
+          .filter((user): user is UserSummary => Boolean(user))
 
         setUsers(sanitizedUsers)
         setUserError(null)
@@ -651,10 +711,18 @@ export default function Home() {
 
   const handleLoginSuccess = useCallback(
     (user: UserSummary) => {
-      setCurrentUser(user)
-      persistSession(user)
+      const sanitized = sanitizeUserSummary(user)
+      if (!sanitized) {
+        clearSession(
+          "No se pudo validar la sesión del usuario. Vuelve a iniciar sesión."
+        )
+        return
+      }
+
+      setCurrentUser(sanitized)
+      persistSession(sanitized)
     },
-    [persistSession]
+    [clearSession, persistSession]
   )
 
   const handleLogout = useCallback(() => {
@@ -662,9 +730,14 @@ export default function Home() {
   }, [clearSession])
 
   const handleUserCreated = useCallback((user: UserSummary) => {
+    const sanitized = sanitizeUserSummary(user)
+    if (!sanitized) {
+      return
+    }
+
     setUsers((current) => {
-      const filtered = current.filter((item) => item.id !== user.id)
-      return [...filtered, user].sort((a, b) => a.id - b.id)
+      const filtered = current.filter((item) => item.id !== sanitized.id)
+      return [...filtered, sanitized].sort((a, b) => a.id - b.id)
     })
   }, [])
 

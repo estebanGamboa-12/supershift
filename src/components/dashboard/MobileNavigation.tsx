@@ -18,7 +18,7 @@ type MobileNavigationProps = {
 
 const MobileNavigation: FC<MobileNavigationProps> = ({ active, onChange }) => {
   return (
-    <nav className="pointer-events-none fixed inset-x-0 bottom-0 z-40 pb-4 lg:hidden">
+    <nav className="pointer-events-none fixed inset-x-0 bottom-0 z-40 pb-[calc(1rem+env(safe-area-inset-bottom))] lg:hidden">
       <div className="mx-auto w-full max-w-3xl px-4">
         <div className="pointer-events-auto flex items-center justify-between rounded-3xl border border-white/10 bg-slate-950/90 p-2 shadow-2xl shadow-blue-500/20 backdrop-blur">
           {NAV_ITEMS.map((item) => {

@@ -3,15 +3,11 @@
 import { useEffect, useState } from "react"
 import { motion, AnimatePresence } from "framer-motion"
 import type { ShiftEvent, ShiftType } from "@/types/shifts"
+import { CalendarDays, Trash2, Save, X } from "lucide-react"
 
 type Props = {
   shift: ShiftEvent
-  onSave: (updatedShift: {
-    id: number
-    date: string
-    type: ShiftType
-    note?: string
-  }) => Promise<void>
+  onSave: (updatedShift: { id: number; date: string; type: ShiftType; note?: string }) => Promise<void>
   onDelete: (id: number) => Promise<void>
   onClose: () => void
 }
@@ -56,7 +52,6 @@ export default function EditShiftModal({ shift, onSave, onDelete, onClose }: Pro
     }
   }, [shift])
 
-  // Cerrar con Esc
   useEffect(() => {
     const handleKey = (e: KeyboardEvent) => {
       if (e.key === "Escape") onClose()
@@ -71,22 +66,12 @@ export default function EditShiftModal({ shift, onSave, onDelete, onClose }: Pro
     e.preventDefault()
     if (!date || isSaving) return
     setSaveError("")
-
     try {
       setIsSaving(true)
-      await onSave({
-        id: shift.id,
-        date,
-        type,
-        note: note.trim() ? note.trim() : undefined,
-      })
+      await onSave({ id: shift.id, date, type, note: note.trim() ? note.trim() : undefined })
       onClose()
     } catch (error) {
-      setSaveError(
-        error instanceof Error
-          ? error.message
-          : "No se pudo guardar el turno. Inténtalo más tarde."
-      )
+      setSaveError(error instanceof Error ? error.message : "No se pudo guardar el turno.")
     } finally {
       setIsSaving(false)
     }
@@ -98,65 +83,53 @@ export default function EditShiftModal({ shift, onSave, onDelete, onClose }: Pro
         <motion.div
           role="dialog"
           aria-modal="true"
-          className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/80 backdrop-blur px-4 py-6"
+          className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/70 backdrop-blur-xl px-3"
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
           exit={{ opacity: 0 }}
           onClick={(e) => e.target === e.currentTarget && onClose()}
         >
           <motion.div
-            initial={{ opacity: 0, scale: 0.95, y: 20 }}
+            initial={{ opacity: 0, scale: 0.9, y: 10 }}
             animate={{ opacity: 1, scale: 1, y: 0 }}
-            exit={{ opacity: 0, scale: 0.95, y: 20 }}
+            exit={{ opacity: 0, scale: 0.95, y: 10 }}
             transition={{ duration: 0.25 }}
-            className="w-full max-w-lg overflow-hidden rounded-3xl border border-white/10 bg-gradient-to-br from-slate-900/90 via-slate-950/95 to-slate-950 text-white shadow-2xl shadow-blue-500/20"
+            className="w-full max-w-sm sm:max-w-md rounded-2xl border border-white/10 bg-gradient-to-br from-slate-900/80 to-slate-950/95 text-white shadow-xl backdrop-blur-2xl"
           >
             {/* Header */}
-            <div className="flex items-start justify-between gap-4 border-b border-white/10 px-6 py-5">
-              <div>
-                <div className="inline-flex items-center gap-2 rounded-full border border-white/10 bg-white/5 px-3 py-1 text-xs font-semibold uppercase tracking-wide text-blue-100/80">
-                  Editar turno
-                </div>
-                <h2 className="mt-3 text-2xl font-semibold">
+            <div className="flex items-center justify-between border-b border-white/10 px-4 py-3">
+              <div className="flex items-center gap-2">
+                <CalendarDays className="h-4 w-4 text-blue-400" />
+                <h2 className="text-base font-semibold tracking-wide">
                   {shiftTypeLabels[shift.type]}
                 </h2>
-                <p className="text-sm text-white/60">
-                  {new Date(shift.date).toLocaleDateString("es-ES", {
-                    weekday: "long",
-                    year: "numeric",
-                    month: "long",
-                    day: "numeric",
-                  })}
-                </p>
               </div>
               <button
-                type="button"
-                aria-label="Cerrar"
                 onClick={onClose}
-                className="rounded-full border border-white/10 bg-white/5 p-2 text-sm text-white/60 transition hover:border-red-400/40 hover:text-red-400"
+                className="rounded-full p-1.5 text-white/60 transition hover:bg-white/10 hover:text-white"
               >
-                ✕
+                <X size={16} />
               </button>
             </div>
 
             {/* Form */}
-            <form onSubmit={handleSubmit} className="space-y-5 px-6 py-6">
-              <label className="flex flex-col gap-1 text-sm text-white/70">
-                Fecha
+            <form onSubmit={handleSubmit} className="space-y-4 px-4 py-4">
+              <div>
+                <label className="text-xs text-white/70">Fecha</label>
                 <input
                   type="date"
                   value={date}
                   onChange={(e) => setDate(e.target.value)}
-                  className="rounded-xl border border-white/10 bg-white/5 px-3 py-2 text-sm text-white focus:border-blue-400 focus:outline-none focus:ring-2 focus:ring-blue-400/40"
+                  className="mt-1 w-full rounded-lg border border-white/10 bg-white/10 px-3 py-1.5 text-sm text-white focus:border-blue-500 focus:ring-2 focus:ring-blue-400/30"
                 />
-              </label>
+              </div>
 
-              <label className="flex flex-col gap-1 text-sm text-white/70">
-                Tipo de turno
+              <div>
+                <label className="text-xs text-white/70">Tipo de turno</label>
                 <select
                   value={type}
                   onChange={(e) => setType(e.target.value as ShiftType)}
-                  className="rounded-xl border border-white/10 bg-white/5 px-3 py-2 text-sm text-white focus:border-indigo-400 focus:outline-none focus:ring-2 focus:ring-indigo-500/40"
+                  className="mt-1 w-full rounded-lg border border-white/10 bg-white/10 px-3 py-1.5 text-sm text-white focus:border-indigo-400 focus:ring-2 focus:ring-indigo-400/30"
                 >
                   {Object.entries(shiftTypeLabels).map(([value, label]) => (
                     <option key={value} value={value}>
@@ -164,71 +137,58 @@ export default function EditShiftModal({ shift, onSave, onDelete, onClose }: Pro
                     </option>
                   ))}
                 </select>
-              </label>
+              </div>
 
-              <label className="flex flex-col gap-1 text-sm text-white/70">
-                Nota del día
+              <div>
+                <label className="text-xs text-white/70">Nota</label>
                 <textarea
                   value={note}
                   onChange={(e) => setNote(e.target.value)}
-                  placeholder="Añade recordatorios, incidencias o comentarios"
-                  rows={4}
-                  className="resize-none rounded-xl border border-white/10 bg-white/5 px-3 py-2 text-sm text-white placeholder:text-white/40 focus:border-fuchsia-400 focus:outline-none focus:ring-2 focus:ring-fuchsia-500/40"
+                  placeholder="Comentario o recordatorio..."
+                  rows={3}
+                  className="mt-1 w-full resize-none rounded-lg border border-white/10 bg-white/10 px-3 py-1.5 text-sm text-white placeholder:text-white/40 focus:border-fuchsia-500 focus:ring-2 focus:ring-fuchsia-400/30"
                 />
-              </label>
+              </div>
 
-              <div className="flex flex-wrap items-center justify-between gap-3">
-                {/* Botón eliminar */}
+              {/* Acciones */}
+              <div className="flex flex-wrap items-center justify-between gap-2 pt-2">
                 <button
                   type="button"
                   onClick={async () => {
-                    if (!isDeleting) {
-                      setIsDeleting(true)
-                      setDeleteError("")
-                      return
-                    }
-
+                    if (!isDeleting) return setIsDeleting(true)
                     try {
                       setIsProcessingDelete(true)
                       await onDelete(shift.id)
                       onClose()
                     } catch (error) {
-                      setDeleteError(
-                        error instanceof Error
-                          ? error.message
-                          : "No se pudo eliminar el turno. Inténtalo más tarde."
-                      )
+                      setDeleteError(error instanceof Error ? error.message : "Error al eliminar.")
                       setIsProcessingDelete(false)
                     }
                   }}
                   disabled={isProcessingDelete}
-                  className={`inline-flex items-center gap-2 rounded-full border px-4 py-2 text-sm font-semibold transition focus:outline-none focus:ring-2 focus:ring-red-400/30 ${
+                  className={`flex items-center gap-1.5 rounded-full border px-3 py-1.5 text-xs font-medium transition-all ${
                     isDeleting
                       ? "border-red-500 bg-red-500 text-white hover:bg-red-400"
-                      : "border-red-400/30 bg-red-500/10 text-red-200 hover:border-red-400/50 hover:bg-red-500/20"
+                      : "border-red-400/30 bg-red-500/10 text-red-300 hover:border-red-400/50 hover:bg-red-500/20"
                   } ${isProcessingDelete ? "opacity-60" : ""}`}
                 >
                   {isProcessingDelete ? (
                     <>
                       <Spinner /> Eliminando...
                     </>
-                  ) : isDeleting ? (
-                    "Confirmar borrado"
                   ) : (
-                    "Eliminar turno"
+                    <>
+                      <Trash2 size={14} />
+                      {isDeleting ? "Confirmar" : "Eliminar"}
+                    </>
                   )}
                 </button>
 
-                {/* Botones derecha */}
                 <div className="ml-auto flex gap-2">
                   <button
                     type="button"
-                    onClick={() => {
-                      setIsDeleting(false)
-                      setIsProcessingDelete(false)
-                      onClose()
-                    }}
-                    className="rounded-full border border-white/10 bg-white/5 px-4 py-2 text-sm font-semibold text-white/70 transition hover:border-white/20 hover:text-white"
+                    onClick={onClose}
+                    className="rounded-full border border-white/10 bg-white/10 px-3 py-1.5 text-xs font-medium text-white/70 transition hover:border-white/20 hover:text-white"
                   >
                     Cancelar
                   </button>
@@ -236,21 +196,23 @@ export default function EditShiftModal({ shift, onSave, onDelete, onClose }: Pro
                     whileTap={{ scale: 0.95 }}
                     type="submit"
                     disabled={!date || isSaving}
-                    className="flex items-center justify-center gap-2 rounded-full bg-gradient-to-r from-blue-500 to-indigo-500 px-4 py-2 text-sm font-semibold text-white shadow-lg shadow-blue-500/30 transition hover:from-blue-400 hover:to-indigo-400 disabled:opacity-50"
+                    className="flex items-center gap-1.5 rounded-full bg-gradient-to-r from-blue-500 to-indigo-500 px-4 py-1.5 text-xs font-semibold text-white shadow-lg shadow-blue-500/30 transition hover:from-blue-400 hover:to-indigo-400 disabled:opacity-50"
                   >
                     {isSaving ? (
                       <>
                         <Spinner /> Guardando...
                       </>
                     ) : (
-                      "Guardar cambios"
+                      <>
+                        <Save size={14} /> Guardar
+                      </>
                     )}
                   </motion.button>
                 </div>
               </div>
 
-              {saveError && <p className="text-sm text-red-400">{saveError}</p>}
-              {deleteError && <p className="text-sm text-red-400">{deleteError}</p>}
+              {saveError && <p className="text-xs text-red-400">{saveError}</p>}
+              {deleteError && <p className="text-xs text-red-400">{deleteError}</p>}
             </form>
           </motion.div>
         </motion.div>

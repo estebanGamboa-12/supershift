@@ -763,7 +763,8 @@ export default function ShiftPlannerLab({
               animate={{ opacity: 1, y: 0 }}
               exit={{ opacity: 0, y: 30 }}
               transition={{ type: "spring", stiffness: 200, damping: 24 }}
-              className="w-full max-w-xl overflow-hidden rounded-3xl border border-white/10 bg-gradient-to-br from-slate-900 via-slate-950 to-slate-950 p-6 text-white shadow-[0_50px_90px_-40px_rgba(14,165,233,0.5)]"
+              className="mx-4 flex w-full max-w-md flex-col overflow-y-auto rounded-3xl border border-white/10 bg-gradient-to-br from-slate-900 via-slate-950 to-slate-950 p-4 text-white shadow-[0_50px_90px_-40px_rgba(14,165,233,0.5)] sm:max-w-xl sm:p-6"
+              style={{ maxHeight: "calc(100vh - 2rem)" }}
             >
               <div className="flex items-start justify-between">
                 <div>

@@ -843,7 +843,7 @@ function EditorForm({ defaults, onSave, onRemove }: EditorFormProps) {
 
   return (
     <form
-      className="mt-6 space-y-6"
+      className="mt-6 space-y-6 pb-[calc(6.5rem+env(safe-area-inset-bottom))] sm:pb-6 lg:pb-0"
       onSubmit={(event) => {
         event.preventDefault()
         onSave({

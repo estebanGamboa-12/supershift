@@ -83,7 +83,7 @@ export default function EditShiftModal({ shift, onSave, onDelete, onClose }: Pro
         <motion.div
           role="dialog"
           aria-modal="true"
-          className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/70 backdrop-blur-xl px-3"
+          className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/70 backdrop-blur-xl px-2"
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
           exit={{ opacity: 0 }}
@@ -94,42 +94,42 @@ export default function EditShiftModal({ shift, onSave, onDelete, onClose }: Pro
             animate={{ opacity: 1, scale: 1, y: 0 }}
             exit={{ opacity: 0, scale: 0.95, y: 10 }}
             transition={{ duration: 0.25 }}
-            className="w-full max-w-sm sm:max-w-md rounded-2xl border border-white/10 bg-gradient-to-br from-slate-900/80 to-slate-950/95 text-white shadow-xl backdrop-blur-2xl"
+            className="w-full max-w-xs sm:max-w-sm rounded-xl border border-white/10 bg-gradient-to-br from-slate-900/80 to-slate-950/95 text-white shadow-xl backdrop-blur-2xl"
           >
             {/* Header */}
-            <div className="flex items-center justify-between border-b border-white/10 px-4 py-3">
-              <div className="flex items-center gap-2">
-                <CalendarDays className="h-4 w-4 text-blue-400" />
-                <h2 className="text-base font-semibold tracking-wide">
+            <div className="flex items-center justify-between border-b border-white/10 px-3 py-2.5">
+              <div className="flex items-center gap-1.5">
+                <CalendarDays className="h-3.5 w-3.5 text-blue-400" />
+                <h2 className="text-sm font-semibold tracking-wide">
                   {shiftTypeLabels[shift.type]}
                 </h2>
               </div>
               <button
                 onClick={onClose}
-                className="rounded-full p-1.5 text-white/60 transition hover:bg-white/10 hover:text-white"
+                className="rounded-full p-1 text-white/60 transition hover:bg-white/10 hover:text-white"
               >
-                <X size={16} />
+                <X size={14} />
               </button>
             </div>
 
             {/* Form */}
-            <form onSubmit={handleSubmit} className="space-y-4 px-4 py-4">
+            <form onSubmit={handleSubmit} className="space-y-3 px-3 py-3">
               <div>
-                <label className="text-xs text-white/70">Fecha</label>
+                <label className="text-[11px] text-white/70">Fecha</label>
                 <input
                   type="date"
                   value={date}
                   onChange={(e) => setDate(e.target.value)}
-                  className="mt-1 w-full rounded-lg border border-white/10 bg-white/10 px-3 py-1.5 text-sm text-white focus:border-blue-500 focus:ring-2 focus:ring-blue-400/30"
+                  className="mt-1 w-full rounded-lg border border-white/10 bg-white/10 px-2.5 py-1.5 text-xs text-white focus:border-blue-500 focus:ring-2 focus:ring-blue-400/30"
                 />
               </div>
 
               <div>
-                <label className="text-xs text-white/70">Tipo de turno</label>
+                <label className="text-[11px] text-white/70">Tipo de turno</label>
                 <select
                   value={type}
                   onChange={(e) => setType(e.target.value as ShiftType)}
-                  className="mt-1 w-full rounded-lg border border-white/10 bg-white/10 px-3 py-1.5 text-sm text-white focus:border-indigo-400 focus:ring-2 focus:ring-indigo-400/30"
+                  className="mt-1 w-full rounded-lg border border-white/10 bg-white/10 px-2.5 py-1.5 text-xs text-white focus:border-indigo-400 focus:ring-2 focus:ring-indigo-400/30"
                 >
                   {Object.entries(shiftTypeLabels).map(([value, label]) => (
                     <option key={value} value={value}>
@@ -140,18 +140,18 @@ export default function EditShiftModal({ shift, onSave, onDelete, onClose }: Pro
               </div>
 
               <div>
-                <label className="text-xs text-white/70">Nota</label>
+                <label className="text-[11px] text-white/70">Nota</label>
                 <textarea
                   value={note}
                   onChange={(e) => setNote(e.target.value)}
                   placeholder="Comentario o recordatorio..."
                   rows={3}
-                  className="mt-1 w-full resize-none rounded-lg border border-white/10 bg-white/10 px-3 py-1.5 text-sm text-white placeholder:text-white/40 focus:border-fuchsia-500 focus:ring-2 focus:ring-fuchsia-400/30"
+                  className="mt-1 w-full resize-none rounded-lg border border-white/10 bg-white/10 px-2.5 py-1.5 text-xs text-white placeholder:text-white/40 focus:border-fuchsia-500 focus:ring-2 focus:ring-fuchsia-400/30"
                 />
               </div>
 
               {/* Acciones */}
-              <div className="flex flex-wrap items-center justify-between gap-2 pt-2">
+              <div className="flex flex-wrap items-center justify-between gap-2 pt-1.5">
                 <button
                   type="button"
                   onClick={async () => {
@@ -166,7 +166,7 @@ export default function EditShiftModal({ shift, onSave, onDelete, onClose }: Pro
                     }
                   }}
                   disabled={isProcessingDelete}
-                  className={`flex items-center gap-1.5 rounded-full border px-3 py-1.5 text-xs font-medium transition-all ${
+                  className={`flex items-center gap-1.5 rounded-full border px-2.5 py-1.5 text-[11px] font-medium transition-all ${
                     isDeleting
                       ? "border-red-500 bg-red-500 text-white hover:bg-red-400"
                       : "border-red-400/30 bg-red-500/10 text-red-300 hover:border-red-400/50 hover:bg-red-500/20"
@@ -178,7 +178,7 @@ export default function EditShiftModal({ shift, onSave, onDelete, onClose }: Pro
                     </>
                   ) : (
                     <>
-                      <Trash2 size={14} />
+                      <Trash2 size={12} />
                       {isDeleting ? "Confirmar" : "Eliminar"}
                     </>
                   )}
@@ -188,7 +188,7 @@ export default function EditShiftModal({ shift, onSave, onDelete, onClose }: Pro
                   <button
                     type="button"
                     onClick={onClose}
-                    className="rounded-full border border-white/10 bg-white/10 px-3 py-1.5 text-xs font-medium text-white/70 transition hover:border-white/20 hover:text-white"
+                    className="rounded-full border border-white/10 bg-white/10 px-2.5 py-1.5 text-[11px] font-medium text-white/70 transition hover:border-white/20 hover:text-white"
                   >
                     Cancelar
                   </button>
@@ -196,7 +196,7 @@ export default function EditShiftModal({ shift, onSave, onDelete, onClose }: Pro
                     whileTap={{ scale: 0.95 }}
                     type="submit"
                     disabled={!date || isSaving}
-                    className="flex items-center gap-1.5 rounded-full bg-gradient-to-r from-blue-500 to-indigo-500 px-4 py-1.5 text-xs font-semibold text-white shadow-lg shadow-blue-500/30 transition hover:from-blue-400 hover:to-indigo-400 disabled:opacity-50"
+                    className="flex items-center gap-1.5 rounded-full bg-gradient-to-r from-blue-500 to-indigo-500 px-3 py-1.5 text-[11px] font-semibold text-white shadow-lg shadow-blue-500/30 transition hover:from-blue-400 hover:to-indigo-400 disabled:opacity-50"
                   >
                     {isSaving ? (
                       <>
@@ -204,15 +204,15 @@ export default function EditShiftModal({ shift, onSave, onDelete, onClose }: Pro
                       </>
                     ) : (
                       <>
-                        <Save size={14} /> Guardar
+                        <Save size={12} /> Guardar
                       </>
                     )}
                   </motion.button>
                 </div>
               </div>
 
-              {saveError && <p className="text-xs text-red-400">{saveError}</p>}
-              {deleteError && <p className="text-xs text-red-400">{deleteError}</p>}
+              {saveError && <p className="text-[11px] text-red-400">{saveError}</p>}
+              {deleteError && <p className="text-[11px] text-red-400">{deleteError}</p>}
             </form>
           </motion.div>
         </motion.div>

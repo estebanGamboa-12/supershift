@@ -773,6 +773,16 @@ export default function Home() {
     setSelectedDateFromCalendar(null)
   }, [])
 
+  const handleSelectShift = useCallback((shift: ShiftEvent) => {
+    setSelectedShift(shift)
+    setIsMobileAddOpen(false)
+  }, [])
+
+  const handleSelectSlot = useCallback((slot: { start: Date }) => {
+    setSelectedShift(null)
+    setSelectedDateFromCalendar(format(slot.start, "yyyy-MM-dd"))
+  }, [])
+
   if (!currentUser) {
     return (
       <div className="relative min-h-screen overflow-hidden bg-slate-950 text-white">

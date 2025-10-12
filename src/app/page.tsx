@@ -962,10 +962,12 @@ export default function Home() {
                 <div className="mx-auto mt-6 flex w-full max-w-3xl flex-col gap-6 pb-32">
                   {activeMobileTab === "calendar" && (
                     <CalendarTab
-                      plannerDays={plannerDays}
-                      onCommit={handleManualRotationConfirm}
-                      isCommitting={isCommittingRotation}
-                      errorMessage={rotationError}
+                      nextShift={nextShift ?? null}
+                      daysUntilNextShift={daysUntilNextShift}
+                      shiftTypeLabels={SHIFT_TYPE_LABELS}
+                      orderedShifts={orderedShifts}
+                      onSelectEvent={handleSelectShift}
+                      onSelectSlot={handleSelectSlot}
                     />
                   )}
 
@@ -988,9 +990,10 @@ export default function Home() {
 
                   {activeMobileTab === "settings" && (
                     <SettingsTab
-                      currentUser={currentUser}
-                      onLogout={handleLogout}
-                      workspaceMemberCount={users.length}
+                      plannerDays={plannerDays}
+                      onCommit={handleManualRotationConfirm}
+                      isCommitting={isCommittingRotation}
+                      errorMessage={rotationError}
                     />
                   )}
                 </div>

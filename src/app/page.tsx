@@ -10,17 +10,18 @@ import ShiftPlannerLab from "@/components/ShiftPlannerLab"
 import DashboardSidebar from "@/components/dashboard/DashboardSidebar"
 // eslint-disable-next-line @typescript-eslint/no-unused-vars
 import DashboardHeader from "@/components/dashboard/DashboardHeader"
-import CalendarView from "@/components/CalendarView"
-import ShiftDistribution from "@/components/dashboard/ShiftDistribution"
-import NextShiftCard from "@/components/dashboard/NextShiftCard"
-import PlanningHealthCard from "@/components/dashboard/PlanningHealthCard"
 import MobileNavigation, { type MobileTab } from "@/components/dashboard/MobileNavigation"
 import MobileAddShiftSheet from "@/components/dashboard/MobileAddShiftSheet"
-import TeamSpotlight from "@/components/dashboard/TeamSpotlight"
 import UserAuthPanel from "@/components/auth/UserAuthPanel"
 import FloatingParticlesLoader from "@/components/FloatingParticlesLoader"
 import AuroraBackground from "@/components/AuroraBackground"
 import type { UserSummary } from "@/types/users"
+import {
+  CalendarTab,
+  SettingsTab,
+  StatsTab,
+  TeamTab,
+} from "@/components/dashboard/mobile-tabs"
 
 type ApiShift = {
   id: number
@@ -453,12 +454,6 @@ export default function Home() {
     [currentUser]
   )
 
-  const handleSelectSlot = useCallback((slot: { start: Date }) => {
-    const date = format(slot.start, "yyyy-MM-dd")
-    setSelectedDateFromCalendar(date)
-    setRotationError(null)
-  }, [])
-
   const handleManualRotationConfirm = useCallback(
     async (days: ManualRotationDay[]) => {
       if (!currentUser) {
@@ -562,10 +557,6 @@ export default function Home() {
     },
     [currentUser, handleAddShift, handleDeleteShift, handleUpdateShift, shifts],
   )
-
-  const handleSelectShift = useCallback((shift: ShiftEvent) => {
-    setSelectedShift(shift)
-  }, [])
 
   const orderedShifts = useMemo(
     () => sortByDate(shifts),
@@ -970,51 +961,37 @@ export default function Home() {
 
                 <div className="mx-auto mt-6 flex w-full max-w-3xl flex-col gap-6 pb-32">
                   {activeMobileTab === "calendar" && (
-                    <div className="flex flex-col gap-6">
-                      <NextShiftCard
-                        nextShift={nextShift}
-                        daysUntilNextShift={daysUntilNextShift}
-                        shiftTypeLabels={SHIFT_TYPE_LABELS}
-                      />
-                      <CalendarView
-                        shifts={orderedShifts}
-                        onSelectEvent={handleSelectShift}
-                        onSelectSlot={handleSelectSlot}
-                      />
-                    </div>
+                    <CalendarTab
+                      plannerDays={plannerDays}
+                      onCommit={handleManualRotationConfirm}
+                      isCommitting={isCommittingRotation}
+                      errorMessage={rotationError}
+                    />
                   )}
 
                   {activeMobileTab === "stats" && (
-                    <div className="flex flex-col gap-6">
-                      <PlanningHealthCard
-                        currentMonthShiftCount={currentMonthShifts.length}
-                        totalShiftCount={orderedShifts.length}
-                        activeShiftTypes={activeShiftTypes}
-                      />
-                      <ShiftDistribution
-                        typeCounts={typeCounts}
-                        totalShifts={orderedShifts.length}
-                        shiftTypeLabels={SHIFT_TYPE_LABELS}
-                      />
-                    </div>
+                    <StatsTab
+                      currentMonthShiftCount={currentMonthShifts.length}
+                      totalShiftCount={orderedShifts.length}
+                      activeShiftTypes={activeShiftTypes}
+                      typeCounts={typeCounts}
+                      shiftTypeLabels={SHIFT_TYPE_LABELS}
+                    />
                   )}
 
                   {activeMobileTab === "team" && (
-                    <TeamSpotlight
+                    <TeamTab
                       upcomingShifts={upcomingShifts}
                       shiftTypeLabels={SHIFT_TYPE_LABELS}
                     />
                   )}
 
                   {activeMobileTab === "settings" && (
-                    <div className="flex flex-col gap-6">
-                      <ShiftPlannerLab
-                        initialEntries={plannerDays}
-                        onCommit={handleManualRotationConfirm}
-                        isCommitting={isCommittingRotation}
-                        errorMessage={rotationError}
-                      />
-                    </div>
+                    <SettingsTab
+                      currentUser={currentUser}
+                      onLogout={handleLogout}
+                      workspaceMemberCount={users.length}
+                    />
                   )}
                 </div>
               </div>

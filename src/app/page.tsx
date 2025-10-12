@@ -454,12 +454,6 @@ export default function Home() {
     [currentUser]
   )
 
-  const handleSelectSlot = useCallback((slot: { start: Date }) => {
-    const date = format(slot.start, "yyyy-MM-dd")
-    setSelectedDateFromCalendar(date)
-    setRotationError(null)
-  }, [])
-
   const handleManualRotationConfirm = useCallback(
     async (days: ManualRotationDay[]) => {
       if (!currentUser) {
@@ -563,10 +557,6 @@ export default function Home() {
     },
     [currentUser, handleAddShift, handleDeleteShift, handleUpdateShift, shifts],
   )
-
-  const handleSelectShift = useCallback((shift: ShiftEvent) => {
-    setSelectedShift(shift)
-  }, [])
 
   const orderedShifts = useMemo(
     () => sortByDate(shifts),

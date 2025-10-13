@@ -4,11 +4,11 @@ import { useEffect, useMemo, useState } from "react"
 import type { ShiftType } from "@/types/shifts"
 
 const SHIFT_TYPE_LABELS: Record<ShiftType, string> = {
-  WORK: "Trabajo",
-  REST: "Descanso",
-  NIGHT: "Nocturno",
-  VACATION: "Vacaciones",
-  CUSTOM: "Personalizado",
+  WORK: "tra",
+  REST: "des",
+  NIGHT: "noc",
+  VACATION: "vac",
+  CUSTOM: "per",
 }
 
 type MobileAddShiftSheetProps = {

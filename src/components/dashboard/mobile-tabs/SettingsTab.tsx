@@ -1,27 +1,35 @@
 import type { FC } from "react"
-import ShiftPlannerLab from "@/components/ShiftPlannerLab"
-import type { ManualRotationDay } from "@/components/ManualRotationBuilder"
+import ConfigurationPanel, {
+  type UserPreferences,
+} from "@/components/dashboard/ConfigurationPanel"
+import type { UserSummary } from "@/types/users"
 
 type SettingsTabProps = {
-  plannerDays: ManualRotationDay[]
-  onCommit: (days: ManualRotationDay[]) => Promise<void> | void
-  isCommitting: boolean
-  errorMessage: string | null
+  user: UserSummary | null
+  preferences: UserPreferences
+  onSave: (preferences: UserPreferences) => Promise<void> | void
+  isSaving: boolean
+  lastSavedAt: Date | null
+  onLogout: () => void
 }
 
 const SettingsTab: FC<SettingsTabProps> = ({
-  plannerDays,
-  onCommit,
-  isCommitting,
-  errorMessage,
+  user,
+  preferences,
+  onSave,
+  isSaving,
+  lastSavedAt,
+  onLogout,
 }) => {
   return (
     <div className="flex flex-col gap-6">
-      <ShiftPlannerLab
-        initialEntries={plannerDays}
-        onCommit={onCommit}
-        isCommitting={isCommitting}
-        errorMessage={errorMessage}
+      <ConfigurationPanel
+        user={user}
+        defaultPreferences={preferences}
+        onSave={onSave}
+        isSaving={isSaving}
+        lastSavedAt={lastSavedAt}
+        onLogout={onLogout}
       />
     </div>
   )

@@ -3,10 +3,10 @@
 import type { FC } from "react"
 
 const NAV_ITEMS = [
-  { value: "calendar", tab: "calendar", label: "Calendario", icon: "⚙️" },
+  { value: "calendar", tab: "calendar", label: "Calendario", icon: "📅" },
   { value: "stats", tab: "stats", label: "Estadísticas", icon: "📊" },
   { value: "team", tab: "team", label: "Equipo", icon: "👥" },
-  { value: "settings", tab: "settings", label: "Calendario", icon: "📅" },
+  { value: "settings", tab: "settings", label: "Configuración", icon: "⚙️" },
 ] as const
 
 export type MobileTab = (typeof NAV_ITEMS)[number]["tab"]

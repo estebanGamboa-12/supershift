@@ -3,7 +3,8 @@
 import type { FC } from "react"
 import { format, isAfter, startOfDay } from "date-fns"
 import { es } from "date-fns/locale"
-import CalendarView from "@/components/CalendarView"
+import ShiftPlannerLab from "@/components/ShiftPlannerLab"
+import type { ManualRotationDay } from "@/components/ManualRotationBuilder"
 import NextShiftCard from "@/components/dashboard/NextShiftCard"
 import type { ShiftEvent, ShiftType } from "@/types/shifts"
 
@@ -12,8 +13,11 @@ type CalendarTabProps = {
   daysUntilNextShift: number | null
   shiftTypeLabels: Record<ShiftType, string>
   orderedShifts: ShiftEvent[]
+  plannerDays: ManualRotationDay[]
+  onCommitPlanner: (days: ManualRotationDay[]) => Promise<void> | void
+  isCommittingPlanner: boolean
+  plannerError: string | null
   onSelectEvent: (shift: ShiftEvent) => void
-  onSelectSlot?: (slot: { start: Date }) => void
 }
 
 const CalendarTab: FC<CalendarTabProps> = ({
@@ -21,8 +25,11 @@ const CalendarTab: FC<CalendarTabProps> = ({
   daysUntilNextShift,
   shiftTypeLabels,
   orderedShifts,
+  plannerDays,
+  onCommitPlanner,
+  isCommittingPlanner,
+  plannerError,
   onSelectEvent,
-  onSelectSlot,
 }) => {
   const today = startOfDay(new Date())
   const upcomingShifts = orderedShifts
@@ -40,11 +47,11 @@ const CalendarTab: FC<CalendarTabProps> = ({
         shiftTypeLabels={shiftTypeLabels}
       />
 
-      <CalendarView
-        shifts={orderedShifts}
-        onSelectEvent={onSelectEvent}
-        onSelectSlot={onSelectSlot}
-        className="min-h-[420px]"
+      <ShiftPlannerLab
+        initialEntries={plannerDays}
+        onCommit={onCommitPlanner}
+        isCommitting={isCommittingPlanner}
+        errorMessage={plannerError}
       />
 
       <section className="rounded-3xl border border-white/10 bg-white/5 p-6 shadow-xl shadow-blue-500/10">

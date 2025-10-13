@@ -128,15 +128,19 @@ function buildEntriesMap(days: ManualRotationDay[] = []): Record<string, Planner
 }
 
 export default function ShiftPlannerLab({
-  initialEntries = [],
+  initialEntries,
   onCommit,
   isCommitting = false,
   errorMessage = null,
   resetSignal,
 }: ShiftPlannerLabProps) {
+  const stableInitialEntries = useMemo(
+    () => initialEntries ?? [],
+    [initialEntries],
+  )
   const [currentMonth, setCurrentMonth] = useState(() => startOfMonth(new Date()))
   const [entries, setEntries] = useState<Record<string, PlannerEntry>>(() =>
-    buildEntriesMap(initialEntries),
+    buildEntriesMap(stableInitialEntries),
   )
   const [mode, setMode] = useState<Mode>("manual")
   const [selectedDate, setSelectedDate] = useState<string | null>(null)
@@ -146,9 +150,9 @@ export default function ShiftPlannerLab({
   const [rotationStart, setRotationStart] = useState(() => toIsoDate(new Date()))
 
   useEffect(() => {
-    setEntries(buildEntriesMap(initialEntries))
+    setEntries(buildEntriesMap(stableInitialEntries))
     setSelectedDate(null)
-  }, [initialEntries])
+  }, [stableInitialEntries])
 
   useEffect(() => {
     setSelectedDate(null)

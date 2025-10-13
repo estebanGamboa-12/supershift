@@ -7,6 +7,10 @@ import type { ShiftEvent, ShiftPluses, ShiftType } from "@/types/shifts"
 import EditShiftModal from "@/components/EditShiftModal"
 import type { ManualRotationDay } from "@/components/ManualRotationBuilder"
 import ShiftPlannerLab from "@/components/ShiftPlannerLab"
+import ConfigurationPanel, {
+  DEFAULT_USER_PREFERENCES,
+  type UserPreferences,
+} from "@/components/dashboard/ConfigurationPanel"
 import DashboardSidebar from "@/components/dashboard/DashboardSidebar"
 // eslint-disable-next-line @typescript-eslint/no-unused-vars
 import DashboardHeader from "@/components/dashboard/DashboardHeader"
@@ -145,6 +149,13 @@ export default function Home() {
   const [userError, setUserError] = useState<string | null>(null)
   const [isCommittingRotation, setIsCommittingRotation] = useState(false)
   const [rotationError, setRotationError] = useState<string | null>(null)
+  const [userPreferences, setUserPreferences] = useState<UserPreferences>(
+    DEFAULT_USER_PREFERENCES,
+  )
+  const [isSavingPreferences, setIsSavingPreferences] = useState(false)
+  const [preferencesSavedAt, setPreferencesSavedAt] = useState<Date | null>(
+    null,
+  )
 
   const mapApiShift = useCallback((shift: ApiShift): ShiftEvent => {
     const plusNight = shift.plusNight ?? 0
@@ -558,6 +569,17 @@ export default function Home() {
     [currentUser, handleAddShift, handleDeleteShift, handleUpdateShift, shifts],
   )
 
+  const handleSavePreferences = useCallback(async (preferences: UserPreferences) => {
+    setIsSavingPreferences(true)
+    try {
+      await new Promise((resolve) => setTimeout(resolve, 600))
+      setUserPreferences(preferences)
+      setPreferencesSavedAt(new Date())
+    } finally {
+      setIsSavingPreferences(false)
+    }
+  }, [])
+
   const orderedShifts = useMemo(
     () => sortByDate(shifts),
     [shifts, sortByDate]
@@ -778,11 +800,6 @@ export default function Home() {
     setIsMobileAddOpen(false)
   }, [])
 
-  const handleSelectSlot = useCallback((slot: { start: Date }) => {
-    setSelectedShift(null)
-    setSelectedDateFromCalendar(format(slot.start, "yyyy-MM-dd"))
-  }, [])
-
   if (!currentUser) {
     return (
       <div className="relative min-h-screen overflow-hidden bg-slate-950 text-white">
@@ -867,13 +884,6 @@ export default function Home() {
             <div className="mx-auto w-full max-w-7xl space-y-10 px-4 py-6 sm:px-6 lg:px-10 xl:px-12">
               <div className="hidden space-y-6 lg:block">
                 <section className="space-y-6">
-                  {/* <PlanningSection
-                    shifts={orderedShifts}
-                    onSelectShift={handleSelectShift}
-                    onSelectSlot={handleSelectSlot}
-                    onGoToToday={handleGoToToday}
-                  /> */}
-
                   {/* <ShiftDistribution
                     typeCounts={typeCounts}
                     totalShifts={orderedShifts.length}
@@ -885,6 +895,15 @@ export default function Home() {
                     onCommit={handleManualRotationConfirm}
                     isCommitting={isCommittingRotation}
                     errorMessage={rotationError}
+                  />
+
+                  <ConfigurationPanel
+                    user={currentUser}
+                    defaultPreferences={userPreferences}
+                    onSave={handleSavePreferences}
+                    isSaving={isSavingPreferences}
+                    lastSavedAt={preferencesSavedAt}
+                    onLogout={handleLogout}
                   />
 
                 </section>
@@ -976,8 +995,11 @@ export default function Home() {
                       daysUntilNextShift={daysUntilNextShift}
                       shiftTypeLabels={SHIFT_TYPE_LABELS}
                       orderedShifts={orderedShifts}
+                      plannerDays={plannerDays}
+                      onCommitPlanner={handleManualRotationConfirm}
+                      isCommittingPlanner={isCommittingRotation}
+                      plannerError={rotationError}
                       onSelectEvent={handleSelectShift}
-                      onSelectSlot={handleSelectSlot}
                     />
                   )}
 
@@ -1000,10 +1022,12 @@ export default function Home() {
 
                   {activeMobileTab === "settings" && (
                     <SettingsTab
-                      plannerDays={plannerDays}
-                      onCommit={handleManualRotationConfirm}
-                      isCommitting={isCommittingRotation}
-                      errorMessage={rotationError}
+                      user={currentUser}
+                      preferences={userPreferences}
+                      onSave={handleSavePreferences}
+                      isSaving={isSavingPreferences}
+                      lastSavedAt={preferencesSavedAt}
+                      onLogout={handleLogout}
                     />
                   )}
                 </div>

@@ -1,39 +1,30 @@
 import type { FC } from "react"
-import CalendarView from "@/components/CalendarView"
-import NextShiftCard from "@/components/dashboard/NextShiftCard"
-import type { ShiftEvent, ShiftType } from "@/types/shifts"
+import ShiftPlannerLab from "@/components/ShiftPlannerLab"
+import type { ManualRotationDay } from "@/components/ManualRotationBuilder"
 
-type CalendarTabProps = {
-  nextShift: ShiftEvent | null
-  daysUntilNextShift: number | null
-  shiftTypeLabels: Record<ShiftType, string>
-  orderedShifts: ShiftEvent[]
-  onSelectEvent: (shift: ShiftEvent) => void
-  onSelectSlot: (slot: { start: Date }) => void
+type SettingsTabProps = {
+  plannerDays: ManualRotationDay[]
+  onCommit: (days: ManualRotationDay[]) => Promise<void> | void
+  isCommitting: boolean
+  errorMessage: string | null
 }
 
-const CalendarTab: FC<CalendarTabProps> = ({
-  nextShift,
-  daysUntilNextShift,
-  shiftTypeLabels,
-  orderedShifts,
-  onSelectEvent,
-  onSelectSlot,
+const SettingsTab: FC<SettingsTabProps> = ({
+  plannerDays,
+  onCommit,
+  isCommitting,
+  errorMessage,
 }) => {
   return (
     <div className="flex flex-col gap-6">
-      <NextShiftCard
-        nextShift={nextShift ?? undefined}
-        daysUntilNextShift={daysUntilNextShift}
-        shiftTypeLabels={shiftTypeLabels}
-      />
-      <CalendarView
-        shifts={orderedShifts}
-        onSelectEvent={onSelectEvent}
-        onSelectSlot={onSelectSlot}
+      <ShiftPlannerLab
+        initialEntries={plannerDays}
+        onCommit={onCommit}
+        isCommitting={isCommitting}
+        errorMessage={errorMessage}
       />
     </div>
   )
 }
 
-export default CalendarTab
+export default SettingsTab

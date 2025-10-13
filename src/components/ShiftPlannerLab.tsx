@@ -653,7 +653,7 @@ export default function ShiftPlannerLab({
                       key={key}
                       type="button"
                       onClick={() => openEditor(day)}
-                      className={`flex min-h-[96px] flex-col gap-1 rounded-2xl border border-transparent p-2 text-left transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sky-400/70 sm:min-h-[120px] sm:gap-2 sm:p-3 ${isCurrent ? "text-white/90" : "text-white/40"} ${entry ? "bg-slate-950/80 hover:border-sky-400/40" : "bg-slate-950/40 hover:bg-slate-900/60"}`}
+                      className={`group flex min-h-[96px] flex-col gap-1 rounded-2xl border border-transparent p-2 text-left transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sky-400/70 sm:min-h-[120px] sm:gap-2 sm:p-3 ${isCurrent ? "text-white/90" : "text-white/40"} ${entry ? "bg-slate-950/80 hover:border-sky-400/40" : "bg-slate-950/40 hover:bg-slate-900/60"}`}
                     >
                       <span className={`flex h-6 w-6 items-center justify-center rounded-full text-xs font-semibold sm:h-7 sm:w-7 sm:text-sm ${isCurrentDay ? "bg-sky-500 text-white shadow shadow-sky-500/40" : "bg-white/5 text-white/80"}`}>
                         {format(day, "d")}
@@ -674,7 +674,14 @@ export default function ShiftPlannerLab({
                           {entry.label || SHIFT_LABELS[entry.type]}
                         </motion.span>
                       ) : (
-                        <span className="text-[9px] uppercase tracking-wide text-white/30 sm:text-[10px]">Configurar</span>
+                        <div className="mt-1 flex items-center justify-center">
+                          <span className="inline-flex items-center justify-center gap-1 rounded-full border border-dashed border-white/15 bg-white/5 px-2 py-1 text-[9px] font-semibold uppercase tracking-wide text-white/30 transition-colors group-hover:border-sky-400/40 group-hover:text-sky-200 sm:text-[10px]">
+                            <span aria-hidden="true" className="text-white/40">
+                              +
+                            </span>
+                            Añadir turno
+                          </span>
+                        </div>
                       )}
                       {entry?.note ? (
                         <span className="line-clamp-2 text-[9px] text-white/50 sm:text-[10px]">{entry.note}</span>

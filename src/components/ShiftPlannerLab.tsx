@@ -514,7 +514,18 @@ export default function ShiftPlannerLab({
               </button>
             </div>
             <div className="text-right">
-              <p className="text-lg font-semibold text-white">{monthLabel}</p>
+              <AnimatePresence mode="wait" initial={false}>
+                <motion.p
+                  key={monthLabel}
+                  initial={{ opacity: 0, y: 8 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  exit={{ opacity: 0, y: -8 }}
+                  transition={{ duration: 0.25, ease: "easeOut" }}
+                  className="text-lg font-semibold text-white"
+                >
+                  {monthLabel}
+                </motion.p>
+              </AnimatePresence>
               <p className="text-[11px] uppercase tracking-[0.35em] text-white/40">Plan mensual</p>
             </div>
           </header>
@@ -617,48 +628,65 @@ export default function ShiftPlannerLab({
               })}
             </div>
 
-            <div className="grid grid-cols-7 grid-rows-6 gap-px bg-slate-900/60">
-              {calendarDays.map((day) => {
-                const key = toIsoDate(day)
-                const entry = entries[key]
-                const isCurrent = isSameMonth(day, currentMonth)
-                const isCurrentDay = isToday(day)
-                const accentColor = entry
-                  ? entry.color ||
-                    SHIFT_TYPES.find(({ value }) => value === entry.type)?.defaultColor ||
-                    "#2563eb"
-                  : "#2563eb"
+            <AnimatePresence mode="wait" initial={false}>
+              <motion.div
+                key={monthLabel}
+                initial={{ opacity: 0, y: 12 }}
+                animate={{ opacity: 1, y: 0 }}
+                exit={{ opacity: 0, y: -12 }}
+                transition={{ duration: 0.25, ease: "easeOut" }}
+                className="grid grid-cols-7 grid-rows-6 gap-px bg-slate-900/60"
+              >
+                {calendarDays.map((day) => {
+                  const key = toIsoDate(day)
+                  const entry = entries[key]
+                  const isCurrent = isSameMonth(day, currentMonth)
+                  const isCurrentDay = isToday(day)
+                  const accentColor = entry
+                    ? entry.color ||
+                      SHIFT_TYPES.find(({ value }) => value === entry.type)?.defaultColor ||
+                      "#2563eb"
+                    : "#2563eb"
 
-                return (
-                  <button
-                    key={key}
-                    type="button"
-                    onClick={() => openEditor(day)}
-                    className={`flex min-h-[96px] flex-col gap-1 rounded-2xl border border-transparent p-2 text-left transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sky-400/70 sm:min-h-[120px] sm:gap-2 sm:p-3 ${isCurrent ? "text-white/90" : "text-white/40"} ${entry ? "bg-slate-950/80 hover:border-sky-400/40" : "bg-slate-950/40 hover:bg-slate-900/60"}`}
-                  >
-                    <span className={`flex h-6 w-6 items-center justify-center rounded-full text-xs font-semibold sm:h-7 sm:w-7 sm:text-sm ${isCurrentDay ? "bg-sky-500 text-white shadow shadow-sky-500/40" : "bg-white/5 text-white/80"}`}>
-                      {format(day, "d")}
-                    </span>
-                    {entry ? (
-                      <span
-                        className="mt-1 block break-words rounded-xl px-2 py-1 text-center text-[9px] font-semibold uppercase tracking-wider text-white leading-tight sm:text-[10px]"
-                        style={{ backgroundColor: `${accentColor}22`, color: accentColor }}
-                      >
-                        {entry.label || SHIFT_LABELS[entry.type]}
+                  return (
+                    <button
+                      key={key}
+                      type="button"
+                      onClick={() => openEditor(day)}
+                      className={`flex min-h-[96px] flex-col gap-1 rounded-2xl border border-transparent p-2 text-left transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sky-400/70 sm:min-h-[120px] sm:gap-2 sm:p-3 ${isCurrent ? "text-white/90" : "text-white/40"} ${entry ? "bg-slate-950/80 hover:border-sky-400/40" : "bg-slate-950/40 hover:bg-slate-900/60"}`}
+                    >
+                      <span className={`flex h-6 w-6 items-center justify-center rounded-full text-xs font-semibold sm:h-7 sm:w-7 sm:text-sm ${isCurrentDay ? "bg-sky-500 text-white shadow shadow-sky-500/40" : "bg-white/5 text-white/80"}`}>
+                        {format(day, "d")}
                       </span>
-                    ) : (
-                      <span className="text-[9px] uppercase tracking-wide text-white/30 sm:text-[10px]">Configurar</span>
-                    )}
-                    {entry?.note ? (
-                      <span className="line-clamp-2 text-[9px] text-white/50 sm:text-[10px]">{entry.note}</span>
-                    ) : null}
-                    {entry && sumPluses(entry.pluses) > 0 ? (
-                      <span className="text-[9px] font-medium text-emerald-200 sm:text-[10px]">{sumPluses(entry.pluses)} niveles</span>
-                    ) : null}
-                  </button>
-                )
-              })}
-            </div>
+                      {entry ? (
+                        <motion.span
+                          whileHover={{ scale: 1.05, boxShadow: `0 0 16px ${accentColor}55` }}
+                          whileTap={{ scale: 0.97 }}
+                          transition={{ type: "spring", stiffness: 320, damping: 20 }}
+                          className="mt-1 block break-words rounded-xl px-2 py-1 text-center text-[9px] font-semibold uppercase tracking-wider text-white leading-tight sm:text-[10px]"
+                          style={{
+                            backgroundColor: `${accentColor}22`,
+                            color: accentColor,
+                            boxShadow: `0 0 0 0 ${accentColor}00`,
+                            transformOrigin: "center",
+                          }}
+                        >
+                          {entry.label || SHIFT_LABELS[entry.type]}
+                        </motion.span>
+                      ) : (
+                        <span className="text-[9px] uppercase tracking-wide text-white/30 sm:text-[10px]">Configurar</span>
+                      )}
+                      {entry?.note ? (
+                        <span className="line-clamp-2 text-[9px] text-white/50 sm:text-[10px]">{entry.note}</span>
+                      ) : null}
+                      {entry && sumPluses(entry.pluses) > 0 ? (
+                        <span className="text-[9px] font-medium text-emerald-200 sm:text-[10px]">{sumPluses(entry.pluses)} niveles</span>
+                      ) : null}
+                    </button>
+                  )
+                })}
+              </motion.div>
+            </AnimatePresence>
           </div>
         </section>
 

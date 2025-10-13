@@ -641,7 +641,7 @@ export default function ShiftPlannerLab({
                     </span>
                     {entry ? (
                       <span
-                        className="mt-1 inline-flex items-center gap-2 rounded-xl px-2 py-1 text-[9px] font-semibold uppercase tracking-wider text-white sm:text-[10px]"
+                        className="mt-1 block break-words rounded-xl px-2 py-1 text-center text-[9px] font-semibold uppercase tracking-wider text-white leading-tight sm:text-[10px]"
                         style={{ backgroundColor: `${accentColor}22`, color: accentColor }}
                       >
                         {entry.label || SHIFT_LABELS[entry.type]}

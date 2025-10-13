@@ -62,6 +62,11 @@ function normalizeDateFromStart(startAt: string | null): string {
     return trimmed
   }
 
+  const directMatch = trimmed.match(/^\s*(\d{4}-\d{2}-\d{2})/)
+  if (directMatch) {
+    return directMatch[1]
+  }
+
   const candidate = trimmed.includes("T") ? trimmed : trimmed.replace(" ", "T")
   const parsed = new Date(candidate)
   if (Number.isNaN(parsed.getTime())) {
@@ -72,7 +77,11 @@ function normalizeDateFromStart(startAt: string | null): string {
     throw new Error("No se pudo normalizar la fecha del turno")
   }
 
-  return parsed.toISOString().slice(0, 10)
+  const year = parsed.getFullYear()
+  const month = String(parsed.getMonth() + 1).padStart(2, "0")
+  const day = String(parsed.getDate()).padStart(2, "0")
+
+  return `${year}-${month}-${day}`
 }
 
 export function adaptDatabaseShiftRow(row: DatabaseShiftRow): ShiftRow {

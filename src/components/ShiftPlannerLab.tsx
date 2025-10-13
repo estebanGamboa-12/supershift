@@ -605,61 +605,59 @@ export default function ShiftPlannerLab({
             </div>
           )}
 
-          <div className="overflow-x-auto rounded-3xl border border-white/10 bg-slate-950/50 sm:overflow-hidden">
-            <div className="min-w-[640px] sm:min-w-0">
-              <div className="grid grid-cols-7 gap-px border-b border-white/10 bg-slate-900/60 text-[11px] font-semibold uppercase tracking-wide text-white/60">
-                {Array.from({ length: 7 }).map((_, index) => {
-                  const reference = addDays(startOfWeek(new Date(), { weekStartsOn: 1 }), index)
-                  return (
-                    <div key={index} className="bg-slate-950/40 py-2 text-center">
-                      {format(reference, "EEE", { locale: es })}
-                    </div>
-                  )
-                })}
-              </div>
+          <div className="overflow-hidden rounded-3xl border border-white/10 bg-slate-950/50">
+            <div className="grid grid-cols-7 gap-px border-b border-white/10 bg-slate-900/60 text-[10px] font-semibold uppercase tracking-wide text-white/60 sm:text-[11px]">
+              {Array.from({ length: 7 }).map((_, index) => {
+                const reference = addDays(startOfWeek(new Date(), { weekStartsOn: 1 }), index)
+                return (
+                  <div key={index} className="bg-slate-950/40 py-2 text-center">
+                    {format(reference, "EEE", { locale: es })}
+                  </div>
+                )
+              })}
+            </div>
 
-              <div className="grid grid-cols-7 grid-rows-6 gap-px bg-slate-900/60">
-                {calendarDays.map((day) => {
-                  const key = toIsoDate(day)
-                  const entry = entries[key]
-                  const isCurrent = isSameMonth(day, currentMonth)
-                  const isCurrentDay = isToday(day)
-                  const accentColor = entry
-                    ? entry.color ||
-                      SHIFT_TYPES.find(({ value }) => value === entry.type)?.defaultColor ||
-                      "#2563eb"
-                    : "#2563eb"
+            <div className="grid grid-cols-7 grid-rows-6 gap-px bg-slate-900/60">
+              {calendarDays.map((day) => {
+                const key = toIsoDate(day)
+                const entry = entries[key]
+                const isCurrent = isSameMonth(day, currentMonth)
+                const isCurrentDay = isToday(day)
+                const accentColor = entry
+                  ? entry.color ||
+                    SHIFT_TYPES.find(({ value }) => value === entry.type)?.defaultColor ||
+                    "#2563eb"
+                  : "#2563eb"
 
-                  return (
-                    <button
-                      key={key}
-                      type="button"
-                      onClick={() => openEditor(day)}
-                      className={`flex flex-col gap-1 rounded-2xl border border-transparent p-3 text-left transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sky-400/70 ${isCurrent ? "text-white/90" : "text-white/40"} ${entry ? "bg-slate-950/80 hover:border-sky-400/40" : "bg-slate-950/40 hover:bg-slate-900/60"}`}
-                    >
-                      <span className={`flex h-7 w-7 items-center justify-center rounded-full text-sm font-semibold ${isCurrentDay ? "bg-sky-500 text-white shadow shadow-sky-500/40" : "bg-white/5 text-white/80"}`}>
-                        {format(day, "d")}
+                return (
+                  <button
+                    key={key}
+                    type="button"
+                    onClick={() => openEditor(day)}
+                    className={`flex min-h-[96px] flex-col gap-1 rounded-2xl border border-transparent p-2 text-left transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sky-400/70 sm:min-h-[120px] sm:gap-2 sm:p-3 ${isCurrent ? "text-white/90" : "text-white/40"} ${entry ? "bg-slate-950/80 hover:border-sky-400/40" : "bg-slate-950/40 hover:bg-slate-900/60"}`}
+                  >
+                    <span className={`flex h-6 w-6 items-center justify-center rounded-full text-xs font-semibold sm:h-7 sm:w-7 sm:text-sm ${isCurrentDay ? "bg-sky-500 text-white shadow shadow-sky-500/40" : "bg-white/5 text-white/80"}`}>
+                      {format(day, "d")}
+                    </span>
+                    {entry ? (
+                      <span
+                        className="mt-1 inline-flex items-center gap-2 rounded-xl px-2 py-1 text-[9px] font-semibold uppercase tracking-wider text-white sm:text-[10px]"
+                        style={{ backgroundColor: `${accentColor}22`, color: accentColor }}
+                      >
+                        {entry.label || SHIFT_LABELS[entry.type]}
                       </span>
-                      {entry ? (
-                        <span
-                          className="mt-1 inline-flex items-center gap-2 rounded-xl px-2 py-1 text-[10px] font-semibold uppercase tracking-wider text-white"
-                          style={{ backgroundColor: `${accentColor}22`, color: accentColor }}
-                        >
-                          {entry.label || SHIFT_LABELS[entry.type]}
-                        </span>
-                      ) : (
-                        <span className="text-[10px] uppercase tracking-wide text-white/30">Configurar</span>
-                      )}
-                      {entry?.note ? (
-                        <span className="line-clamp-2 text-[10px] text-white/50">{entry.note}</span>
-                      ) : null}
-                      {entry && sumPluses(entry.pluses) > 0 ? (
-                        <span className="text-[10px] font-medium text-emerald-200">{sumPluses(entry.pluses)} niveles</span>
-                      ) : null}
-                    </button>
-                  )
-                })}
-              </div>
+                    ) : (
+                      <span className="text-[9px] uppercase tracking-wide text-white/30 sm:text-[10px]">Configurar</span>
+                    )}
+                    {entry?.note ? (
+                      <span className="line-clamp-2 text-[9px] text-white/50 sm:text-[10px]">{entry.note}</span>
+                    ) : null}
+                    {entry && sumPluses(entry.pluses) > 0 ? (
+                      <span className="text-[9px] font-medium text-emerald-200 sm:text-[10px]">{sumPluses(entry.pluses)} niveles</span>
+                    ) : null}
+                  </button>
+                )
+              })}
             </div>
           </div>
         </section>

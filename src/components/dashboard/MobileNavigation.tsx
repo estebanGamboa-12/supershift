@@ -3,13 +3,13 @@
 import type { FC } from "react"
 
 const NAV_ITEMS = [
-  { value: "calendar", label: "Calendario", icon: "📅" },
-  { value: "stats", label: "Estadísticas", icon: "📊" },
-  { value: "team", label: "Equipo", icon: "👥" },
-  { value: "settings", label: "Configuración", icon: "⚙️" },
+  { value: "calendar", tab: "settings", label: "Configuración", icon: "⚙️" },
+  { value: "stats", tab: "stats", label: "Estadísticas", icon: "📊" },
+  { value: "team", tab: "team", label: "Equipo", icon: "👥" },
+  { value: "settings", tab: "calendar", label: "Calendario", icon: "📅" },
 ] as const
 
-export type MobileTab = (typeof NAV_ITEMS)[number]["value"]
+export type MobileTab = (typeof NAV_ITEMS)[number]["tab"]
 
 type MobileNavigationProps = {
   active: MobileTab
@@ -22,12 +22,12 @@ const MobileNavigation: FC<MobileNavigationProps> = ({ active, onChange }) => {
       <div className="mx-auto w-full max-w-3xl px-4">
         <div className="pointer-events-auto flex items-center justify-between rounded-3xl border border-white/10 bg-slate-950/90 p-2 shadow-2xl shadow-blue-500/20 backdrop-blur">
           {NAV_ITEMS.map((item) => {
-            const isActive = item.value === active
+            const isActive = item.tab === active
             return (
               <button
                 key={item.value}
                 type="button"
-                onClick={() => onChange(item.value)}
+                onClick={() => onChange(item.tab)}
                 className={`flex flex-1 flex-col items-center gap-1 rounded-2xl px-3 py-2 text-[11px] font-semibold uppercase tracking-wide transition-all duration-200 ${
                   isActive
                     ? "bg-gradient-to-br from-blue-500/40 to-indigo-500/40 text-white shadow-inner shadow-blue-500/30"

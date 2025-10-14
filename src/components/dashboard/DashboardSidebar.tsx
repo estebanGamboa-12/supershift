@@ -1,3 +1,4 @@
+import Image from "next/image"
 import type { FC } from "react"
 
 const NAVIGATION_ITEMS = [
@@ -18,15 +19,23 @@ const DashboardSidebar: FC<DashboardSidebarProps> = ({ className }) => {
     >
       <div className="space-y-10">
         {/* Header */}
-        <div className="space-y-2">
-          <span className="inline-flex items-center gap-2 rounded-full border border-emerald-400/20 bg-emerald-500/10 px-3 py-1 text-xs font-semibold uppercase tracking-wide text-emerald-200/80">
-            <span className="h-1.5 w-1.5 rounded-full bg-emerald-400" aria-hidden />
-            Corp Ops
-          </span>
-          <h1 className="text-2xl font-bold tracking-tight text-white">Centro de control</h1>
-          <p className="text-sm text-white/60 leading-relaxed">
-            Coordina turnos, anticipa rotaciones y mantén la productividad de tu equipo sin perder contexto.
-          </p>
+        <div className="flex items-start gap-4">
+          <div className="relative mt-1">
+            <span className="pointer-events-none absolute inset-0 -translate-y-1 scale-125 rounded-full bg-cyan-400/20 blur-lg" aria-hidden />
+            <div className="relative grid h-14 w-14 place-items-center overflow-hidden rounded-2xl border border-white/10 bg-slate-900/80 shadow-lg shadow-blue-500/20">
+              <Image src="/corp-logo.svg" alt="Logotipo de Corp" width={48} height={48} priority className="h-12 w-12" />
+            </div>
+          </div>
+          <div className="space-y-2">
+            <span className="inline-flex items-center gap-2 rounded-full border border-emerald-400/20 bg-emerald-500/10 px-3 py-1 text-xs font-semibold uppercase tracking-wide text-emerald-200/80">
+              <span className="h-1.5 w-1.5 rounded-full bg-emerald-400" aria-hidden />
+              Corp Ops
+            </span>
+            <h1 className="text-2xl font-bold tracking-tight text-white">Centro de control</h1>
+            <p className="text-sm leading-relaxed text-white/60">
+              Coordina turnos, anticipa rotaciones y mantén la productividad de tu equipo sin perder contexto.
+            </p>
+          </div>
         </div>
 
         {/* Navegación */}

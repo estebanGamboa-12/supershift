@@ -422,7 +422,8 @@ export default function Home() {
           )
 
           console.error(`No se pudo actualizar el turno ${id}`, error)
-          throw new Error(
+          throw new ApiError(
+            404,
             "El turno que intentabas editar ya no existe. Se ha eliminado de la vista."
           )
         }
@@ -538,15 +539,35 @@ export default function Home() {
         }
 
         for (const { day, shift } of updates) {
-          await handleUpdateShift({
-            id: shift.id,
-            date: day.date,
-            type: day.type,
-            note: day.note,
-            label: day.label,
-            color: day.color,
-            pluses: day.pluses,
-          })
+          try {
+            await handleUpdateShift({
+              id: shift.id,
+              date: day.date,
+              type: day.type,
+              note: day.note,
+              label: day.label,
+              color: day.color,
+              pluses: day.pluses,
+            })
+          } catch (error) {
+            if (error instanceof ApiError && error.status === 404) {
+              console.warn(
+                `El turno ${shift.id} no existía en el servidor. Se intentará crear uno nuevo en su lugar.`,
+                error,
+              )
+              await handleAddShift({
+                date: day.date,
+                type: day.type,
+                ...(day.note ? { note: day.note } : {}),
+                ...(day.label ? { label: day.label } : {}),
+                ...(day.color ? { color: day.color } : {}),
+                pluses: day.pluses,
+              })
+              continue
+            }
+
+            throw error
+          }
         }
 
         for (const entry of additions) {

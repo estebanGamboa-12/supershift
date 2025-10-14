@@ -158,9 +158,7 @@ export default function ShiftPlannerLab({
   const [rotationStart, setRotationStart] = useState(() => toIsoDate(new Date()))
   const [isConfirmingRotation, setIsConfirmingRotation] = useState(false)
   const [toasts, setToasts] = useState<ToastMessage[]>([])
-  const toastTimeoutsRef = useRef<Map<number, ReturnType<typeof setTimeout>>>(
-    new Map(),
-  )
+  const toastTimeoutsRef = useRef<Map<number, number>>(new Map())
 
   useEffect(() => {
     setEntries(buildEntriesMap(stableInitialEntries))
@@ -211,8 +209,8 @@ export default function ShiftPlannerLab({
   const removeToast = useCallback((id: number) => {
     setToasts((prev) => prev.filter((toast) => toast.id !== id))
     const timeout = toastTimeoutsRef.current.get(id)
-    if (timeout) {
-      clearTimeout(timeout)
+    if (timeout !== undefined) {
+      window.clearTimeout(timeout)
       toastTimeoutsRef.current.delete(id)
     }
   }, [])
@@ -235,7 +233,7 @@ export default function ShiftPlannerLab({
     const timeouts = toastTimeoutsRef.current
     return () => {
       timeouts.forEach((timeout) => {
-        clearTimeout(timeout)
+        window.clearTimeout(timeout)
       })
       timeouts.clear()
     }

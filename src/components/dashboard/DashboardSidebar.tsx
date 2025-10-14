@@ -15,7 +15,7 @@ interface DashboardSidebarProps {
 const DashboardSidebar: FC<DashboardSidebarProps> = ({ className }) => {
   return (
     <aside
-      className={`hidden w-72 flex-col justify-between border-r border-white/10 bg-slate-950/80 px-6 py-8 backdrop-blur-xl xl:flex ${className ?? ""}`}
+      className={`hidden w-72 flex-col justify-between border-r border-white/10 bg-slate-950/80 px-6 py-8 backdrop-blur-xl lg:flex ${className ?? ""}`}
     >
       <div className="space-y-10">
         {/* Header */}

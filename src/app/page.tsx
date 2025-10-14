@@ -12,10 +12,15 @@ import ConfigurationPanel, {
   type UserPreferences,
 } from "@/components/dashboard/ConfigurationPanel"
 import DashboardSidebar from "@/components/dashboard/DashboardSidebar"
+import DesktopOverviewCard from "@/components/dashboard/DesktopOverviewCard"
 // eslint-disable-next-line @typescript-eslint/no-unused-vars
 import DashboardHeader from "@/components/dashboard/DashboardHeader"
 import MobileNavigation, { type MobileTab } from "@/components/dashboard/MobileNavigation"
 import MobileAddShiftSheet from "@/components/dashboard/MobileAddShiftSheet"
+import NextShiftCard from "@/components/dashboard/NextShiftCard"
+import PlanningHealthCard from "@/components/dashboard/PlanningHealthCard"
+import ShiftDistribution from "@/components/dashboard/ShiftDistribution"
+import TeamSpotlight from "@/components/dashboard/TeamSpotlight"
 import UserAuthPanel from "@/components/auth/UserAuthPanel"
 import FloatingParticlesLoader from "@/components/FloatingParticlesLoader"
 import AuroraBackground from "@/components/AuroraBackground"
@@ -882,19 +887,50 @@ export default function Home() {
 
           <main className="flex-1 overflow-y-auto pb-[calc(6rem+env(safe-area-inset-bottom))] lg:pb-0">
             <div className="mx-auto w-full max-w-7xl space-y-10 px-4 py-6 sm:px-6 lg:px-10 xl:px-12">
-              <div className="hidden space-y-6 lg:block">
-                <section className="space-y-6">
-                  {/* <ShiftDistribution
+              <div className="hidden lg:grid lg:grid-cols-[minmax(0,2fr)_minmax(0,1fr)] lg:items-start lg:gap-10 xl:gap-12">
+                <div className="flex flex-col gap-10">
+                  <DesktopOverviewCard
+                    greeting={mobileGreeting}
+                    currentMonthShiftCount={currentMonthShifts.length}
+                    nextShift={nextShift}
+                    nextShiftCountdownLabel={nextShiftCountdownLabel}
+                    activeShiftTypes={activeShiftTypes}
+                    teamSize={users.length}
+                    shiftTypeLabels={SHIFT_TYPE_LABELS}
+                  />
+
+                  <section className="space-y-6">
+                    <ShiftPlannerLab
+                      initialEntries={plannerDays}
+                      onCommit={handleManualRotationConfirm}
+                      isCommitting={isCommittingRotation}
+                      errorMessage={rotationError}
+                    />
+                  </section>
+                </div>
+
+                <aside className="flex flex-col gap-8">
+                  <NextShiftCard
+                    nextShift={nextShift}
+                    daysUntilNextShift={daysUntilNextShift}
+                    shiftTypeLabels={SHIFT_TYPE_LABELS}
+                  />
+
+                  <PlanningHealthCard
+                    currentMonthShiftCount={currentMonthShifts.length}
+                    totalShiftCount={orderedShifts.length}
+                    activeShiftTypes={activeShiftTypes}
+                  />
+
+                  <ShiftDistribution
                     typeCounts={typeCounts}
                     totalShifts={orderedShifts.length}
                     shiftTypeLabels={SHIFT_TYPE_LABELS}
-                  /> */}
+                  />
 
-                  <ShiftPlannerLab
-                    initialEntries={plannerDays}
-                    onCommit={handleManualRotationConfirm}
-                    isCommitting={isCommittingRotation}
-                    errorMessage={rotationError}
+                  <TeamSpotlight
+                    upcomingShifts={upcomingShifts}
+                    shiftTypeLabels={SHIFT_TYPE_LABELS}
                   />
 
                   <ConfigurationPanel
@@ -905,8 +941,7 @@ export default function Home() {
                     lastSavedAt={preferencesSavedAt}
                     onLogout={handleLogout}
                   />
-
-                </section>
+                </aside>
               </div>
 
               <div className="lg:hidden">

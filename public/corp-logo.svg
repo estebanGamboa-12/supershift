@@ -1,0 +1,22 @@
+<svg width="160" height="160" viewBox="0 0 160 160" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <radialGradient id="corpGradient" cx="0" cy="0" r="1" gradientUnits="userSpaceOnUse" gradientTransform="translate(48 38) rotate(45) scale(140)">
+      <stop offset="0" stop-color="#5CE1F6"/>
+      <stop offset="0.45" stop-color="#2397F5"/>
+      <stop offset="1" stop-color="#0F1F4B"/>
+    </radialGradient>
+    <filter id="shadow" x="10" y="12" width="140" height="140" filterUnits="userSpaceOnUse" color-interpolation-filters="sRGB">
+      <feFlood flood-opacity="0" result="BackgroundImageFix"/>
+      <feColorMatrix in="SourceAlpha" type="matrix" values="0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 127 0" result="hardAlpha"/>
+      <feOffset dy="8"/>
+      <feGaussianBlur stdDeviation="12"/>
+      <feColorMatrix type="matrix" values="0 0 0 0 0.0470588 0 0 0 0 0.176471 0 0 0 0 0.372549 0 0 0 0.24 0"/>
+      <feBlend mode="normal" in2="BackgroundImageFix" result="effect1_dropShadow"/>
+      <feBlend mode="normal" in="SourceGraphic" in2="effect1_dropShadow" result="shape"/>
+    </filter>
+  </defs>
+  <g filter="url(#shadow)">
+    <circle cx="80" cy="72" r="60" fill="url(#corpGradient)"/>
+  </g>
+  <path d="M102.4 51.2C98.2667 46.24 91.7867 43.2 83.1467 43.2C66.1867 43.2 54.6667 55.52 54.6667 72C54.6667 88.48 66.1867 100.8 83.1467 100.8C91.7333 100.8 98.2133 97.8133 102.4 92.8L92.8 85.6C90.1333 88.96 86.24 90.9333 81.4933 90.9333C71.68 90.9333 64.8533 83.7333 64.8533 72C64.8533 60.2667 71.68 53.0667 81.4933 53.0667C86.24 53.0667 90.1333 55.04 92.8 58.4L102.4 51.2Z" fill="white" fill-opacity="0.94"/>
+</svg>

@@ -489,31 +489,8 @@ export default function ShiftPlannerLab({
       <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_top,_rgba(59,130,246,0.18),transparent_60%),_radial-gradient(circle_at_bottom_right,_rgba(236,72,153,0.14),transparent_55%)]" />
       <div className="relative grid gap-6 p-4 sm:p-6 xl:grid-cols-[1.4fr_1fr]">
         <section className="space-y-4 rounded-2xl border border-white/10 bg-white/5 p-4 sm:p-5 backdrop-blur-xl">
-          <header className="flex flex-col gap-3 border-b border-white/10 pb-4 sm:flex-row sm:items-center sm:justify-between">
-            <div className="flex items-center gap-2">
-              <button
-                type="button"
-                onClick={handlePrevMonth}
-                className="rounded-full border border-white/20 bg-white/10 px-3 py-1 text-xs font-semibold uppercase tracking-wide text-white/70 transition hover:border-sky-400/60 hover:text-sky-200"
-              >
-                Ant.
-              </button>
-              <button
-                type="button"
-                onClick={handleGoToday}
-                className="rounded-full border border-sky-500/70 bg-sky-500 px-3 py-1 text-xs font-semibold uppercase tracking-wide text-white shadow hover:bg-sky-400"
-              >
-                Hoy
-              </button>
-              <button
-                type="button"
-                onClick={handleNextMonth}
-                className="rounded-full border border-white/20 bg-white/10 px-3 py-1 text-xs font-semibold uppercase tracking-wide text-white/70 transition hover:border-sky-400/60 hover:text-sky-200"
-              >
-                Sig.
-              </button>
-            </div>
-            <div className="text-right">
+          <header className="border-b border-white/10 pb-4">
+            <div className="flex flex-col gap-1 sm:flex-row sm:items-end sm:justify-between">
               <AnimatePresence mode="wait" initial={false}>
                 <motion.p
                   key={monthLabel}
@@ -615,6 +592,44 @@ export default function ShiftPlannerLab({
               </p>
             </div>
           )}
+
+          <div className="flex flex-wrap items-center justify-between gap-2 rounded-2xl border border-white/10 bg-slate-950/50 p-3 text-xs font-semibold text-white/70 sm:p-4">
+            <div className="flex items-center gap-2">
+              <button
+                type="button"
+                onClick={handlePrevMonth}
+                className="rounded-full border border-white/20 bg-white/10 px-3 py-1 text-xs font-semibold uppercase tracking-wide text-white/70 transition hover:border-sky-400/60 hover:text-sky-200"
+              >
+                Ant.
+              </button>
+              <button
+                type="button"
+                onClick={handleGoToday}
+                className="rounded-full border border-sky-500/70 bg-sky-500 px-3 py-1 text-xs font-semibold uppercase tracking-wide text-white shadow hover:bg-sky-400"
+              >
+                Hoy
+              </button>
+              <button
+                type="button"
+                onClick={handleNextMonth}
+                className="rounded-full border border-white/20 bg-white/10 px-3 py-1 text-xs font-semibold uppercase tracking-wide text-white/70 transition hover:border-sky-400/60 hover:text-sky-200"
+              >
+                Sig.
+              </button>
+            </div>
+            <AnimatePresence mode="wait" initial={false}>
+              <motion.p
+                key={`calendar-${monthLabel}`}
+                initial={{ opacity: 0, y: 6 }}
+                animate={{ opacity: 1, y: 0 }}
+                exit={{ opacity: 0, y: -6 }}
+                transition={{ duration: 0.2, ease: "easeOut" }}
+                className="text-sm font-semibold text-white"
+              >
+                {monthLabel}
+              </motion.p>
+            </AnimatePresence>
+          </div>
 
           <div className="overflow-hidden rounded-3xl border border-white/10 bg-slate-950/50">
             <div className="grid grid-cols-7 gap-px border-b border-white/10 bg-slate-900/60 text-[10px] font-semibold uppercase tracking-wide text-white/60 sm:text-[11px]">

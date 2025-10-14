@@ -898,6 +898,15 @@ export default function Home() {
                     teamSize={users.length}
                     shiftTypeLabels={SHIFT_TYPE_LABELS}
                   />
+
+                  <section className="space-y-6">
+                    <ShiftPlannerLab
+                      initialEntries={plannerDays}
+                      onCommit={handleManualRotationConfirm}
+                      isCommitting={isCommittingRotation}
+                      errorMessage={rotationError}
+                    />
+                  </section>
                 </div>
 
                 <aside className="flex flex-col gap-8 lg:col-span-4">
@@ -933,17 +942,6 @@ export default function Home() {
                     onLogout={handleLogout}
                   />
                 </aside>
-
-                <div className="lg:col-span-12">
-                  <section className="space-y-6">
-                    <ShiftPlannerLab
-                      initialEntries={plannerDays}
-                      onCommit={handleManualRotationConfirm}
-                      isCommitting={isCommittingRotation}
-                      errorMessage={rotationError}
-                    />
-                  </section>
-                </div>
               </div>
 
               <div className="lg:hidden">

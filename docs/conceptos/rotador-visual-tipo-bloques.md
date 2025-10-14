@@ -37,7 +37,7 @@ Crear un módulo rotatorio de información que funcione como un "carrusel" visua
 - **Modo storytelling:** Secuencia de bloques conectados que narran un proceso; cada bloque incluye breadcrumbs.
 - **Modo comparativo:** Dos columnas sincronizadas que rotan en espejo para contrastar datos.
 
-## Integración con Supershift
+## Integración con Corp
 - Usar componentes existentes de tarjetas y tipografías para mantener coherencia visual.
 - Conectar la rotación a la fuente de datos de turnos/campañas (`/src/data`) para mostrar información viva.
 - Configurar la animación con Framer Motion o CSS `@keyframes` reutilizando tokens de tiempo definidos en Tailwind config.

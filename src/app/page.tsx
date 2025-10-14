@@ -124,7 +124,7 @@ const SHIFT_TYPE_LABELS: Record<ShiftType, string> = {
   CUSTOM: "Personalizado",
 }
 
-const SESSION_STORAGE_KEY = "supershift:session"
+const SESSION_STORAGE_KEY = "corp:session"
 const SESSION_DURATION_MS = 1000 * 60 * 60 * 24 * 14 // 14 días
 
 class ApiError extends Error {
@@ -642,7 +642,7 @@ export default function Home() {
 
   const mobileGreeting = useMemo(() => {
     if (!currentUser?.name) {
-      return "Supershift"
+      return "Corp"
     }
 
     const [firstName] = currentUser.name.split(" ")
@@ -854,7 +854,7 @@ export default function Home() {
                 <p className="text-xs uppercase tracking-wide text-white/50">
                   Hoy es {format(new Date(), "EEEE d 'de' MMMM")}
                 </p>
-                <h1 className="text-2xl font-semibold">Supershift</h1>
+                <h1 className="text-2xl font-semibold">Corp</h1>
               </div>
               <button
                 type="button"
@@ -983,7 +983,7 @@ export default function Home() {
                           {users.length > 0 ? `${users.length} miembros` : "Sin datos"}
                         </p>
                         <p className="mt-1 text-[11px] text-white/50">
-                          Activos en Supershift
+                          Activos en Corp
                         </p>
                       </div>
                     </div>

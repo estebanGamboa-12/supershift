@@ -1,5 +1,6 @@
 "use client"
 
+import Image from "next/image"
 import { useState } from "react"
 import { motion, AnimatePresence } from "framer-motion"
 import type { UserSummary } from "@/types/users"
@@ -102,6 +103,19 @@ export default function UserAuthPanel({
   return (
     <div className="relative mx-auto w-full max-w-md overflow-hidden rounded-3xl border border-white/10 bg-slate-900/60 p-8 text-white shadow-2xl backdrop-blur-xl">
       <div className="pointer-events-none absolute inset-0 bg-gradient-to-b from-blue-500/10 via-purple-500/5 to-transparent opacity-80" />
+
+      <div className="relative z-10 mb-10 flex flex-col items-center gap-3 text-center">
+        <div className="relative">
+          <span className="pointer-events-none absolute inset-0 -translate-y-1 scale-125 rounded-full bg-cyan-400/25 blur-xl" aria-hidden />
+          <div className="relative grid h-16 w-16 place-items-center overflow-hidden rounded-2xl border border-white/10 bg-slate-950/80 shadow-xl shadow-blue-500/20">
+            <Image src="/corp-logo.svg" alt="Logotipo de Corp" width={56} height={56} priority className="h-14 w-14" />
+          </div>
+        </div>
+        <div className="space-y-1">
+          <h1 className="text-2xl font-semibold tracking-tight">Corp</h1>
+          <p className="text-sm text-white/70">Planifica turnos con estilo profesional.</p>
+        </div>
+      </div>
 
       {/* Toggle */}
       <div className="relative z-10 mx-auto mb-8 w-full max-w-xs rounded-full border border-white/10 bg-slate-800/50 p-1 text-xs font-semibold text-white/70 shadow-lg">

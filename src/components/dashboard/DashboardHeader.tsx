@@ -1,5 +1,6 @@
 "use client"
 
+import Image from "next/image"
 import { useEffect, useMemo, useRef, useState, type FC, type FormEvent } from "react"
 import { format } from "date-fns"
 import { es } from "date-fns/locale"
@@ -100,16 +101,30 @@ const DashboardHeader: FC<DashboardHeaderProps> = ({
       <div className="mx-auto flex w-full max-w-7xl flex-col gap-8 px-4 py-8 sm:px-6 lg:px-10 xl:px-12">
         {/* Top section */}
         <div className="flex flex-col gap-6 md:flex-row md:items-center md:justify-between">
-          <div className="space-y-2">
-            <div className="inline-flex items-center gap-3 rounded-full border border-emerald-400/30 bg-emerald-500/10 px-4 py-1 text-xs font-semibold uppercase tracking-wide text-emerald-200">
-              <span className="inline-flex h-1.5 w-1.5 rounded-full bg-emerald-400" aria-hidden />
-              Hoy es {format(new Date(), "EEEE d 'de' MMMM", { locale: es })}
+          <div className="flex items-start gap-4">
+            <div className="relative hidden md:block">
+              <span className="pointer-events-none absolute inset-0 -translate-y-1 scale-125 rounded-full bg-cyan-400/30 blur-xl" aria-hidden />
+              <div className="relative grid h-16 w-16 place-items-center overflow-hidden rounded-2xl border border-white/10 bg-slate-900/80 shadow-xl shadow-blue-500/20">
+                <Image src="/corp-logo.svg" alt="Logotipo de Corp" width={56} height={56} className="h-14 w-14" />
+              </div>
             </div>
-            <div>
-              <p className="text-sm text-blue-200/70">Panel de rendimiento</p>
-              <h2 className="text-3xl font-bold tracking-tight text-white md:text-4xl">
-                📅 Corp HQ
-              </h2>
+            <div className="space-y-2">
+              <div className="inline-flex items-center gap-3 rounded-full border border-emerald-400/30 bg-emerald-500/10 px-4 py-1 text-xs font-semibold uppercase tracking-wide text-emerald-200">
+                <span className="inline-flex h-1.5 w-1.5 rounded-full bg-emerald-400" aria-hidden />
+                Hoy es {format(new Date(), "EEEE d 'de' MMMM", { locale: es })}
+              </div>
+              <div>
+                <p className="text-sm text-blue-200/70">Panel de rendimiento</p>
+                <div className="flex items-center gap-3">
+                  <div className="relative md:hidden">
+                    <span className="pointer-events-none absolute inset-0 -translate-y-1 scale-110 rounded-full bg-cyan-400/20 blur" aria-hidden />
+                    <div className="relative grid h-10 w-10 place-items-center overflow-hidden rounded-xl border border-white/10 bg-slate-900/80 shadow-lg shadow-blue-500/20">
+                      <Image src="/corp-logo.svg" alt="Logotipo de Corp" width={36} height={36} className="h-9 w-9" />
+                    </div>
+                  </div>
+                  <h2 className="text-3xl font-bold tracking-tight text-white md:text-4xl">Corp HQ</h2>
+                </div>
+              </div>
             </div>
           </div>
 

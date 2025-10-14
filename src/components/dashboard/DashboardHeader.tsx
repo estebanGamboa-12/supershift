@@ -108,7 +108,7 @@ const DashboardHeader: FC<DashboardHeaderProps> = ({
             <div>
               <p className="text-sm text-blue-200/70">Panel de rendimiento</p>
               <h2 className="text-3xl font-bold tracking-tight text-white md:text-4xl">
-                📅 Supershift HQ
+                📅 Corp HQ
               </h2>
             </div>
           </div>

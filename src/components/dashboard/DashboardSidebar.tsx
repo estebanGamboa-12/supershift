@@ -21,7 +21,7 @@ const DashboardSidebar: FC<DashboardSidebarProps> = ({ className }) => {
         <div className="space-y-2">
           <span className="inline-flex items-center gap-2 rounded-full border border-emerald-400/20 bg-emerald-500/10 px-3 py-1 text-xs font-semibold uppercase tracking-wide text-emerald-200/80">
             <span className="h-1.5 w-1.5 rounded-full bg-emerald-400" aria-hidden />
-            Supershift Ops
+            Corp Ops
           </span>
           <h1 className="text-2xl font-bold tracking-tight text-white">Centro de control</h1>
           <p className="text-sm text-white/60 leading-relaxed">
@@ -64,7 +64,7 @@ const DashboardSidebar: FC<DashboardSidebarProps> = ({ className }) => {
 
       {/* Footer / version / ajustes rápidos */}
       <div className="mt-10 border-t border-white/10 pt-6 text-xs text-white/40">
-        v1.0.0 — Supershift
+        v1.0.0 — Corp
       </div>
     </aside>
   )

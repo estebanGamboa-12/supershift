@@ -1,6 +1,6 @@
-# Supershift
+# Corp
 
-Aplicación Next.js que muestra la planificación de turnos y ahora obtiene los datos desde una base de datos MySQL alojada en Supabase a través de una API interna.
+Aplicación Next.js que muestra la planificación de turnos y ahora obtiene los datos desde una base de datos MySQL alojada en Supabase a través de una API interna. La base de datos mantiene el nombre original (`supershift`) y el volcado incluido en el repositorio para conservar compatibilidad.
 
 ## Requisitos
 
@@ -35,7 +35,7 @@ Variables disponibles:
 
 La importación crea dos cuentas listas para iniciar sesión en la aplicación:
 
-- **Admin Supershift** → correo `admin@supershift.local` y contraseña `admin123`.
+- **Admin Supershift** → correo `admin@supershift.local` y contraseña `admin123` (nombre heredado de la base de datos original).
 - **Esteban** → correo `esteban@example.com` y contraseña `supershift`.
 
 ## Instalación de dependencias

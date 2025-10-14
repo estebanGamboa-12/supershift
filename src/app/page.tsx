@@ -12,7 +12,6 @@ import ConfigurationPanel, {
   type UserPreferences,
 } from "@/components/dashboard/ConfigurationPanel"
 import DashboardSidebar from "@/components/dashboard/DashboardSidebar"
-import DesktopOverviewCard from "@/components/dashboard/DesktopOverviewCard"
 // eslint-disable-next-line @typescript-eslint/no-unused-vars
 import DashboardHeader from "@/components/dashboard/DashboardHeader"
 import MobileNavigation, { type MobileTab } from "@/components/dashboard/MobileNavigation"
@@ -23,7 +22,6 @@ import ShiftDistribution from "@/components/dashboard/ShiftDistribution"
 import TeamSpotlight from "@/components/dashboard/TeamSpotlight"
 import UserAuthPanel from "@/components/auth/UserAuthPanel"
 import FloatingParticlesLoader from "@/components/FloatingParticlesLoader"
-import AuroraBackground from "@/components/AuroraBackground"
 import type { UserSummary } from "@/types/users"
 import {
   CalendarTab,
@@ -645,17 +643,6 @@ export default function Home() {
 
   const activeShiftTypes = Object.keys(typeCounts).length
 
-  const mobileGreeting = useMemo(() => {
-    if (!currentUser?.name) {
-      return "Corp"
-    }
-
-    const [firstName] = currentUser.name.split(" ")
-    return firstName && firstName.trim().length > 0
-      ? firstName
-      : currentUser.name
-  }, [currentUser])
-
   const nextShiftCountdownLabel = useMemo(() => {
     if (daysUntilNextShift === null) {
       return "Sin turno programado"
@@ -667,6 +654,57 @@ export default function Home() {
 
     return `En ${daysUntilNextShift} día${daysUntilNextShift === 1 ? "" : "s"}`
   }, [daysUntilNextShift])
+
+  const mobileGreeting = useMemo(() => {
+    if (!currentUser?.name) {
+      return "Corp"
+    }
+
+    const [firstName] = currentUser.name.split(" ")
+    return firstName && firstName.trim().length > 0
+      ? firstName
+      : currentUser.name
+  }, [currentUser])
+
+  const summaryCards = useMemo(
+    () => [
+      {
+        title: "Turnos este mes",
+        value: currentMonthShifts.length.toString(),
+        description: "Programados",
+      },
+      {
+        title: "Próximo turno",
+        value: nextShift
+          ? format(new Date(nextShift.date), "d MMM", { locale: es })
+          : "Pendiente",
+        description: nextShift ? nextShiftCountdownLabel : "Añade un turno",
+      },
+      {
+        title: "Tipos activos",
+        value: activeShiftTypes.toString(),
+        description: "Variaciones en uso",
+      },
+      {
+        title: "Equipo",
+        value: users.length > 0 ? `${users.length} miembros` : "Sin datos",
+        description: "En Corp",
+      },
+    ],
+    [
+      activeShiftTypes,
+      currentMonthShifts.length,
+      nextShift,
+      nextShiftCountdownLabel,
+      users.length,
+    ]
+  )
+
+  const upcomingCalendarShifts = useMemo(() => {
+    return orderedShifts
+      .filter((shift) => differenceInCalendarDays(new Date(shift.date), new Date()) >= -3)
+      .slice(0, 10)
+  }, [orderedShifts])
 
   useEffect(() => {
     if (!selectedDateFromCalendar) return
@@ -807,9 +845,8 @@ export default function Home() {
 
   if (!currentUser) {
     return (
-      <div className="relative min-h-screen overflow-hidden bg-slate-950 text-white">
-        <AuroraBackground />
-        <main className="relative z-10 mx-auto flex min-h-screen w-full max-w-6xl items-center justify-center px-4 py-16">
+      <div className="min-h-screen bg-slate-950 text-white">
+        <main className="mx-auto flex min-h-screen w-full max-w-5xl items-center justify-center px-4 py-16">
           <div className="w-full space-y-6">
             {userError && (
               <div className="rounded-2xl border border-red-400/40 bg-red-500/10 px-4 py-3 text-sm text-red-200">
@@ -832,117 +869,193 @@ export default function Home() {
   }
 
   return (
-    <div className="relative min-h-screen overflow-hidden bg-slate-950 text-white">
-      <AuroraBackground />
+  <div className="min-h-screen bg-slate-950 text-white">
+    <div className="mx-auto flex min-h-screen w-full max-w-[120rem] flex-col gap-6 px-4 py-6 lg:flex-row lg:gap-10 lg:px-8 lg:py-10">
+      <DashboardSidebar />
 
-      <div className="relative z-10 flex min-h-screen flex-col lg:flex-row">
-        <DashboardSidebar />
-
-        <div className="flex w-full flex-col">
-          <div className="flex items-center justify-between border-b border-white/5 bg-slate-900/60 px-4 py-3 text-sm">
-            <div>
-              <p className="font-semibold text-white">{currentUser.name}</p>
-              <p className="text-xs text-white/60">{currentUser.email}</p>
-            </div>
-            <button
-              type="button"
-              onClick={handleLogout}
-              className="rounded-full border border-white/15 px-3 py-1 text-xs font-semibold text-white/80 transition hover:border-red-400/40 hover:text-red-200"
-            >
-              Cerrar sesión
-            </button>
-          </div>
-
-          {/* <div className="sticky top-0 z-30 border-b border-white/5 bg-slate-950/90 px-4 py-4 backdrop-blur lg:hidden">
-            <div className="mx-auto flex w-full max-w-3xl items-center justify-between">
+      <div className="flex w-full flex-col">
+        <div className="hidden lg:block">
+          <section className="rounded-3xl border border-white/10 bg-slate-950/70 px-6 py-6 shadow-[0_45px_120px_-55px_rgba(37,99,235,0.65)]">
+            <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
               <div>
-                <p className="text-xs uppercase tracking-wide text-white/50">
-                  Hoy es {format(new Date(), "EEEE d 'de' MMMM")}
+                <p className="text-sm text-white/60">Hola, {mobileGreeting}</p>
+                <h1 className="text-3xl font-semibold">Panel principal</h1>
+                <p className="mt-1 text-sm text-white/50">
+                  Supervisa tus turnos y el pulso de tu equipo desde un único lugar.
                 </p>
-                <h1 className="text-2xl font-semibold">Corp</h1>
               </div>
-              <button
-                type="button"
-                onClick={handleGoToToday}
-                className="rounded-full border border-white/15 px-3 py-1 text-xs font-semibold text-white/80 transition hover:border-blue-400/40 hover:text-white"
-              >
-                Ir a hoy
-              </button>
-            </div>
-          </div> */}
-
-          {/* <div className="hidden lg:block">
-            <DashboardHeader
-              onQuickAdd={handleGoToToday}
-              nextShift={nextShift}
-              daysUntilNextShift={daysUntilNextShift}
-              shiftTypeLabels={SHIFT_TYPE_LABELS}
-              currentMonthShiftCount={currentMonthShifts.length}
-              totalShiftCount={orderedShifts.length}
-              activeShiftTypes={activeShiftTypes}
-              shifts={orderedShifts}
-              onSearchSelect={handleSelectShift}
-            />
-          </div> */}
-
-          <main className="flex-1 overflow-y-auto pb-[calc(6rem+env(safe-area-inset-bottom))] lg:pb-0">
-            <div className="mx-auto w-full max-w-7xl space-y-10 px-4 py-6 sm:px-6 lg:px-10 xl:px-12">
-              <div className="hidden lg:grid lg:grid-cols-12 lg:items-start lg:gap-10 xl:gap-12">
-                <div className="flex flex-col gap-10 lg:col-span-8">
-                  <DesktopOverviewCard
-                    greeting={mobileGreeting}
-                    currentMonthShiftCount={currentMonthShifts.length}
-                    nextShift={nextShift}
-                    nextShiftCountdownLabel={nextShiftCountdownLabel}
-                    activeShiftTypes={activeShiftTypes}
-                    teamSize={users.length}
-                    shiftTypeLabels={SHIFT_TYPE_LABELS}
-                  />
-
-                  <section className="space-y-6">
-                    <ShiftPlannerLab
-                      initialEntries={plannerDays}
-                      onCommit={handleManualRotationConfirm}
-                      isCommitting={isCommittingRotation}
-                      errorMessage={rotationError}
-                    />
-                  </section>
+              <div className="flex items-center gap-4">
+                <div className="text-right text-xs text-white/50">
+                  <p className="text-sm font-semibold text-white">{currentUser.name}</p>
+                  <p>{currentUser.email}</p>
                 </div>
-
-                <aside className="flex flex-col gap-8 lg:col-span-4">
-                  <NextShiftCard
-                    nextShift={nextShift}
-                    daysUntilNextShift={daysUntilNextShift}
-                    shiftTypeLabels={SHIFT_TYPE_LABELS}
-                  />
-
-                  <PlanningHealthCard
-                    currentMonthShiftCount={currentMonthShifts.length}
-                    totalShiftCount={orderedShifts.length}
-                    activeShiftTypes={activeShiftTypes}
-                  />
-
-                  <ShiftDistribution
-                    typeCounts={typeCounts}
-                    totalShifts={orderedShifts.length}
-                    shiftTypeLabels={SHIFT_TYPE_LABELS}
-                  />
-
-                  <TeamSpotlight
-                    upcomingShifts={upcomingShifts}
-                    shiftTypeLabels={SHIFT_TYPE_LABELS}
-                  />
-
-                  <ConfigurationPanel
-                    user={currentUser}
-                    defaultPreferences={userPreferences}
-                    onSave={handleSavePreferences}
-                    isSaving={isSavingPreferences}
-                    lastSavedAt={preferencesSavedAt}
-                    onLogout={handleLogout}
-                  />
-                </aside>
+                <button
+                  type="button"
+                  onClick={handleLogout}
+                  className="rounded-full border border-white/15 px-4 py-2 text-xs font-semibold uppercase tracking-wide text-white/80 transition hover:border-red-400/40 hover:text-red-200"
+                >
+                  Cerrar sesión
+                </button>
               </div>
+            </div>
+
+            <div className="mt-6 flex flex-wrap gap-2 text-xs font-semibold uppercase tracking-wide text-white/60">
+              {["Resumen", "Estadísticas", "Agenda", "Equipo"].map((tab) => (
+                <span
+                  key={tab}
+                  className="rounded-full border border-white/10 bg-white/5 px-4 py-1"
+                >
+                  {tab}
+                </span>
+              ))}
+            </div>
+
+            <dl className="mt-6 grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
+              {summaryCards.map((card) => (
+                <div
+                  key={card.title}
+                  className="rounded-2xl border border-white/10 bg-white/5 px-5 py-4 shadow-inner shadow-blue-500/10"
+                >
+                  <dt className="text-[11px] uppercase tracking-wide text-white/60">
+                    {card.title}
+                  </dt>
+                  <dd className="mt-2 text-3xl font-semibold text-white">
+                    {card.value}
+                  </dd>
+                  <p className="mt-1 text-xs text-white/50">{card.description}</p>
+                </div>
+              ))}
+            </dl>
+          </section>
+        </div>
+
+        <main className="flex-1 overflow-y-auto pb-[calc(6rem+env(safe-area-inset-bottom))] lg:pb-0">
+          <div className="mx-auto w-full max-w-7xl space-y-10 px-0 py-6 sm:px-2 lg:px-0">
+            <div className="hidden lg:grid lg:grid-cols-12 lg:items-start lg:gap-8">
+              <div className="flex flex-col gap-8 lg:col-span-8">
+                <section className="rounded-3xl border border-white/10 bg-slate-950/70 p-6">
+                  <header className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
+                    <div>
+                      <h2 className="text-2xl font-semibold">Calendario</h2>
+                      <p className="text-sm text-white/60">
+                        Los próximos turnos y cambios relevantes en un vistazo.
+                      </p>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={handleOpenMobileAdd}
+                      className="inline-flex items-center gap-2 rounded-full border border-white/15 px-4 py-2 text-xs font-semibold uppercase tracking-wide text-white/80 transition hover:border-blue-400/40 hover:text-white"
+                    >
+                      <span aria-hidden className="text-base">＋</span>
+                      Añadir turno
+                    </button>
+                  </header>
+
+                  <div className="mt-6 overflow-hidden rounded-2xl border border-white/10">
+                    {upcomingCalendarShifts.length > 0 ? (
+                      <ul className="divide-y divide-white/10">
+                        {upcomingCalendarShifts.map((shift) => {
+                          const daysFromToday = differenceInCalendarDays(
+                            new Date(shift.date),
+                            new Date()
+                          )
+                          const relativeLabel =
+                            daysFromToday === 0
+                              ? "Hoy"
+                              : daysFromToday > 0
+                                ? `En ${daysFromToday} día${daysFromToday === 1 ? "" : "s"}`
+                                : `Hace ${Math.abs(daysFromToday)} día${Math.abs(daysFromToday) === 1 ? "" : "s"}`
+
+                          return (
+                            <li key={shift.id}>
+                              <button
+                                type="button"
+                                onClick={() => handleSelectShift(shift)}
+                                className="flex w-full flex-col gap-3 bg-slate-950/40 px-5 py-4 text-left transition hover:bg-slate-900/60 sm:flex-row sm:items-center sm:justify-between"
+                              >
+                                <div>
+                                  <p className="text-xs uppercase tracking-wide text-white/50">
+                                    {format(new Date(shift.date), "EEEE d 'de' MMMM", { locale: es })}
+                                  </p>
+                                  <p className="text-sm font-semibold text-white">
+                                    {shift.label ?? SHIFT_TYPE_LABELS[shift.type] ?? shift.type}
+                                  </p>
+                                </div>
+                                <div className="flex flex-col gap-2 sm:items-end">
+                                  <span className="inline-flex items-center gap-2 rounded-full border border-white/10 px-3 py-1 text-xs text-white/60">
+                                    <span
+                                      className="h-2 w-2 rounded-full"
+                                      style={{ backgroundColor: shift.color ?? "#64748b" }}
+                                      aria-hidden
+                                    />
+                                    {SHIFT_TYPE_LABELS[shift.type] ?? shift.type}
+                                  </span>
+                                  <span className="text-xs text-white/40">{relativeLabel}</span>
+                                </div>
+                              </button>
+                            </li>
+                          )
+                        })}
+                      </ul>
+                    ) : (
+                      <div className="flex flex-col items-center justify-center gap-3 bg-slate-950/40 px-6 py-16 text-center text-sm text-white/60">
+                        <p>No hay turnos próximos registrados.</p>
+                        <button
+                          type="button"
+                          onClick={handleOpenMobileAdd}
+                          className="rounded-full border border-white/15 px-4 py-2 text-xs font-semibold uppercase tracking-wide text-white/80 transition hover:border-blue-400/40 hover:text-white"
+                        >
+                          Crear primer turno
+                        </button>
+                      </div>
+                    )}
+                  </div>
+                </section>
+
+                <section className="rounded-3xl border border-white/10 bg-slate-950/70 p-6">
+                  <ShiftPlannerLab
+                    initialEntries={plannerDays}
+                    onCommit={handleManualRotationConfirm}
+                    isCommitting={isCommittingRotation}
+                    errorMessage={rotationError}
+                  />
+                </section>
+              </div>
+
+              <aside className="flex flex-col gap-6 lg:col-span-4">
+                <NextShiftCard
+                  nextShift={nextShift}
+                  daysUntilNextShift={daysUntilNextShift}
+                  shiftTypeLabels={SHIFT_TYPE_LABELS}
+                />
+
+                <PlanningHealthCard
+                  currentMonthShiftCount={currentMonthShifts.length}
+                  totalShiftCount={orderedShifts.length}
+                  activeShiftTypes={activeShiftTypes}
+                />
+
+                <ShiftDistribution
+                  typeCounts={typeCounts}
+                  totalShifts={orderedShifts.length}
+                  shiftTypeLabels={SHIFT_TYPE_LABELS}
+                />
+
+                <TeamSpotlight
+                  upcomingShifts={upcomingShifts}
+                  shiftTypeLabels={SHIFT_TYPE_LABELS}
+                />
+
+                <ConfigurationPanel
+                  user={currentUser}
+                  defaultPreferences={userPreferences}
+                  onSave={handleSavePreferences}
+                  isSaving={isSavingPreferences}
+                  lastSavedAt={preferencesSavedAt}
+                  onLogout={handleLogout}
+                />
+              </aside>
+            </div>
 
               <div className="lg:hidden">
                 <section className="relative -mx-4 mt-2">

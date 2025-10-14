@@ -931,109 +931,107 @@ export default function Home() {
 
         <main className="flex-1 overflow-y-auto pb-[calc(6rem+env(safe-area-inset-bottom))] lg:pb-0">
           <div className="mx-auto w-full max-w-7xl space-y-10 px-0 py-6 sm:px-2 lg:px-0">
-            <div className="hidden lg:grid lg:grid-cols-12 lg:items-start lg:gap-8">
-              <div className="flex flex-col gap-8 lg:col-span-8">
-                <section className="rounded-3xl border border-white/10 bg-slate-950/70 p-6">
-                  <header className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
-                    <div>
-                      <h2 className="text-2xl font-semibold">Calendario</h2>
-                      <p className="text-sm text-white/60">
-                        Visualiza y organiza tus turnos directamente en el calendario.
-                      </p>
-                    </div>
-                    <button
-                      type="button"
-                      onClick={handleOpenMobileAdd}
-                      className="inline-flex items-center gap-2 rounded-full border border-white/15 px-4 py-2 text-xs font-semibold uppercase tracking-wide text-white/80 transition hover:border-blue-400/40 hover:text-white"
-                    >
-                      <span aria-hidden className="text-base">＋</span>
-                      Añadir turno
-                    </button>
-                  </header>
-
-                  <div className="mt-6">
-                    <ShiftPlannerLab
-                      initialEntries={plannerDays}
-                      onCommit={handleManualRotationConfirm}
-                      isCommitting={isCommittingRotation}
-                      errorMessage={rotationError}
-                    />
+            <div className="hidden lg:flex lg:flex-col lg:gap-8">
+              <section className="rounded-3xl border border-white/10 bg-slate-950/70 p-6">
+                <header className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
+                  <div>
+                    <h2 className="text-2xl font-semibold">Calendario</h2>
+                    <p className="text-sm text-white/60">
+                      Visualiza y organiza tus turnos directamente en el calendario.
+                    </p>
                   </div>
-                </section>
+                  <button
+                    type="button"
+                    onClick={handleOpenMobileAdd}
+                    className="inline-flex items-center gap-2 rounded-full border border-white/15 px-4 py-2 text-xs font-semibold uppercase tracking-wide text-white/80 transition hover:border-blue-400/40 hover:text-white"
+                  >
+                    <span aria-hidden className="text-base">＋</span>
+                    Añadir turno
+                  </button>
+                </header>
 
-                <section className="rounded-3xl border border-white/10 bg-slate-950/70 p-6">
-                  <header className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
-                    <div>
-                      <h2 className="text-2xl font-semibold">Próximos turnos</h2>
-                      <p className="text-sm text-white/60">
-                        Consulta el listado de turnos programados a corto plazo.
-                      </p>
-                    </div>
-                  </header>
+                <div className="mt-6">
+                  <ShiftPlannerLab
+                    initialEntries={plannerDays}
+                    onCommit={handleManualRotationConfirm}
+                    isCommitting={isCommittingRotation}
+                    errorMessage={rotationError}
+                  />
+                </div>
+              </section>
 
-                  <div className="mt-6 overflow-hidden rounded-2xl border border-white/10">
-                    {upcomingCalendarShifts.length > 0 ? (
-                      <ul className="divide-y divide-white/10">
-                        {upcomingCalendarShifts.map((shift) => {
-                          const daysFromToday = differenceInCalendarDays(
-                            new Date(shift.date),
-                            new Date()
-                          )
-                          const relativeLabel =
-                            daysFromToday === 0
-                              ? "Hoy"
-                              : daysFromToday > 0
-                                ? `En ${daysFromToday} día${daysFromToday === 1 ? "" : "s"}`
-                                : `Hace ${Math.abs(daysFromToday)} día${Math.abs(daysFromToday) === 1 ? "" : "s"}`
-
-                          return (
-                            <li key={shift.id}>
-                              <button
-                                type="button"
-                                onClick={() => handleSelectShift(shift)}
-                                className="flex w-full flex-col gap-3 bg-slate-950/40 px-5 py-4 text-left transition hover:bg-slate-900/60 sm:flex-row sm:items-center sm:justify-between"
-                              >
-                                <div>
-                                  <p className="text-xs uppercase tracking-wide text-white/50">
-                                    {format(new Date(shift.date), "EEEE d 'de' MMMM", { locale: es })}
-                                  </p>
-                                  <p className="text-sm font-semibold text-white">
-                                    {shift.label ?? SHIFT_TYPE_LABELS[shift.type] ?? shift.type}
-                                  </p>
-                                </div>
-                                <div className="flex flex-col gap-2 sm:items-end">
-                                  <span className="inline-flex items-center gap-2 rounded-full border border-white/10 px-3 py-1 text-xs text-white/60">
-                                    <span
-                                      className="h-2 w-2 rounded-full"
-                                      style={{ backgroundColor: shift.color ?? "#64748b" }}
-                                      aria-hidden
-                                    />
-                                    {SHIFT_TYPE_LABELS[shift.type] ?? shift.type}
-                                  </span>
-                                  <span className="text-xs text-white/40">{relativeLabel}</span>
-                                </div>
-                              </button>
-                            </li>
-                          )
-                        })}
-                      </ul>
-                    ) : (
-                      <div className="flex flex-col items-center justify-center gap-3 bg-slate-950/40 px-6 py-16 text-center text-sm text-white/60">
-                        <p>No hay turnos próximos registrados.</p>
-                        <button
-                          type="button"
-                          onClick={handleOpenMobileAdd}
-                          className="rounded-full border border-white/15 px-4 py-2 text-xs font-semibold uppercase tracking-wide text-white/80 transition hover:border-blue-400/40 hover:text-white"
-                        >
-                          Crear primer turno
-                        </button>
-                      </div>
-                    )}
+              <section className="rounded-3xl border border-white/10 bg-slate-950/70 p-6">
+                <header className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
+                  <div>
+                    <h2 className="text-2xl font-semibold">Próximos turnos</h2>
+                    <p className="text-sm text-white/60">
+                      Consulta el listado de turnos programados a corto plazo.
+                    </p>
                   </div>
-                </section>
-              </div>
+                </header>
 
-              <aside className="flex flex-col gap-6 lg:col-span-4">
+                <div className="mt-6 overflow-hidden rounded-2xl border border-white/10">
+                  {upcomingCalendarShifts.length > 0 ? (
+                    <ul className="divide-y divide-white/10">
+                      {upcomingCalendarShifts.map((shift) => {
+                        const daysFromToday = differenceInCalendarDays(
+                          new Date(shift.date),
+                          new Date()
+                        )
+                        const relativeLabel =
+                          daysFromToday === 0
+                            ? "Hoy"
+                            : daysFromToday > 0
+                              ? `En ${daysFromToday} día${daysFromToday === 1 ? "" : "s"}`
+                              : `Hace ${Math.abs(daysFromToday)} día${Math.abs(daysFromToday) === 1 ? "" : "s"}`
+
+                        return (
+                          <li key={shift.id}>
+                            <button
+                              type="button"
+                              onClick={() => handleSelectShift(shift)}
+                              className="flex w-full flex-col gap-3 bg-slate-950/40 px-5 py-4 text-left transition hover:bg-slate-900/60 sm:flex-row sm:items-center sm:justify-between"
+                            >
+                              <div>
+                                <p className="text-xs uppercase tracking-wide text-white/50">
+                                  {format(new Date(shift.date), "EEEE d 'de' MMMM", { locale: es })}
+                                </p>
+                                <p className="text-sm font-semibold text-white">
+                                  {shift.label ?? SHIFT_TYPE_LABELS[shift.type] ?? shift.type}
+                                </p>
+                              </div>
+                              <div className="flex flex-col gap-2 sm:items-end">
+                                <span className="inline-flex items-center gap-2 rounded-full border border-white/10 px-3 py-1 text-xs text-white/60">
+                                  <span
+                                    className="h-2 w-2 rounded-full"
+                                    style={{ backgroundColor: shift.color ?? "#64748b" }}
+                                    aria-hidden
+                                  />
+                                  {SHIFT_TYPE_LABELS[shift.type] ?? shift.type}
+                                </span>
+                                <span className="text-xs text-white/40">{relativeLabel}</span>
+                              </div>
+                            </button>
+                          </li>
+                        )
+                      })}
+                    </ul>
+                  ) : (
+                    <div className="flex flex-col items-center justify-center gap-3 bg-slate-950/40 px-6 py-16 text-center text-sm text-white/60">
+                      <p>No hay turnos próximos registrados.</p>
+                      <button
+                        type="button"
+                        onClick={handleOpenMobileAdd}
+                        className="rounded-full border border-white/15 px-4 py-2 text-xs font-semibold uppercase tracking-wide text-white/80 transition hover:border-blue-400/40 hover:text-white"
+                      >
+                        Crear primer turno
+                      </button>
+                    </div>
+                  )}
+                </div>
+              </section>
+
+              <div className="grid gap-6 xl:grid-cols-2 2xl:grid-cols-3">
                 <NextShiftCard
                   nextShift={nextShift}
                   daysUntilNextShift={daysUntilNextShift}
@@ -1056,16 +1054,16 @@ export default function Home() {
                   upcomingShifts={upcomingShifts}
                   shiftTypeLabels={SHIFT_TYPE_LABELS}
                 />
+              </div>
 
-                <ConfigurationPanel
-                  user={currentUser}
-                  defaultPreferences={userPreferences}
-                  onSave={handleSavePreferences}
-                  isSaving={isSavingPreferences}
-                  lastSavedAt={preferencesSavedAt}
-                  onLogout={handleLogout}
-                />
-              </aside>
+              <ConfigurationPanel
+                user={currentUser}
+                defaultPreferences={userPreferences}
+                onSave={handleSavePreferences}
+                isSaving={isSavingPreferences}
+                lastSavedAt={preferencesSavedAt}
+                onLogout={handleLogout}
+              />
             </div>
 
               <div className="lg:hidden">

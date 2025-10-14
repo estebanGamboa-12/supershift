@@ -70,6 +70,14 @@ const ROTATION_PATTERNS: { label: string; cycle: [number, number] }[] = [
 
 type Mode = "manual" | "rotation"
 
+type ToastType = "success" | "error"
+
+type ToastMessage = {
+  id: number
+  type: ToastType
+  message: string
+}
+
 type ShiftPlannerLabProps = {
   initialEntries?: ManualRotationDay[]
   onCommit?: (days: ManualRotationDay[]) => Promise<void> | void
@@ -148,6 +156,11 @@ export default function ShiftPlannerLab({
     ROTATION_PATTERNS[0]?.cycle ?? [4, 2],
   )
   const [rotationStart, setRotationStart] = useState(() => toIsoDate(new Date()))
+  const [isConfirmingRotation, setIsConfirmingRotation] = useState(false)
+  const [toasts, setToasts] = useState<ToastMessage[]>([])
+  const toastTimeoutsRef = useRef<Map<number, ReturnType<typeof setTimeout>>>(
+    new Map(),
+  )
 
   useEffect(() => {
     setEntries(buildEntriesMap(stableInitialEntries))
@@ -194,6 +207,43 @@ export default function ShiftPlannerLab({
     },
     [commitEntries],
   )
+
+  const removeToast = useCallback((id: number) => {
+    setToasts((prev) => prev.filter((toast) => toast.id !== id))
+    const timeout = toastTimeoutsRef.current.get(id)
+    if (timeout) {
+      clearTimeout(timeout)
+      toastTimeoutsRef.current.delete(id)
+    }
+  }, [])
+
+  const pushToast = useCallback(
+    (type: ToastType, message: string) => {
+      const id = Date.now() + Math.random()
+      setToasts((prev) => [...prev, { id, type, message }])
+
+      const timeout = window.setTimeout(() => {
+        removeToast(id)
+      }, 4000)
+
+      toastTimeoutsRef.current.set(id, timeout)
+    },
+    [removeToast],
+  )
+
+  useEffect(() => {
+    const timeouts = toastTimeoutsRef.current
+    return () => {
+      timeouts.forEach((timeout) => {
+        clearTimeout(timeout)
+      })
+      timeouts.clear()
+    }
+  }, [])
+
+  useEffect(() => {
+    setIsConfirmingRotation(false)
+  }, [rotationPattern, rotationStart])
 
   const calendarDays = useMemo(() => {
     const monthStart = startOfMonth(currentMonth)
@@ -293,25 +343,30 @@ export default function ShiftPlannerLab({
     closeEditor()
   }
 
-  function handleApplyRotation() {
+  const handleApplyRotation = useCallback(() => {
     if (!rotationPattern?.length || rotationPattern.some((value) => value <= 0)) {
-      return
+      pushToast("error", "Selecciona un patrón de rotación válido antes de aplicarlo.")
+      return false
     }
 
     const [workLength, restLength] = rotationPattern
     const parsedStart = parseISO(rotationStart)
     if (Number.isNaN(parsedStart.getTime())) {
-      return
+      pushToast("error", "Introduce una fecha de inicio válida para la rotación.")
+      return false
     }
 
-    const monthStart = startOfMonth(currentMonth)
-    const monthEnd = endOfMonth(currentMonth)
-    let pointer = parsedStart < monthStart ? monthStart : parsedStart
-    let isWork = true
-    let remaining = workLength
+    const targetMonth = isSameMonth(parsedStart, currentMonth)
+      ? startOfMonth(currentMonth)
+      : startOfMonth(parsedStart)
+    const monthStart = startOfMonth(targetMonth)
+    const monthEnd = endOfMonth(targetMonth)
 
     updateEntries((prev) => {
       const updates: Record<string, PlannerEntry> = {}
+      let pointer = parsedStart < monthStart ? monthStart : parsedStart
+      let isWork = true
+      let remaining = workLength
 
       while (pointer <= monthEnd) {
         const iso = toIsoDate(pointer)
@@ -341,6 +396,17 @@ export default function ShiftPlannerLab({
         ...updates,
       }
     })
+
+    setCurrentMonth(monthStart)
+    pushToast("success", "La rotación se aplicó correctamente al calendario visible.")
+    return true
+  }, [currentMonth, pushToast, rotationPattern, rotationStart, updateEntries])
+
+  function confirmApplyRotation() {
+    const applied = handleApplyRotation()
+    if (applied) {
+      setIsConfirmingRotation(false)
+    }
   }
 
   function handleExportCSV() {
@@ -575,13 +641,37 @@ export default function ShiftPlannerLab({
                   onChange={(event) => setRotationStart(event.target.value)}
                   className="w-full rounded-lg border border-white/10 bg-white/5 px-3 py-2 text-sm text-white focus:border-sky-400 focus:outline-none focus:ring-2 focus:ring-sky-400/40 sm:max-w-[180px]"
                 />
-                <button
-                  type="button"
-                  onClick={handleApplyRotation}
-                  className="inline-flex items-center justify-center rounded-full bg-gradient-to-r from-sky-500 to-fuchsia-500 px-4 py-2 text-xs font-semibold uppercase tracking-wide text-white shadow shadow-sky-500/30 transition hover:brightness-110"
-                >
-                  Aplicar patrón
-                </button>
+                {isConfirmingRotation ? (
+                  <div className="flex w-full flex-col gap-3 rounded-2xl border border-white/10 bg-white/5 p-3 text-[11px] text-white/70 sm:flex-row sm:items-center sm:justify-between sm:text-xs">
+                    <p className="flex-1 text-left sm:pr-4">
+                      Confirma si quieres aplicar el patrón seleccionado sobre el calendario mostrado.
+                    </p>
+                    <div className="flex flex-col gap-2 sm:flex-row">
+                      <button
+                        type="button"
+                        onClick={confirmApplyRotation}
+                        className="inline-flex items-center justify-center rounded-full bg-emerald-500 px-4 py-2 text-xs font-semibold uppercase tracking-wide text-emerald-950 shadow shadow-emerald-500/30 transition hover:brightness-110"
+                      >
+                        Confirmar
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => setIsConfirmingRotation(false)}
+                        className="inline-flex items-center justify-center rounded-full border border-white/20 bg-transparent px-4 py-2 text-xs font-semibold uppercase tracking-wide text-white/70 transition hover:border-white/40 hover:text-white"
+                      >
+                        Cancelar
+                      </button>
+                    </div>
+                  </div>
+                ) : (
+                  <button
+                    type="button"
+                    onClick={() => setIsConfirmingRotation(true)}
+                    className="inline-flex items-center justify-center rounded-full bg-gradient-to-r from-sky-500 to-fuchsia-500 px-4 py-2 text-xs font-semibold uppercase tracking-wide text-white shadow shadow-sky-500/30 transition hover:brightness-110"
+                  >
+                    Aplicar patrón
+                  </button>
+                )}
               </label>
               <p className="text-[11px] text-white/50">Usa el patrón como base y edita manualmente los días que necesites.</p>
             </div>
@@ -800,6 +890,30 @@ export default function ShiftPlannerLab({
             </p>
           </section>
         </aside>
+      </div>
+
+      <div className="pointer-events-none absolute inset-x-0 top-4 z-50 flex justify-center px-4 sm:justify-end sm:px-6">
+        <div className="flex w-full max-w-sm flex-col gap-3">
+          <AnimatePresence>
+            {toasts.map((toast) => (
+              <motion.div
+                key={toast.id}
+                initial={{ opacity: 0, y: -10 }}
+                animate={{ opacity: 1, y: 0 }}
+                exit={{ opacity: 0, y: -10 }}
+                transition={{ duration: 0.2, ease: "easeOut" }}
+                role={toast.type === "error" ? "alert" : "status"}
+                className={`pointer-events-auto rounded-2xl border px-4 py-3 text-sm shadow-lg backdrop-blur ${
+                  toast.type === "success"
+                    ? "border-emerald-400/60 bg-emerald-500/10 text-emerald-100"
+                    : "border-rose-400/60 bg-rose-500/10 text-rose-100"
+                }`}
+              >
+                {toast.message}
+              </motion.div>
+            ))}
+          </AnimatePresence>
+        </div>
       </div>
 
       <AnimatePresence>

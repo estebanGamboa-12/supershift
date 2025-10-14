@@ -938,7 +938,7 @@ export default function Home() {
                     <div>
                       <h2 className="text-2xl font-semibold">Calendario</h2>
                       <p className="text-sm text-white/60">
-                        Los próximos turnos y cambios relevantes en un vistazo.
+                        Visualiza y organiza tus turnos directamente en el calendario.
                       </p>
                     </div>
                     <button
@@ -949,6 +949,26 @@ export default function Home() {
                       <span aria-hidden className="text-base">＋</span>
                       Añadir turno
                     </button>
+                  </header>
+
+                  <div className="mt-6">
+                    <ShiftPlannerLab
+                      initialEntries={plannerDays}
+                      onCommit={handleManualRotationConfirm}
+                      isCommitting={isCommittingRotation}
+                      errorMessage={rotationError}
+                    />
+                  </div>
+                </section>
+
+                <section className="rounded-3xl border border-white/10 bg-slate-950/70 p-6">
+                  <header className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
+                    <div>
+                      <h2 className="text-2xl font-semibold">Próximos turnos</h2>
+                      <p className="text-sm text-white/60">
+                        Consulta el listado de turnos programados a corto plazo.
+                      </p>
+                    </div>
                   </header>
 
                   <div className="mt-6 overflow-hidden rounded-2xl border border-white/10">
@@ -1010,15 +1030,6 @@ export default function Home() {
                       </div>
                     )}
                   </div>
-                </section>
-
-                <section className="rounded-3xl border border-white/10 bg-slate-950/70 p-6">
-                  <ShiftPlannerLab
-                    initialEntries={plannerDays}
-                    onCommit={handleManualRotationConfirm}
-                    isCommitting={isCommittingRotation}
-                    errorMessage={rotationError}
-                  />
                 </section>
               </div>
 

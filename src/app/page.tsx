@@ -887,8 +887,8 @@ export default function Home() {
 
           <main className="flex-1 overflow-y-auto pb-[calc(6rem+env(safe-area-inset-bottom))] lg:pb-0">
             <div className="mx-auto w-full max-w-7xl space-y-10 px-4 py-6 sm:px-6 lg:px-10 xl:px-12">
-              <div className="hidden lg:grid lg:grid-cols-[minmax(0,2fr)_minmax(0,1fr)] lg:items-start lg:gap-10 xl:gap-12">
-                <div className="flex flex-col gap-10">
+              <div className="hidden lg:grid lg:grid-cols-12 lg:items-start lg:gap-10 xl:gap-12">
+                <div className="flex flex-col gap-10 lg:col-span-8">
                   <DesktopOverviewCard
                     greeting={mobileGreeting}
                     currentMonthShiftCount={currentMonthShifts.length}
@@ -898,18 +898,9 @@ export default function Home() {
                     teamSize={users.length}
                     shiftTypeLabels={SHIFT_TYPE_LABELS}
                   />
-
-                  <section className="space-y-6">
-                    <ShiftPlannerLab
-                      initialEntries={plannerDays}
-                      onCommit={handleManualRotationConfirm}
-                      isCommitting={isCommittingRotation}
-                      errorMessage={rotationError}
-                    />
-                  </section>
                 </div>
 
-                <aside className="flex flex-col gap-8">
+                <aside className="flex flex-col gap-8 lg:col-span-4">
                   <NextShiftCard
                     nextShift={nextShift}
                     daysUntilNextShift={daysUntilNextShift}
@@ -942,6 +933,17 @@ export default function Home() {
                     onLogout={handleLogout}
                   />
                 </aside>
+
+                <div className="lg:col-span-12">
+                  <section className="space-y-6">
+                    <ShiftPlannerLab
+                      initialEntries={plannerDays}
+                      onCommit={handleManualRotationConfirm}
+                      isCommitting={isCommittingRotation}
+                      errorMessage={rotationError}
+                    />
+                  </section>
+                </div>
               </div>
 
               <div className="lg:hidden">

@@ -41,17 +41,17 @@ const CalendarTab: FC<CalendarTabProps> = ({
 
   return (
     <div className="flex flex-col gap-6">
-      <NextShiftCard
-        nextShift={nextShift ?? undefined}
-        daysUntilNextShift={daysUntilNextShift}
-        shiftTypeLabels={shiftTypeLabels}
-      />
-
       <ShiftPlannerLab
         initialEntries={plannerDays}
         onCommit={onCommitPlanner}
         isCommitting={isCommittingPlanner}
         errorMessage={plannerError}
+      />
+
+      <NextShiftCard
+        nextShift={nextShift ?? undefined}
+        daysUntilNextShift={daysUntilNextShift}
+        shiftTypeLabels={shiftTypeLabels}
       />
 
       <section className="rounded-3xl border border-white/10 bg-white/5 p-6 shadow-xl shadow-blue-500/10">

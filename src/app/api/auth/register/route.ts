@@ -1,4 +1,6 @@
 import { NextResponse } from "next/server"
+import { createClient, type SupabaseClient } from "@supabase/supabase-js"
+
 import { getSupabaseClient } from "@/lib/supabase"
 import { ensureCalendarForUser } from "@/lib/calendars"
 import { sendEmail } from "@/lib/email"
@@ -85,6 +87,156 @@ async function createUserProfile({
   }
 }
 
+function getSupabaseUrl(): string {
+  const url = process.env.SUPABASE_URL ?? process.env.NEXT_PUBLIC_SUPABASE_URL
+  if (!url) {
+    throw new Error(
+      "Supabase URL no configurada. Define SUPABASE_URL o NEXT_PUBLIC_SUPABASE_URL",
+    )
+  }
+  return url
+}
+
+function getSupabaseAnonKey(): string {
+  const key =
+    process.env.SUPABASE_ANON_KEY ?? process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY
+
+  if (!key) {
+    throw new Error(
+      "Supabase anon key no configurada. Define SUPABASE_ANON_KEY o NEXT_PUBLIC_SUPABASE_ANON_KEY",
+    )
+  }
+
+  return key
+}
+
+function createSupabaseAnonServerClient(): SupabaseClient {
+  return createClient(getSupabaseUrl(), getSupabaseAnonKey(), {
+    auth: {
+      persistSession: false,
+      autoRefreshToken: false,
+    },
+  })
+}
+
+function isSupabaseNotAdminError(error: unknown): boolean {
+  if (!error || typeof error !== "object") {
+    return false
+  }
+
+  const status = "status" in error ? Number((error as { status?: number }).status) : null
+  const code = "code" in error ? String((error as { code?: string }).code) : null
+
+  if (code && code.toLowerCase() === "not_admin") {
+    return true
+  }
+
+  return status === 403
+}
+
+async function registerUsingAdminClient({
+  name,
+  email,
+  password,
+  timezone,
+}: {
+  name: string
+  email: string
+  password: string
+  timezone: string
+}) {
+  const supabase = getSupabaseClient()
+  const { data, error } = await supabase.auth.admin.generateLink({
+    type: "signup",
+    email,
+    password,
+    options: {
+      data: {
+        full_name: name,
+      },
+      redirectTo: buildRedirectUrl(),
+    },
+  })
+
+  if (error) {
+    throw error
+  }
+
+  const user = data.user
+  const actionLink = data.properties?.action_link
+
+  if (!user?.id || !actionLink) {
+    throw new Error(
+      "Supabase no devolvió la información necesaria para completar el registro.",
+    )
+  }
+
+  const userProfile = await createUserProfile({
+    id: String(user.id),
+    name,
+    email,
+    timezone,
+  })
+
+  const { subject, html, text } = buildVerificationEmail({
+    name,
+    email,
+    actionLink,
+  })
+
+  await sendEmail({
+    to: email,
+    subject,
+    html,
+    text,
+  })
+
+  return { user: userProfile }
+}
+
+async function registerUsingSignUp({
+  name,
+  email,
+  password,
+  timezone,
+}: {
+  name: string
+  email: string
+  password: string
+  timezone: string
+}) {
+  const supabase = createSupabaseAnonServerClient()
+  const { data, error } = await supabase.auth.signUp({
+    email,
+    password,
+    options: {
+      data: {
+        full_name: name,
+      },
+      emailRedirectTo: buildRedirectUrl(),
+    },
+  })
+
+  if (error) {
+    throw error
+  }
+
+  const user = data.user
+
+  if (!user?.id) {
+    throw new Error("Supabase no devolvió un identificador de usuario válido")
+  }
+
+  const userProfile = await createUserProfile({
+    id: String(user.id),
+    name,
+    email,
+    timezone,
+  })
+
+  return { user: userProfile }
+}
+
 export async function POST(request: Request) {
   let payload: RegisterPayload | null = null
 
@@ -110,64 +262,38 @@ export async function POST(request: Request) {
     )
   }
 
-  if (!process.env.SUPABASE_SERVICE_ROLE_KEY) {
-    return NextResponse.json(
-      {
-        error:
-          "Define SUPABASE_SERVICE_ROLE_KEY con la clave service_role de Supabase para permitir registros.",
-      },
-      { status: 500 },
-    )
-  }
-
   try {
-    const supabase = getSupabaseClient()
-    const { data, error } = await supabase.auth.admin.generateLink({
-      type: "signup",
-      email,
-      password,
-      options: {
-        data: {
-          full_name: name,
-        },
-        redirectTo: buildRedirectUrl(),
-      },
-    })
+    const shouldUseAdminFlow = Boolean(process.env.SUPABASE_SERVICE_ROLE_KEY)
 
-    if (error) {
-      throw error
+    if (shouldUseAdminFlow) {
+      try {
+        const response = await registerUsingAdminClient({
+          name,
+          email,
+          password,
+          timezone,
+        })
+
+        return NextResponse.json(response, { status: 201 })
+      } catch (error) {
+        if (!isSupabaseNotAdminError(error)) {
+          throw error
+        }
+        console.warn(
+          "Fallo el flujo admin de registro en Supabase. Reintentando con signUp estándar.",
+          error,
+        )
+      }
     }
 
-    const user = data.user
-    const actionLink = data.properties?.action_link
-
-    if (!user?.id || !actionLink) {
-      throw new Error(
-        "Supabase no devolvió la información necesaria para completar el registro.",
-      )
-    }
-
-    const userProfile = await createUserProfile({
-      id: String(user.id),
+    const response = await registerUsingSignUp({
       name,
       email,
+      password,
       timezone,
     })
 
-    const { subject, html, text } = buildVerificationEmail({
-      name,
-      email,
-      actionLink,
-    })
-
-    await sendEmail({
-      to: email,
-      subject,
-      html,
-      text,
-    })
-
-    return NextResponse.json({ user: userProfile }, { status: 201 })
+    return NextResponse.json(response, { status: 201 })
   } catch (error) {
     if (error instanceof Error) {
       const message = error.message ?? ""
@@ -185,6 +311,24 @@ export async function POST(request: Request) {
           {
             error:
               "Define la variable NEXT_PUBLIC_SITE_URL (o SITE_URL) para generar el enlace de verificación.",
+          },
+          { status: 500 },
+        )
+      }
+      if (message.includes("Supabase URL no configurada")) {
+        return NextResponse.json(
+          {
+            error:
+              "Define SUPABASE_URL o NEXT_PUBLIC_SUPABASE_URL para conectar con tu proyecto de Supabase.",
+          },
+          { status: 500 },
+        )
+      }
+      if (message.includes("Supabase anon key no configurada")) {
+        return NextResponse.json(
+          {
+            error:
+              "Define SUPABASE_ANON_KEY o NEXT_PUBLIC_SUPABASE_ANON_KEY para permitir registros sin la clave service_role.",
           },
           { status: 500 },
         )

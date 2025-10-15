@@ -223,11 +223,23 @@ export default function UserAuthPanel({
         throw error
       }
     } catch (error) {
-      setLoginError(
-        error instanceof Error
-          ? error.message
-          : "No se pudo iniciar sesión con Google",
-      )
+      if (error instanceof Error) {
+        const normalisedMessage = error.message.toLowerCase()
+        if (
+          normalisedMessage.includes("provider is not enabled") ||
+          normalisedMessage.includes("unsupported provider")
+        ) {
+          setLoginError(
+            "El inicio de sesión con Google no está habilitado. Activa el proveedor de Google en el panel de Supabase (Authentication → Providers) y configura las credenciales correspondientes.",
+          )
+          return
+        }
+
+        setLoginError(error.message)
+        return
+      }
+
+      setLoginError("No se pudo iniciar sesión con Google")
     } finally {
       setIsLoggingIn(false)
     }

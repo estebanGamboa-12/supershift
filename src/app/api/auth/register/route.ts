@@ -110,6 +110,16 @@ export async function POST(request: Request) {
     )
   }
 
+  if (!process.env.SUPABASE_SERVICE_ROLE_KEY) {
+    return NextResponse.json(
+      {
+        error:
+          "Define SUPABASE_SERVICE_ROLE_KEY con la clave service_role de Supabase para permitir registros.",
+      },
+      { status: 500 },
+    )
+  }
+
   try {
     const supabase = getSupabaseClient()
     const { data, error } = await supabase.auth.admin.generateLink({
@@ -184,6 +194,19 @@ export async function POST(request: Request) {
           {
             error:
               "Faltan credenciales para enviar correos. Añade RESEND_API_KEY y EMAIL_FROM al entorno de ejecución.",
+          },
+          { status: 500 },
+        )
+      }
+      if (
+        message.includes("service_role") ||
+        message.includes("service role key") ||
+        message.includes("admin api requires")
+      ) {
+        return NextResponse.json(
+          {
+            error:
+              "La clave service_role de Supabase es obligatoria. Verifica SUPABASE_SERVICE_ROLE_KEY en tu configuración.",
           },
           { status: 500 },
         )

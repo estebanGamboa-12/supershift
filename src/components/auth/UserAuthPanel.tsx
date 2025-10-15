@@ -1,9 +1,11 @@
 "use client"
 
 import Image from "next/image"
-import { useState } from "react"
+import { useMemo, useState } from "react"
 import { motion, AnimatePresence } from "framer-motion"
 import type { UserSummary } from "@/types/users"
+import { getSupabaseBrowserClient } from "@/lib/supabase"
+import { exchangeAccessToken } from "@/lib/auth-client"
 
 type UserAuthPanelProps = {
   users: UserSummary[]
@@ -35,16 +37,37 @@ export default function UserAuthPanel({
   const [registerEmail, setRegisterEmail] = useState("")
   const [registerPassword, setRegisterPassword] = useState("")
   const [registerError, setRegisterError] = useState("")
+  const [registerNotice, setRegisterNotice] = useState("")
   const [isRegistering, setIsRegistering] = useState(false)
   const [activeForm, setActiveForm] = useState<"login" | "register">("login")
 
   const highlightedUsers = users.slice(0, 3)
   const remainingUsers = Math.max(users.length - highlightedUsers.length, 0)
 
+  const supabase = useMemo(() => {
+    if (typeof window === "undefined") {
+      return null
+    }
+
+    try {
+      return getSupabaseBrowserClient()
+    } catch (error) {
+      console.error("Supabase client could not be initialised", error)
+      return null
+    }
+  }, [])
+
+  const exchangeSession = async (accessToken: string) => {
+    const user = await exchangeAccessToken(accessToken)
+    onLogin(user)
+    return user
+  }
+
   const handleFormChange = (form: "login" | "register") => {
     setActiveForm(form)
     if (form === "login") setRegisterError("")
     else setLoginError("")
+    setRegisterNotice("")
   }
 
   const handleLogin = async (event: React.FormEvent<HTMLFormElement>) => {
@@ -54,49 +77,159 @@ export default function UserAuthPanel({
       setLoginError("Introduce tu correo y contraseña")
       return
     }
+    if (!supabase) {
+      setLoginError(
+        "Supabase no está configurado correctamente. Revisa las variables de entorno.",
+      )
+      return
+    }
     try {
       setIsLoggingIn(true)
-      const response = await fetch("/api/auth/login", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ email: loginEmail, password: loginPassword }),
+      const { data, error } = await supabase.auth.signInWithPassword({
+        email: loginEmail,
+        password: loginPassword,
       })
-      const data = (await response.json().catch(() => null)) as
-        | { user?: UserSummary; error?: string }
-        | null
-      if (!response.ok || !data?.user) throw new Error(data?.error ?? "No se pudo iniciar sesión")
-      onLogin(data.user)
+
+      if (error) {
+        throw error
+      }
+
+      const accessToken = data.session?.access_token
+      if (!accessToken) {
+        throw new Error(
+          "Supabase no devolvió una sesión activa. Vuelve a intentarlo.",
+        )
+      }
+
+      await exchangeSession(accessToken)
     } catch (error) {
-      setLoginError(error instanceof Error ? error.message : "No se pudo iniciar sesión")
+      setLoginError(
+        error instanceof Error ? error.message : "No se pudo iniciar sesión",
+      )
     } finally {
       setIsLoggingIn(false)
     }
   }
 
+  const ensureUserProfile = async ({
+    id,
+    name,
+    email,
+  }: {
+    id: string
+    name: string
+    email: string
+  }) => {
+    const response = await fetch("/api/users", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ id, name, email }),
+    })
+
+    const data = (await response.json().catch(() => null)) as
+      | { user?: UserSummary; error?: string }
+      | null
+
+    if (!response.ok || !data?.user) {
+      throw new Error(data?.error ?? "No se pudo completar el registro")
+    }
+
+    onUserCreated(data.user)
+    return data.user
+  }
+
   const handleRegister = async (event: React.FormEvent<HTMLFormElement>) => {
     event.preventDefault()
     setRegisterError("")
+    setRegisterNotice("")
     if (!registerName || !registerEmail || !registerPassword) {
       setRegisterError("Completa todos los campos para crear tu cuenta")
       return
     }
+    if (registerPassword.length < 6) {
+      setRegisterError("La contraseña debe tener al menos 6 caracteres")
+      return
+    }
+    if (!supabase) {
+      setRegisterError(
+        "Supabase no está configurado correctamente. Revisa las variables de entorno.",
+      )
+      return
+    }
     try {
       setIsRegistering(true)
-      const response = await fetch("/api/users", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ name: registerName, email: registerEmail, password: registerPassword }),
+      const { data, error } = await supabase.auth.signUp({
+        email: registerEmail,
+        password: registerPassword,
+        options: {
+          data: {
+            full_name: registerName,
+          },
+        },
       })
-      const data = (await response.json().catch(() => null)) as
-        | { user?: UserSummary; error?: string }
-        | null
-      if (!response.ok || !data?.user) throw new Error(data?.error ?? "No se pudo crear el usuario")
-      onUserCreated(data.user)
-      onLogin(data.user)
+
+      if (error) {
+        throw error
+      }
+
+      if (data.user?.id) {
+        await ensureUserProfile({
+          id: data.user.id,
+          name: registerName,
+          email: registerEmail,
+        })
+      }
+
+      const accessToken = data.session?.access_token
+
+      if (accessToken) {
+        await exchangeSession(accessToken)
+        setRegisterNotice("Cuenta creada correctamente")
+      } else {
+        setRegisterNotice(
+          "Cuenta creada. Revisa tu correo electrónico para confirmar el acceso.",
+        )
+      }
     } catch (error) {
-      setRegisterError(error instanceof Error ? error.message : "No se pudo crear el usuario")
+      setRegisterError(
+        error instanceof Error ? error.message : "No se pudo crear el usuario",
+      )
     } finally {
       setIsRegistering(false)
+    }
+  }
+
+  const handleGoogleLogin = async () => {
+    setLoginError("")
+    if (!supabase) {
+      setLoginError(
+        "Supabase no está configurado correctamente. Revisa las variables de entorno.",
+      )
+      return
+    }
+
+    try {
+      setIsLoggingIn(true)
+      const origin = typeof window !== "undefined" ? window.location.origin : ""
+      const redirectTo = origin ? `${origin}/` : undefined
+      const { error } = await supabase.auth.signInWithOAuth({
+        provider: "google",
+        options: {
+          redirectTo,
+        },
+      })
+
+      if (error) {
+        throw error
+      }
+    } catch (error) {
+      setLoginError(
+        error instanceof Error
+          ? error.message
+          : "No se pudo iniciar sesión con Google",
+      )
+    } finally {
+      setIsLoggingIn(false)
     }
   }
 
@@ -179,19 +312,35 @@ export default function UserAuthPanel({
                 className="w-full rounded-xl border border-white/10 bg-white/5 px-4 py-3 text-sm placeholder-white/40 focus:border-indigo-400 focus:ring-2 focus:ring-indigo-500/40"
               />
               {loginError && <p className="text-sm text-red-400">{loginError}</p>}
-              <button
-                type="submit"
-                disabled={isLoggingIn}
-                className="flex items-center justify-center gap-2 w-full rounded-xl bg-gradient-to-r from-blue-500 to-indigo-500 px-4 py-3 text-sm font-semibold shadow-lg transition hover:scale-[1.02]"
-              >
-                {isLoggingIn ? (
-                  <>
-                    <Spinner /> Accediendo...
-                  </>
-                ) : (
-                  "Iniciar sesión"
-                )}
-              </button>
+              <div className="space-y-3">
+                <button
+                  type="submit"
+                  disabled={isLoggingIn}
+                  className="flex items-center justify-center gap-2 w-full rounded-xl bg-gradient-to-r from-blue-500 to-indigo-500 px-4 py-3 text-sm font-semibold shadow-lg transition hover:scale-[1.02]"
+                >
+                  {isLoggingIn ? (
+                    <>
+                      <Spinner /> Accediendo...
+                    </>
+                  ) : (
+                    "Iniciar sesión"
+                  )}
+                </button>
+                <div className="flex items-center gap-3 text-xs text-white/40">
+                  <span className="h-px flex-1 bg-white/10" />
+                  o continúa con
+                  <span className="h-px flex-1 bg-white/10" />
+                </div>
+                <button
+                  type="button"
+                  onClick={handleGoogleLogin}
+                  disabled={isLoggingIn}
+                  className="flex items-center justify-center gap-2 w-full rounded-xl border border-white/15 bg-white/5 px-4 py-3 text-sm font-semibold text-white/80 transition hover:border-white/30 hover:bg-white/10"
+                >
+                  {isLoggingIn ? <Spinner /> : null}
+                  <span>{isLoggingIn ? "Redirigiendo..." : "Google"}</span>
+                </button>
+              </div>
             </motion.form>
           ) : (
             <motion.form
@@ -231,6 +380,9 @@ export default function UserAuthPanel({
                 className="w-full rounded-xl border border-white/10 bg-white/5 px-4 py-3 text-sm placeholder-white/40 focus:border-indigo-400 focus:ring-2 focus:ring-indigo-500/40"
               />
               {registerError && <p className="text-sm text-red-400">{registerError}</p>}
+              {registerNotice && (
+                <p className="text-sm text-emerald-400">{registerNotice}</p>
+              )}
               <button
                 type="submit"
                 disabled={isRegistering}

@@ -23,6 +23,9 @@ import TeamSpotlight from "@/components/dashboard/TeamSpotlight"
 import UserAuthPanel from "@/components/auth/UserAuthPanel"
 import FloatingParticlesLoader from "@/components/FloatingParticlesLoader"
 import type { UserSummary } from "@/types/users"
+import type { Session } from "@supabase/supabase-js"
+import { getSupabaseBrowserClient } from "@/lib/supabase"
+import { exchangeAccessToken } from "@/lib/auth-client"
 import {
   CalendarTab,
   SettingsTab,
@@ -159,6 +162,19 @@ export default function Home() {
   const [preferencesSavedAt, setPreferencesSavedAt] = useState<Date | null>(
     null,
   )
+
+  const supabase = useMemo(() => {
+    if (typeof window === "undefined") {
+      return null
+    }
+
+    try {
+      return getSupabaseBrowserClient()
+    } catch (error) {
+      console.error("No se pudo inicializar el cliente de Supabase", error)
+      return null
+    }
+  }, [])
 
   const mapApiShift = useCallback((shift: ApiShift): ShiftEvent => {
     const plusNight = shift.plusNight ?? 0
@@ -298,7 +314,7 @@ export default function Home() {
   }, [])
 
   const clearSession = useCallback(
-    (message?: string) => {
+    (message?: string, options?: { skipSupabaseSignOut?: boolean }) => {
       setCurrentUser(null)
       setSelectedShift(null)
       setShifts([])
@@ -308,8 +324,14 @@ export default function Home() {
       if (typeof window !== "undefined") {
         window.localStorage.removeItem(SESSION_STORAGE_KEY)
       }
+
+      if (!options?.skipSupabaseSignOut && supabase) {
+        void supabase.auth.signOut().catch((signOutError) => {
+          console.error("No se pudo cerrar la sesión de Supabase", signOutError)
+        })
+      }
     },
-    []
+    [supabase],
   )
 
   const handleAddShift = useCallback(
@@ -821,7 +843,7 @@ export default function Home() {
       const sanitized = sanitizeUserSummary(user)
       if (!sanitized) {
         clearSession(
-          "No se pudo validar la sesión del usuario. Vuelve a iniciar sesión."
+          "No se pudo validar la sesión del usuario. Vuelve a iniciar sesión.",
         )
         return
       }
@@ -829,12 +851,82 @@ export default function Home() {
       setCurrentUser(sanitized)
       persistSession(sanitized)
     },
-    [clearSession, persistSession]
+    [clearSession, persistSession],
   )
 
+  const synchronizeSupabaseSession = useCallback(
+    async (session: Session | null) => {
+      if (!session?.access_token) {
+        if (currentUser) {
+          clearSession(undefined, { skipSupabaseSignOut: true })
+        }
+        return
+      }
+
+      try {
+        const user = await exchangeAccessToken(session.access_token)
+        if (!currentUser || currentUser.id !== user.id) {
+          handleLoginSuccess(user)
+        }
+      } catch (error) {
+        console.error("No se pudo validar la sesión de Supabase", error)
+        clearSession(
+          "No se pudo validar tu sesión actual. Vuelve a iniciar sesión.",
+          { skipSupabaseSignOut: true },
+        )
+      }
+    },
+    [clearSession, currentUser, handleLoginSuccess],
+  )
+
+  useEffect(() => {
+    if (!supabase) {
+      return
+    }
+
+    let isSubscribed = true
+
+    const loadCurrentSession = async () => {
+      try {
+        const { data, error } = await supabase.auth.getSession()
+        if (error) {
+          console.error("No se pudo recuperar la sesión actual de Supabase", error)
+          return
+        }
+        if (!isSubscribed) {
+          return
+        }
+        await synchronizeSupabaseSession(data.session ?? null)
+      } catch (error) {
+        console.error("Error comprobando la sesión de Supabase", error)
+      }
+    }
+
+    void loadCurrentSession()
+
+    const {
+      data: { subscription },
+    } = supabase.auth.onAuthStateChange((_event, session) => {
+      if (!isSubscribed) {
+        return
+      }
+      void synchronizeSupabaseSession(session)
+    })
+
+    return () => {
+      isSubscribed = false
+      subscription.unsubscribe()
+    }
+  }, [supabase, synchronizeSupabaseSession])
+
   const handleLogout = useCallback(() => {
-    clearSession()
-  }, [clearSession])
+    if (supabase) {
+      void supabase.auth.signOut().catch((error) => {
+        console.error("No se pudo cerrar la sesión de Supabase", error)
+      })
+    }
+    clearSession(undefined, { skipSupabaseSignOut: true })
+  }, [clearSession, supabase])
 
   const handleUserCreated = useCallback((user: UserSummary) => {
     const sanitized = sanitizeUserSummary(user)

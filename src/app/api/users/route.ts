@@ -1,7 +1,6 @@
 import { NextResponse } from "next/server"
 import { getSupabaseClient } from "@/lib/supabase"
 import { ensureCalendarForUser } from "@/lib/calendars"
-import { hashPassword } from "@/lib/passwords"
 
 export const runtime = "nodejs"
 
@@ -61,47 +60,56 @@ async function listUsers() {
   }))
 }
 
-async function createUser({
+function sanitizeId(value: unknown): string | null {
+  if (typeof value !== "string") {
+    return null
+  }
+  const trimmed = value.trim()
+  return trimmed.length > 0 ? trimmed : null
+}
+
+async function upsertUserProfile({
+  id,
   name,
   email,
-  password,
+  timezone,
 }: {
+  id: string
   name: string
   email: string
-  password: string
+  timezone: string
 }) {
   const supabase = getSupabaseClient()
-  const timezone = "Europe/Madrid"
-  const passwordHash = await hashPassword(password)
+  const payload = {
+    id,
+    name,
+    email,
+    timezone,
+  }
 
   const { data, error } = await supabase
     .from("users")
-    .insert({ name, email, password_hash: passwordHash, timezone })
-    .select("id")
+    .upsert(payload, { onConflict: "id" })
+    .select("id, name, email, timezone")
     .maybeSingle()
 
   if (error) {
     throw error
   }
 
-  if (!data?.id) {
-    throw new Error("Supabase no devolvió el identificador del nuevo usuario")
-  }
+  const profile = data ?? payload
 
-  const userId = String(data.id)
-  const calendarName = `Calendario de ${name}`
+  const calendarId = await ensureCalendarForUser(
+    profile.id,
+    profile.name,
+    profile.timezone,
+  )
 
-  try {
-    const calendarId = await ensureCalendarForUser(userId, calendarName, timezone)
-    return {
-      id: userId,
-      name,
-      email,
-      calendarId,
-    }
-  } catch (calendarError) {
-    await supabase.from("users").delete().eq("id", userId)
-    throw calendarError
+  return {
+    id: String(profile.id),
+    name: String(profile.name ?? ""),
+    email: String(profile.email ?? ""),
+    calendarId,
   }
 }
 
@@ -119,7 +127,12 @@ export async function GET() {
 }
 
 export async function POST(request: Request) {
-  let payload: { name?: unknown; email?: unknown; password?: unknown } | null
+  let payload: {
+    id?: unknown
+    name?: unknown
+    email?: unknown
+    timezone?: unknown
+  } | null
 
   try {
     payload = await request.json()
@@ -130,28 +143,27 @@ export async function POST(request: Request) {
     )
   }
 
-  const name = sanitizeString(payload?.name)
+  const id = sanitizeId(payload?.id)
+  const name = sanitizeString(payload?.name) ?? ""
   const email = sanitizeString(payload?.email)
-  const password = sanitizeString(payload?.password)
+  const timezone = sanitizeString(payload?.timezone) ?? "Europe/Madrid"
 
-  if (!name || !email || !password) {
+  if (!id || !email) {
     return NextResponse.json(
       {
-        error: "Nombre, correo y contraseña son obligatorios",
+        error: "Identificador y correo son obligatorios",
       },
-      { status: 400 }
-    )
-  }
-
-  if (password.length < 6) {
-    return NextResponse.json(
-      { error: "La contraseña debe tener al menos 6 caracteres" },
-      { status: 400 }
+      { status: 400 },
     )
   }
 
   try {
-    const user = await createUser({ name, email, password })
+    const user = await upsertUserProfile({
+      id,
+      name,
+      email,
+      timezone,
+    })
     return NextResponse.json({ user }, { status: 201 })
   } catch (error) {
     if (error instanceof Error) {
@@ -167,13 +179,16 @@ export async function POST(request: Request) {
         )
       }
 
-      if (message.includes("Supabase key no configurada")) {
+      if (
+        message.includes("Supabase key no configurada") ||
+        message.includes("Supabase anon key no configurada")
+      ) {
         return NextResponse.json(
           {
             error:
-              "Configura la variable SUPABASE_SERVICE_ROLE_KEY (o NEXT_PUBLIC_SUPABASE_ANON_KEY) para poder crear usuarios.",
+              "Configura la variable SUPABASE_SERVICE_ROLE_KEY (o NEXT_PUBLIC_SUPABASE_ANON_KEY) para poder gestionar usuarios.",
           },
-          { status: 500 }
+          { status: 500 },
         )
       }
     }
@@ -185,8 +200,8 @@ export async function POST(request: Request) {
       ["23505", "1062"].includes(String((error as { code?: string }).code))
     ) {
       return NextResponse.json(
-        { error: "El correo ya está registrado" },
-        { status: 409 }
+        { error: "El usuario ya está registrado" },
+        { status: 409 },
       )
     }
 

@@ -111,33 +111,6 @@ export default function UserAuthPanel({
     }
   }
 
-  const ensureUserProfile = async ({
-    id,
-    name,
-    email,
-  }: {
-    id: string
-    name: string
-    email: string
-  }) => {
-    const response = await fetch("/api/users", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ id, name, email }),
-    })
-
-    const data = (await response.json().catch(() => null)) as
-      | { user?: UserSummary; error?: string }
-      | null
-
-    if (!response.ok || !data?.user) {
-      throw new Error(data?.error ?? "No se pudo completar el registro")
-    }
-
-    onUserCreated(data.user)
-    return data.user
-  }
-
   const handleRegister = async (event: React.FormEvent<HTMLFormElement>) => {
     event.preventDefault()
     setRegisterError("")
@@ -150,46 +123,31 @@ export default function UserAuthPanel({
       setRegisterError("La contraseña debe tener al menos 6 caracteres")
       return
     }
-    if (!supabase) {
-      setRegisterError(
-        "Supabase no está configurado correctamente. Revisa las variables de entorno.",
-      )
-      return
-    }
     try {
       setIsRegistering(true)
-      const { data, error } = await supabase.auth.signUp({
-        email: registerEmail,
-        password: registerPassword,
-        options: {
-          data: {
-            full_name: registerName,
-          },
-        },
-      })
-
-      if (error) {
-        throw error
-      }
-
-      if (data.user?.id) {
-        await ensureUserProfile({
-          id: data.user.id,
+      const response = await fetch("/api/auth/register", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
           name: registerName,
           email: registerEmail,
-        })
+          password: registerPassword,
+        }),
+      })
+
+      const data = (await response.json().catch(() => null)) as
+        | { user?: UserSummary; error?: string }
+        | null
+
+      if (!response.ok || !data?.user) {
+        throw new Error(data?.error ?? "No se pudo crear el usuario")
       }
 
-      const accessToken = data.session?.access_token
-
-      if (accessToken) {
-        await exchangeSession(accessToken)
-        setRegisterNotice("Cuenta creada correctamente")
-      } else {
-        setRegisterNotice(
-          "Cuenta creada. Revisa tu correo electrónico para confirmar el acceso.",
-        )
-      }
+      onUserCreated(data.user)
+      setRegisterNotice(
+        "Hemos enviado un correo de confirmación personalizado. Ábrelo para activar tu cuenta.",
+      )
+      setRegisterPassword("")
     } catch (error) {
       setRegisterError(
         error instanceof Error ? error.message : "No se pudo crear el usuario",

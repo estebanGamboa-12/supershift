@@ -1,0 +1,18 @@
+{
+  "name": "Corp",
+  "short_name": "Corp",
+  "description": "Planificador de turnos optimizado para equipos de Supershift.",
+  "start_url": "/",
+  "display": "standalone",
+  "orientation": "portrait-primary",
+  "background_color": "#020617",
+  "theme_color": "#0f172a",
+  "icons": [
+    {
+      "src": "/corp-logo.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any"
+    }
+  ]
+}

@@ -31,12 +31,22 @@ function detectIos() {
   return /iphone|ipad|ipod/.test(userAgent)
 }
 
+function detectFirefox() {
+  if (typeof window === "undefined") {
+    return false
+  }
+
+  const userAgent = window.navigator.userAgent.toLowerCase()
+  return userAgent.includes("firefox")
+}
+
 export function InstallPromptBanner() {
   const [deferredPrompt, setDeferredPrompt] = useState<BeforeInstallPromptEvent | null>(null)
   const [isDismissed, setIsDismissed] = useState(true)
   const [isReady, setIsReady] = useState(false)
   const [isStandalone, setIsStandalone] = useState(false)
   const [isIos, setIsIos] = useState(false)
+  const [isFirefox, setIsFirefox] = useState(false)
 
   useEffect(() => {
     if (typeof window === "undefined") {
@@ -45,6 +55,7 @@ export function InstallPromptBanner() {
 
     setIsStandalone(isStandaloneDisplay())
     setIsIos(detectIos())
+    setIsFirefox(detectFirefox())
 
     const stored = window.localStorage.getItem(STORAGE_KEY)
     setIsDismissed(stored === "hidden")
@@ -119,12 +130,12 @@ export function InstallPromptBanner() {
       return true
     }
 
-    if (isIos) {
+    if (isIos || isFirefox) {
       return true
     }
 
     return false
-  }, [deferredPrompt, isDismissed, isIos, isReady, isStandalone])
+  }, [deferredPrompt, isDismissed, isFirefox, isIos, isReady, isStandalone])
 
   if (!shouldRender) {
     return null
@@ -169,6 +180,16 @@ export function InstallPromptBanner() {
               <li>Selecciona <span className="font-semibold">“Agregar a pantalla de inicio”.</span></li>
               <li>Confirma con <span className="font-semibold">Agregar</span>.</li>
             </ol>
+          </div>
+        ) : null}
+
+        {isFirefox ? (
+          <div className="mt-4 rounded-xl bg-amber-500/10 p-3 text-sm text-amber-100">
+            <p className="font-medium text-amber-200">¿Usas Firefox?</p>
+            <p className="mt-2 text-amber-100/90">
+              Actualmente Firefox no permite instalar aplicaciones web progresivas directamente. Para instalar Corp como PWA,
+              abre esta página en un navegador compatible como Chrome, Edge o Safari.
+            </p>
           </div>
         ) : null}
       </div>

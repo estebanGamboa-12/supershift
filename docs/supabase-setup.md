@@ -1,4 +1,4 @@
-# Importar la base de datos de Corp en Supabase
+# Importar la base de datos de Planloop en Supabase
 
 Este proyecto incluye un volcado SQL compatible con Supabase (MySQL). La base de datos conserva el identificador `supershift` y el archivo `supershift.sql` para mantener la compatibilidad con las integraciones existentes. Sigue los pasos para crear la base de datos y cargar la estructura junto con los datos de ejemplo.
 
@@ -29,7 +29,7 @@ mysql -h HOST -P PORT -u USER -p < database/supershift.sql
 Introduce la contraseña cuando se solicite. El script incluye la creación de la base de datos, por lo que no necesitas crearla manualmente.
 
 ## 5. Verificar la importación
-Tras ejecutar el script, verifica que las tablas `users`, `teams`, `calendars`, `shift_types`, entre otras, están disponibles y contienen los datos de ejemplo. De esta forma podrás comenzar a usar Corp en Supabase inmediatamente.
+Tras ejecutar el script, verifica que las tablas `users`, `teams`, `calendars`, `shift_types`, entre otras, están disponibles y contienen los datos de ejemplo. De esta forma podrás comenzar a usar Planloop en Supabase inmediatamente.
 
 ## 6. Usuarios y credenciales de ejemplo
 El script crea un usuario administrador con el correo `admin@supershift.local` y una cuenta de ejemplo `esteban@example.com`. Puedes iniciar sesión con cualquiera de ellas después de configurar los hashes de contraseña que utilice tu implementación.
@@ -38,7 +38,7 @@ El script crea un usuario administrador con el correo `admin@supershift.local` y
 
 ## 7. Configurar credenciales en la aplicación
 
-Una vez creada la base de datos, añade las siguientes variables de entorno en tu `.env.local` para que la API de Corp se conecte directamente a Supabase:
+Una vez creada la base de datos, añade las siguientes variables de entorno en tu `.env.local` para que la API de Planloop se conecte directamente a Supabase:
 
 - `SUPABASE_URL`: la URL del proyecto (aparece en la sección **Project Settings → API**).
 - `SUPABASE_SERVICE_ROLE_KEY`: la clave *service role* con permisos de lectura/escritura.

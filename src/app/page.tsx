@@ -130,7 +130,7 @@ const SHIFT_TYPE_LABELS: Record<ShiftType, string> = {
   CUSTOM: "Personalizado",
 }
 
-const SESSION_STORAGE_KEY = "corp:session"
+const SESSION_STORAGE_KEY = "planloop:session"
 const SESSION_DURATION_MS = 1000 * 60 * 60 * 24 * 14 // 14 días
 
 class ApiError extends Error {
@@ -700,7 +700,7 @@ export default function Home() {
 
   const mobileGreeting = useMemo(() => {
     if (!currentUser?.name) {
-      return "Corp"
+      return "Planloop"
     }
 
     const [firstName] = currentUser.name.split(" ")
@@ -731,7 +731,7 @@ export default function Home() {
       {
         title: "Equipo",
         value: users.length > 0 ? `${users.length} miembros` : "Sin datos",
-        description: "En Corp",
+        description: "En Planloop",
       },
     ],
     [
@@ -1253,7 +1253,7 @@ export default function Home() {
                           {users.length > 0 ? `${users.length} miembros` : "Sin datos"}
                         </p>
                         <p className="mt-1 text-[11px] text-white/50">
-                          Activos en Corp
+                          Activos en Planloop
                         </p>
                       </div>
                     </div>

@@ -211,11 +211,11 @@ export default function UserAuthPanel({
         <div className="relative">
           <span className="pointer-events-none absolute inset-0 -translate-y-1 scale-125 rounded-full bg-cyan-400/25 blur-xl" aria-hidden />
           <div className="relative grid h-16 w-16 place-items-center overflow-hidden rounded-2xl border border-white/10 bg-slate-950/80 shadow-xl shadow-blue-500/20">
-            <Image src="/corp-logo.svg" alt="Logotipo de Corp" width={56} height={56} priority className="h-14 w-14" />
+            <Image src="/planloop-logo.svg" alt="Logotipo de Planloop" width={56} height={56} priority className="h-14 w-14" />
           </div>
         </div>
         <div className="space-y-1">
-          <h1 className="text-2xl font-semibold tracking-tight">Corp</h1>
+          <h1 className="text-2xl font-semibold tracking-tight">Planloop</h1>
           <p className="text-sm text-white/70">Planifica turnos con estilo profesional.</p>
         </div>
       </div>

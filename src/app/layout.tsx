@@ -8,20 +8,20 @@ import { InstallPromptBanner } from "@/components/pwa/install-prompt"
 
 export const metadata: Metadata = {
   title: {
-    default: "Corp",
-    template: "%s | Corp"
+    default: "Planloop",
+    template: "%s | Planloop"
   },
-  description: "Planificador de turnos optimizado para equipos de Supershift.",
+  description: "Planificador de turnos optimizado para equipos de Planloop.",
   manifest: "/manifest.webmanifest",
-  applicationName: "Corp",
+  applicationName: "Planloop",
   themeColor: "#0f172a",
   icons: {
-    icon: [{ url: "/corp-logo.svg", sizes: "any", type: "image/svg+xml" }],
-    apple: [{ url: "/corp-logo.svg", sizes: "any", type: "image/svg+xml" }]
+    icon: [{ url: "/planloop-logo.svg", sizes: "any", type: "image/svg+xml" }],
+    apple: [{ url: "/planloop-logo.svg", sizes: "any", type: "image/svg+xml" }]
   },
   appleWebApp: {
     capable: true,
-    title: "Corp",
+    title: "Planloop",
     statusBarStyle: "black-translucent"
   }
 }

@@ -1,7 +1,7 @@
 {
-  "name": "Corp",
-  "short_name": "Corp",
-  "description": "Planificador de turnos optimizado para equipos de Supershift.",
+  "name": "Planloop",
+  "short_name": "Planloop",
+  "description": "Planificador de turnos optimizado para equipos de Planloop.",
   "start_url": "/",
   "scope": "/",
   "display": "standalone",
@@ -10,7 +10,7 @@
   "theme_color": "#0f172a",
   "icons": [
     {
-      "src": "/corp-logo.svg",
+      "src": "/planloop-logo.svg",
       "sizes": "any",
       "type": "image/svg+xml",
       "purpose": "any maskable"

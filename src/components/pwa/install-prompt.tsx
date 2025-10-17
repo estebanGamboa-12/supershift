@@ -3,7 +3,7 @@
 import { useCallback, useEffect, useMemo, useState } from "react"
 import { X } from "lucide-react"
 
-const STORAGE_KEY = "corp:pwa-install-banner"
+const STORAGE_KEY = "planloop:pwa-install-banner"
 
 type BeforeInstallPromptEvent = Event & {
   readonly platforms?: string[]
@@ -154,7 +154,7 @@ export function InstallPromptBanner() {
         </button>
 
         <div className="pr-6">
-          <h2 className="text-base font-semibold text-slate-100">Instala Corp en tu dispositivo</h2>
+          <h2 className="text-base font-semibold text-slate-100">Instala Planloop en tu dispositivo</h2>
           <p className="mt-1 text-sm text-slate-300">
             Accede rápidamente y utiliza la aplicación sin conexión desde tu pantalla de inicio.
           </p>
@@ -187,7 +187,7 @@ export function InstallPromptBanner() {
           <div className="mt-4 rounded-xl bg-amber-500/10 p-3 text-sm text-amber-100">
             <p className="font-medium text-amber-200">¿Usas Firefox?</p>
             <p className="mt-2 text-amber-100/90">
-              Actualmente Firefox no permite instalar aplicaciones web progresivas directamente. Para instalar Corp como PWA,
+              Actualmente Firefox no permite instalar aplicaciones web progresivas directamente. Para instalar Planloop como PWA,
               abre esta página en un navegador compatible como Chrome, Edge o Safari.
             </p>
           </div>

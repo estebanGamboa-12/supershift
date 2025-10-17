@@ -13,7 +13,7 @@ export const metadata: Metadata = {
   description: "Planificador de turnos optimizado para equipos de Supershift.",
   manifest: "/manifest.webmanifest",
   applicationName: "Corp",
-  themeColor: "#0f172a",
+  themeColor: "#f3006c",
   icons: {
     icon: [{ url: "/corp-logo.svg", sizes: "any", type: "image/svg+xml" }],
     apple: [{ url: "/corp-logo.svg", sizes: "any", type: "image/svg+xml" }]

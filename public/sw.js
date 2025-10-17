@@ -1,10 +1,5 @@
 const CACHE_NAME = "corp-pwa-cache-v1"
-const ASSETS = [
-  "/",
-  "/manifest.webmanifest",
-  "/icons/icon-192.png",
-  "/icons/icon-512.png"
-]
+const ASSETS = ["/", "/manifest.webmanifest", "/corp-logo.svg"]
 
 self.addEventListener("install", (event) => {
   event.waitUntil(

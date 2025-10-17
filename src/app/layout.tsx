@@ -4,6 +4,7 @@ import type { Metadata, Viewport } from "next"
 import { ReactNode } from "react"
 
 import { ServiceWorkerRegistration } from "@/components/pwa/service-worker-registration"
+import { InstallPromptBanner } from "@/components/pwa/install-prompt"
 
 export const metadata: Metadata = {
   title: {
@@ -35,6 +36,7 @@ export default function RootLayout({ children }: { children: ReactNode }) {
     <html lang="es" className="h-full">
       <body className="min-h-screen bg-slate-950 text-slate-100 antialiased">
         {children}
+        <InstallPromptBanner />
         <ServiceWorkerRegistration />
       </body>
     </html>

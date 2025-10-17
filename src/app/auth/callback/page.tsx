@@ -3,7 +3,7 @@ import { Suspense } from "react"
 import AuthCallbackClient from "./AuthCallbackClient"
 
 export const metadata: Metadata = {
-  title: "Procesando acceso | Corp",
+  title: "Procesando acceso | Planloop",
 }
 
 // evita el prerender estático en Vercel

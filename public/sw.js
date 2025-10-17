@@ -1,5 +1,5 @@
-const CACHE_NAME = "corp-pwa-cache-v1"
-const ASSETS = ["/", "/manifest.webmanifest", "/corp-logo.svg"]
+const CACHE_NAME = "planloop-pwa-cache-v1"
+const ASSETS = ["/", "/manifest.webmanifest", "/planloop-logo.svg"]
 
 self.addEventListener("install", (event) => {
   event.waitUntil(

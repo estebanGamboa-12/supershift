@@ -105,7 +105,7 @@ const DashboardHeader: FC<DashboardHeaderProps> = ({
             <div className="relative hidden md:block">
               <span className="pointer-events-none absolute inset-0 -translate-y-1 scale-125 rounded-full bg-cyan-400/30 blur-xl" aria-hidden />
               <div className="relative grid h-16 w-16 place-items-center overflow-hidden rounded-2xl border border-white/10 bg-slate-900/80 shadow-xl shadow-blue-500/20">
-                <Image src="/corp-logo.svg" alt="Logotipo de Corp" width={56} height={56} className="h-14 w-14" />
+                <Image src="/planloop-logo.svg" alt="Logotipo de Planloop" width={56} height={56} className="h-14 w-14" />
               </div>
             </div>
             <div className="space-y-2">
@@ -119,10 +119,10 @@ const DashboardHeader: FC<DashboardHeaderProps> = ({
                   <div className="relative md:hidden">
                     <span className="pointer-events-none absolute inset-0 -translate-y-1 scale-110 rounded-full bg-cyan-400/20 blur" aria-hidden />
                     <div className="relative grid h-10 w-10 place-items-center overflow-hidden rounded-xl border border-white/10 bg-slate-900/80 shadow-lg shadow-blue-500/20">
-                      <Image src="/corp-logo.svg" alt="Logotipo de Corp" width={36} height={36} className="h-9 w-9" />
+                      <Image src="/planloop-logo.svg" alt="Logotipo de Planloop" width={36} height={36} className="h-9 w-9" />
                     </div>
                   </div>
-                  <h2 className="text-3xl font-bold tracking-tight text-white md:text-4xl">Corp HQ</h2>
+                  <h2 className="text-3xl font-bold tracking-tight text-white md:text-4xl">Planloop HQ</h2>
                 </div>
               </div>
             </div>

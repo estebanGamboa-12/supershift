@@ -58,7 +58,7 @@ export function buildVerificationEmail({
                 <tr>
                   <td style="text-align:center;padding-bottom:24px;">
                     <p style="margin:0;font-size:16px;line-height:1.7;color:#cbd5f5;">
-                      Hemos preparado tu cuenta en <strong style="color:${BRAND_ACCENT};">Supershift</strong> y solo queda confirmar tu correo electrónico.
+                      Hemos preparado tu cuenta en <strong style="color:${BRAND_ACCENT};">Planloop</strong> y solo queda confirmar tu correo electrónico.
                       Pulsa el botón para activar tu acceso y empezar a organizar turnos con tu equipo.
                     </p>
                   </td>
@@ -96,7 +96,7 @@ export function buildVerificationEmail({
   </body>
 </html>`
 
-  const text = `Hola ${displayName},\n\nGracias por registrarte en Supershift. Para activar tu cuenta abre el siguiente enlace en tu navegador:\n${safeLink}\n\nEl enlace caduca en 60 minutos. Si tú no solicitaste esta verificación, puedes ignorar este mensaje.`
+  const text = `Hola ${displayName},\n\nGracias por registrarte en Planloop. Para activar tu cuenta abre el siguiente enlace en tu navegador:\n${safeLink}\n\nEl enlace caduca en 60 minutos. Si tú no solicitaste esta verificación, puedes ignorar este mensaje.`
 
   return { subject, html, text }
 }

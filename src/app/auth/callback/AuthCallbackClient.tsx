@@ -239,7 +239,9 @@ export default function AuthCallbackClient() {
             ? "¡Tu cuenta está lista!"
             : authType === "recovery"
               ? "¡Contraseña actualizada!"
-              : "Sesión iniciada correctamente"
+              : authType === "email_change"
+                ? "¡Correo actualizado!"
+                : "Sesión iniciada correctamente"
 
         setState({
           status: "success",

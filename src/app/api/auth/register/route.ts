@@ -5,6 +5,7 @@ import { getSupabaseClient } from "@/lib/supabase"
 import { ensureCalendarForUser } from "@/lib/calendars"
 import { sendEmail } from "@/lib/email"
 import { buildVerificationEmail } from "@/lib/email-templates"
+import { buildAuthCallbackUrl } from "@/lib/auth-links"
 
 export const runtime = "nodejs"
 
@@ -21,28 +22,6 @@ function sanitizeString(value: unknown): string | null {
   }
   const trimmed = value.trim()
   return trimmed.length > 0 ? trimmed : null
-}
-
-function getSiteUrl(): string {
-  const siteUrl =
-    process.env.NEXT_PUBLIC_SITE_URL ??
-    process.env.SITE_URL ??
-    process.env.APP_URL ??
-    process.env.NEXT_PUBLIC_SUPABASE_REDIRECT_URL ??
-    process.env.NEXT_PUBLIC_SUPABASE_URL
-
-  if (!siteUrl) {
-    throw new Error(
-      "Configura NEXT_PUBLIC_SITE_URL (o SITE_URL) para generar enlaces de verificación.",
-    )
-  }
-
-  return siteUrl.replace(/\/$/, "")
-}
-
-function buildRedirectUrl(): string {
-  const siteUrl = getSiteUrl()
-  return `${siteUrl}/auth/callback`
 }
 
 async function createUserProfile({
@@ -154,7 +133,7 @@ async function registerUsingAdminClient({
       data: {
         full_name: name,
       },
-      redirectTo: buildRedirectUrl(),
+      redirectTo: buildAuthCallbackUrl(),
     },
   })
 
@@ -213,7 +192,7 @@ async function registerUsingSignUp({
       data: {
         full_name: name,
       },
-      emailRedirectTo: buildRedirectUrl(),
+      emailRedirectTo: buildAuthCallbackUrl(),
     },
   })
 

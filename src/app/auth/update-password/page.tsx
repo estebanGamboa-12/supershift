@@ -6,6 +6,9 @@ export const metadata: Metadata = {
   title: "Actualiza tu contraseña | Planloop",
 }
 
+// evita el prerender estático en Vercel
+export const dynamic = "force-dynamic"
+
 export default function UpdatePasswordPage() {
   return (
     <Suspense

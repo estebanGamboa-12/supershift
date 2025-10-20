@@ -207,6 +207,7 @@ export async function POST(request: Request) {
         email: currentEmail,
         newEmail: pendingEmail,
       },
+      confirmationLink: actionLink,
     })
   } catch (error) {
     if (error instanceof Error) {

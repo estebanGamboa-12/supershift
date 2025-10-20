@@ -39,7 +39,14 @@ export default function UserAuthPanel({
   const [registerError, setRegisterError] = useState("")
   const [registerNotice, setRegisterNotice] = useState("")
   const [isRegistering, setIsRegistering] = useState(false)
-  const [activeForm, setActiveForm] = useState<"login" | "register">("login")
+  const [activeForm, setActiveForm] = useState<"login" | "register" | "recover">(
+    "login",
+  )
+
+  const [resetEmail, setResetEmail] = useState("")
+  const [resetError, setResetError] = useState("")
+  const [resetNotice, setResetNotice] = useState("")
+  const [isResetting, setIsResetting] = useState(false)
 
   const highlightedUsers = users.slice(0, 3)
   const remainingUsers = Math.max(users.length - highlightedUsers.length, 0)
@@ -63,11 +70,13 @@ export default function UserAuthPanel({
     return user
   }
 
-  const handleFormChange = (form: "login" | "register") => {
+  const handleFormChange = (form: "login" | "register" | "recover") => {
     setActiveForm(form)
     if (form === "login") setRegisterError("")
     else setLoginError("")
     setRegisterNotice("")
+    setResetError("")
+    setResetNotice("")
   }
 
   const handleLogin = async (event: React.FormEvent<HTMLFormElement>) => {
@@ -203,6 +212,51 @@ export default function UserAuthPanel({
     }
   }
 
+  const handleRecover = async (event: React.FormEvent<HTMLFormElement>) => {
+    event.preventDefault()
+    setResetError("")
+    setResetNotice("")
+
+    const email = resetEmail.trim()
+    if (!email) {
+      setResetError("Introduce el correo asociado a tu cuenta")
+      return
+    }
+
+    if (!supabase) {
+      setResetError(
+        "Supabase no está configurado correctamente. Revisa las variables de entorno.",
+      )
+      return
+    }
+
+    try {
+      setIsResetting(true)
+      const { error } = await supabase.auth.resetPasswordForEmail(email, {
+        redirectTo:
+          typeof window !== "undefined"
+            ? `${window.location.origin}/auth/update-password`
+            : undefined,
+      })
+
+      if (error) {
+        throw error
+      }
+
+      setResetNotice(
+        "Si la dirección existe en nuestra base de datos, te enviaremos un correo con instrucciones para restablecer tu contraseña.",
+      )
+    } catch (error) {
+      setResetError(
+        error instanceof Error
+          ? error.message
+          : "No se pudo iniciar el proceso de recuperación",
+      )
+    } finally {
+      setIsResetting(false)
+    }
+  }
+
   return (
     <div className="relative mx-auto w-full max-w-md overflow-hidden rounded-3xl border border-white/10 bg-slate-900/60 p-8 text-white shadow-2xl backdrop-blur-xl">
       <div className="pointer-events-none absolute inset-0 bg-gradient-to-b from-blue-500/10 via-purple-500/5 to-transparent opacity-80" />
@@ -222,7 +276,7 @@ export default function UserAuthPanel({
 
       {/* Toggle */}
       <div className="relative z-10 mx-auto mb-8 w-full max-w-xs rounded-full border border-white/10 bg-slate-800/50 p-1 text-xs font-semibold text-white/70 shadow-lg">
-        <div className="grid grid-cols-2 gap-1">
+        <div className="grid grid-cols-3 gap-1">
           <button
             type="button"
             onClick={() => handleFormChange("login")}
@@ -244,6 +298,17 @@ export default function UserAuthPanel({
             }`}
           >
             Crear cuenta
+          </button>
+          <button
+            type="button"
+            onClick={() => handleFormChange("recover")}
+            className={`rounded-full px-4 py-2 transition-all ${
+              activeForm === "recover"
+                ? "bg-gradient-to-r from-cyan-500 to-blue-500 text-white shadow-md"
+                : "hover:bg-white/5"
+            }`}
+          >
+            Recuperar
           </button>
         </div>
       </div>
@@ -282,6 +347,13 @@ export default function UserAuthPanel({
                 className="w-full rounded-xl border border-white/10 bg-white/5 px-4 py-3 text-sm placeholder-white/40 focus:border-indigo-400 focus:ring-2 focus:ring-indigo-500/40"
               />
               {loginError && <p className="text-sm text-red-400">{loginError}</p>}
+              <button
+                type="button"
+                onClick={() => handleFormChange("recover")}
+                className="w-full text-left text-xs font-semibold text-blue-300 underline-offset-4 hover:underline"
+              >
+                ¿Olvidaste tu contraseña?
+              </button>
               <div className="space-y-3">
                 <button
                   type="submit"
@@ -312,7 +384,7 @@ export default function UserAuthPanel({
                 </button>
               </div>
             </motion.form>
-          ) : (
+          ) : activeForm === "register" ? (
             <motion.form
               key="register"
               initial={{ opacity: 0, x: 50 }}
@@ -366,6 +438,56 @@ export default function UserAuthPanel({
                   "Registrarme"
                 )}
               </button>
+            </motion.form>
+          ) : (
+            <motion.form
+              key="recover"
+              initial={{ opacity: 0, y: 30 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: -30 }}
+              transition={{ duration: 0.35, ease: "easeOut" }}
+              onSubmit={handleRecover}
+              className="absolute inset-0 flex h-full w-full flex-col justify-between space-y-5"
+            >
+              <div className="space-y-4">
+                <h2 className="text-3xl font-bold text-center bg-gradient-to-r from-cyan-400 to-blue-400 bg-clip-text text-transparent">
+                  Recupera tu acceso
+                </h2>
+                <p className="text-center text-sm text-white/70">
+                  Introduce tu correo y te enviaremos un enlace seguro para restablecer la contraseña.
+                </p>
+                <input
+                  type="email"
+                  value={resetEmail}
+                  onChange={(event) => setResetEmail(event.target.value)}
+                  placeholder="tu@empresa.com"
+                  className="w-full rounded-xl border border-white/10 bg-white/5 px-4 py-3 text-sm placeholder-white/40 focus:border-cyan-400 focus:ring-2 focus:ring-cyan-500/40"
+                />
+                {resetError && <p className="text-sm text-red-400">{resetError}</p>}
+                {resetNotice && <p className="text-sm text-emerald-400">{resetNotice}</p>}
+              </div>
+              <div className="space-y-3">
+                <button
+                  type="submit"
+                  disabled={isResetting}
+                  className="flex items-center justify-center gap-2 w-full rounded-xl bg-gradient-to-r from-cyan-500 to-blue-500 px-4 py-3 text-sm font-semibold shadow-lg transition hover:scale-[1.02]"
+                >
+                  {isResetting ? (
+                    <>
+                      <Spinner /> Enviando instrucciones...
+                    </>
+                  ) : (
+                    "Enviar enlace de recuperación"
+                  )}
+                </button>
+                <button
+                  type="button"
+                  onClick={() => handleFormChange("login")}
+                  className="w-full text-center text-xs font-semibold text-white/60 underline-offset-4 hover:underline"
+                >
+                  Volver al inicio de sesión
+                </button>
+              </div>
             </motion.form>
           )}
         </AnimatePresence>

@@ -1,4 +1,5 @@
 import type { Metadata } from "next"
+import { Suspense } from "react"
 import UpdatePasswordClient from "./UpdatePasswordClient"
 
 export const metadata: Metadata = {
@@ -6,5 +7,11 @@ export const metadata: Metadata = {
 }
 
 export default function UpdatePasswordPage() {
-  return <UpdatePasswordClient />
+  return (
+    <Suspense
+      fallback={<p style={{ color: "#94a3b8", textAlign: "center" }}>Preparando formulario...</p>}
+    >
+      <UpdatePasswordClient />
+    </Suspense>
+  )
 }

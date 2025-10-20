@@ -150,7 +150,7 @@ export async function POST(request: Request) {
       resolveRedirect(payload?.redirect) ?? resolveRedirect(payload?.redirectTo)
 
     const { data, error } = await supabase.auth.admin.generateLink({
-      type: "email_change",
+      type: "email_change_new",
       email: currentEmail,
       newEmail,
       options: {
@@ -172,8 +172,12 @@ export async function POST(request: Request) {
       throw error
     }
 
-    const actionLink = data.properties?.action_link
-    const pendingEmail = data.properties?.new_email ?? newEmail
+    const linkProperties = data.properties as
+      | (typeof data.properties & { new_email?: string | null })
+      | null
+
+    const actionLink = linkProperties?.action_link
+    const pendingEmail = linkProperties?.new_email ?? newEmail
 
     if (!actionLink) {
       return NextResponse.json(

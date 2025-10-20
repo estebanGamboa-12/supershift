@@ -1,10 +1,6 @@
-<svg xmlns="http://www.w3.org/2000/svg" width="240" height="64" viewBox="0 0 240 64" fill="none">
-  <g>
-    <rect width="64" height="64" rx="14" fill="url(#grad1)"/>
-    <path d="M32 12C22 12 14 20 14 30C14 40 22 48 32 48C36 48 40 46.5 43 43.8L48 48L51 45L46 40C49 36 50 33 50 30C50 20 42 12 32 12ZM32 16C39 16 45 22 45 30C45 33 44 35 42 37L40 35L38 37L41 40C38.5 42.5 35.5 44 32 44C25 44 19 38 19 30C19 22 25 16 32 16ZM29 26L23 32L25 34L29 30L35 36L37 34L29 26Z" fill="white"/>
-  </g>
-  <text x="80" y="34" font-family="Inter, sans-serif" font-size="28" font-weight="600" fill="#0f172a">PlanLoop</text>
-  <text x="80" y="52" font-family="Inter, sans-serif" font-size="14" fill="#475569">Planifica tus turnos</text>
+<svg xmlns="http://www.w3.org/2000/svg" width="64" height="64" viewBox="0 0 64 64" fill="none">
+  <rect width="64" height="64" rx="14" fill="url(#grad1)"/>
+  <path d="M32 12C22 12 14 20 14 30C14 40 22 48 32 48C36 48 40 46.5 43 43.8L48 48L51 45L46 40C49 36 50 33 50 30C50 20 42 12 32 12ZM32 16C39 16 45 22 45 30C45 33 44 35 42 37L40 35L38 37L41 40C38.5 42.5 35.5 44 32 44C25 44 19 38 19 30C19 22 25 16 32 16ZM29 26L23 32L25 34L29 30L35 36L37 34L29 26Z" fill="white"/>
   <defs>
     <linearGradient id="grad1" x1="0" y1="0" x2="64" y2="64" gradientUnits="userSpaceOnUse">
       <stop stop-color="#3B82F6"/>

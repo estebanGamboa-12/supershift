@@ -162,8 +162,12 @@ export default function UpdatePasswordClient() {
 
     const execute = async () => {
       const params = collectAuthParams(searchParams)
-      const accessToken = readParam(params, ["access_token", "accessToken"])
-      const refreshToken = readParam(params, ["refresh_token", "refreshToken"])
+      let accessToken = readParam(params, ["access_token", "accessToken"])
+      let refreshToken = readParam(params, ["refresh_token", "refreshToken"])
+      const exchangeCode = readParam(params, ["code"])
+      const tokenHash = readParam(params, ["token_hash", "tokenHash"])
+      const otpToken = readParam(params, ["token", "otp", "recovery_token", "recoveryToken"])
+      const otpEmail = readParam(params, ["email"])
       const type = readParam(params, ["type"])
       const redirect = sanitizeRedirectTarget(
         readParam(params, ["redirect", "redirectTo", "next"]),
@@ -179,11 +183,57 @@ export default function UpdatePasswordClient() {
         "token_type",
         "tokenType",
         "type",
+        "code",
+        "token_hash",
+        "tokenHash",
+        "token",
+        "otp",
+        "recovery_token",
+        "recoveryToken",
+        "email",
         "provider_token",
         "provider_refresh_token",
         "scope",
       ])
       applyRedirectToUrl(redirect)
+
+      if (!accessToken || !refreshToken) {
+        try {
+          if (exchangeCode) {
+            const { data, error } = await supabase.auth.exchangeCodeForSession(
+              exchangeCode,
+            )
+            if (error) {
+              throw error
+            }
+            accessToken = data.session?.access_token ?? accessToken
+            refreshToken = data.session?.refresh_token ?? refreshToken
+          } else if (tokenHash) {
+            const { data, error } = await supabase.auth.verifyOtp({
+              type: "recovery",
+              token_hash: tokenHash,
+            })
+            if (error) {
+              throw error
+            }
+            accessToken = data.session?.access_token ?? accessToken
+            refreshToken = data.session?.refresh_token ?? refreshToken
+          } else if (otpEmail && otpToken) {
+            const { data, error } = await supabase.auth.verifyOtp({
+              type: "recovery",
+              email: otpEmail,
+              token: otpToken,
+            })
+            if (error) {
+              throw error
+            }
+            accessToken = data.session?.access_token ?? accessToken
+            refreshToken = data.session?.refresh_token ?? refreshToken
+          }
+        } catch (error) {
+          console.error("Error intercambiando código de recuperación", error)
+        }
+      }
 
       if (!accessToken || !refreshToken) {
         setState({

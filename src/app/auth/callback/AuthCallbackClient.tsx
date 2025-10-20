@@ -134,8 +134,9 @@ export default function AuthCallbackClient() {
 
     const execute = async () => {
       const params = collectAuthParams(searchParams, window.location.hash)
-      const accessToken = readParam(params, ["access_token", "accessToken"])
-      const refreshToken = readParam(params, ["refresh_token", "refreshToken"])
+      let accessToken = readParam(params, ["access_token", "accessToken"])
+      let refreshToken = readParam(params, ["refresh_token", "refreshToken"])
+      const exchangeCode = readParam(params, ["code"])
       const errorDescription = readParam(params, [
         "error_description",
         "error", // Supabase usa "error" para el código en algunas respuestas
@@ -156,6 +157,7 @@ export default function AuthCallbackClient() {
         "token_type",
         "tokenType",
         "type",
+        "code",
         "error",
         "error_code",
         "error_description",
@@ -168,6 +170,21 @@ export default function AuthCallbackClient() {
         "redirect_to",
         "next",
       ])
+
+      if ((!accessToken || !refreshToken) && supabase && exchangeCode) {
+        try {
+          const { data, error } = await supabase.auth.exchangeCodeForSession(
+            exchangeCode,
+          )
+          if (error) {
+            throw error
+          }
+          accessToken = data.session?.access_token ?? accessToken
+          refreshToken = data.session?.refresh_token ?? refreshToken
+        } catch (error) {
+          console.error("Error intercambiando código de autenticación", error)
+        }
+      }
 
       if (errorDescription) {
         setState({

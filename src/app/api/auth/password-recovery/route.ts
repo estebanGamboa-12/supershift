@@ -58,15 +58,17 @@ export async function POST(request: Request) {
     const redirect =
       resolveRedirect(payload?.redirect) ?? resolveRedirect(payload?.redirectTo)
 
+    const recoveryUrl = buildUpdatePasswordUrl({ redirect })
+
     const { error } = await supabase.auth.resetPasswordForEmail(email, {
-      redirectTo: buildUpdatePasswordUrl({ redirect }),
+      redirectTo: recoveryUrl,
     })
 
     if (error) {
       throw error
     }
 
-    return NextResponse.json({ success: true })
+    return NextResponse.json({ success: true, recoveryUrl })
   } catch (error) {
     if (error instanceof Error) {
       const message = error.message ?? ""

@@ -236,6 +236,20 @@ export default function UpdatePasswordClient() {
       }
 
       if (!accessToken || !refreshToken) {
+        try {
+          const { data, error } = await supabase.auth.getSession()
+          if (error) {
+            throw error
+          }
+
+          accessToken = data.session?.access_token ?? accessToken
+          refreshToken = data.session?.refresh_token ?? refreshToken
+        } catch (error) {
+          console.error("No se pudo obtener la sesión activa de recuperación", error)
+        }
+      }
+
+      if (!accessToken || !refreshToken) {
         setState({
           status: "error",
           title: "Faltan datos en el enlace",

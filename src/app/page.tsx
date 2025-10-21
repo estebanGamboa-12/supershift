@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useMemo, useCallback, useEffect } from "react"
+import { useState, useMemo, useCallback, useEffect, useRef } from "react"
 import { differenceInCalendarDays, format } from "date-fns"
 import { es } from "date-fns/locale"
 import type { ShiftEvent, ShiftPluses, ShiftType } from "@/types/shifts"
@@ -32,6 +32,19 @@ import {
   StatsTab,
   TeamTab,
 } from "@/components/dashboard/mobile-tabs"
+import {
+  addPendingShiftRequest,
+  cacheShiftsForUser,
+  cacheUsers,
+  countPendingShiftRequests,
+  listPendingShiftRequests,
+  readCachedShiftsForUser,
+  readCachedUsers,
+  removePendingShiftRequest,
+  type CachedShiftEvent,
+  type ShiftMutationRequestBody,
+} from "@/lib/offline-db"
+import { OfflineStatusBanner } from "@/components/pwa/offline-status-banner"
 
 type ApiShift = {
   id: number
@@ -142,6 +155,116 @@ class ApiError extends Error {
   }
 }
 
+const TEMP_ID_BASE = -1_000_000
+const BACKGROUND_SYNC_TAG = "sync-shifts"
+
+function generateTemporaryShiftId(): number {
+  const randomOffset = Math.floor(Math.random() * 10_000)
+  return TEMP_ID_BASE - randomOffset - Date.now()
+}
+
+function isLikelyOfflineError(error: unknown): boolean {
+  if (typeof navigator !== "undefined" && !navigator.onLine) {
+    return true
+  }
+
+  if (error instanceof TypeError) {
+    return true
+  }
+
+  return false
+}
+
+function toCachedShiftEvent(
+  shift: ShiftEvent,
+  userId: string,
+): CachedShiftEvent {
+  return {
+    id: shift.id,
+    userId,
+    date: shift.date,
+    type: shift.type,
+    start: shift.start.toISOString(),
+    end: shift.end.toISOString(),
+    ...(shift.note ? { note: shift.note } : {}),
+    ...(shift.label ? { label: shift.label } : {}),
+    ...(shift.color ? { color: shift.color } : {}),
+    ...(shift.pluses
+      ? {
+          pluses: {
+            night: shift.pluses.night,
+            holiday: shift.pluses.holiday,
+            availability: shift.pluses.availability,
+            other: shift.pluses.other,
+          },
+        }
+      : {}),
+  }
+}
+
+function fromCachedShiftEvent(shift: CachedShiftEvent): ShiftEvent {
+  return {
+    id: shift.id,
+    date: shift.date,
+    type: shift.type,
+    start: new Date(shift.start),
+    end: new Date(shift.end),
+    ...(shift.note ? { note: shift.note } : {}),
+    ...(shift.label ? { label: shift.label } : {}),
+    ...(shift.color ? { color: shift.color } : {}),
+    ...(shift.pluses
+      ? {
+          pluses: {
+            night: shift.pluses.night,
+            holiday: shift.pluses.holiday,
+            availability: shift.pluses.availability,
+            other: shift.pluses.other,
+          },
+        }
+      : {}),
+  }
+}
+
+function buildShiftRequestPayload(
+  userId: string,
+  {
+    date,
+    type,
+    note,
+    label,
+    color,
+    pluses,
+  }: {
+    date: string
+    type: ShiftType
+    note?: string
+    label?: string
+    color?: string
+    pluses?: ShiftPluses
+  },
+): ShiftMutationRequestBody {
+  return {
+    date,
+    type,
+    note: note ?? null,
+    label: label ?? null,
+    color: color ?? null,
+    plusNight: pluses?.night ?? 0,
+    plusHoliday: pluses?.holiday ?? 0,
+    plusAvailability: pluses?.availability ?? 0,
+    plusOther: pluses?.other ?? 0,
+    userId,
+  }
+}
+
+function createPendingRequestId(): string {
+  if (typeof crypto !== "undefined" && typeof crypto.randomUUID === "function") {
+    return crypto.randomUUID()
+  }
+
+  return `${Date.now()}-${Math.random().toString(36).slice(2, 10)}`
+}
+
 export default function Home() {
   const [shifts, setShifts] = useState<ShiftEvent[]>([])
   const [selectedShift, setSelectedShift] = useState<ShiftEvent | null>(null)
@@ -162,6 +285,17 @@ export default function Home() {
   const [preferencesSavedAt, setPreferencesSavedAt] = useState<Date | null>(
     null,
   )
+  const [isOffline, setIsOffline] = useState<boolean>(() => {
+    if (typeof navigator === "undefined") {
+      return false
+    }
+
+    return !navigator.onLine
+  })
+  const [isSyncingPendingShifts, setIsSyncingPendingShifts] = useState(false)
+  const [pendingShiftMutations, setPendingShiftMutations] = useState(0)
+  const [lastSyncError, setLastSyncError] = useState<string | null>(null)
+  const isSyncingRef = useRef(false)
 
   const supabase = useMemo(() => {
     if (typeof window === "undefined") {
@@ -313,6 +447,223 @@ export default function Home() {
     window.localStorage.setItem(SESSION_STORAGE_KEY, JSON.stringify(payload))
   }, [])
 
+  const persistShiftsSnapshot = useCallback(
+    (userId: string, snapshot: ShiftEvent[]) => {
+      void cacheShiftsForUser(
+        userId,
+        snapshot.map((shift) => toCachedShiftEvent(shift, userId)),
+      ).catch((error) => {
+        console.error("No se pudo guardar la copia local de los turnos", error)
+      })
+    },
+    [],
+  )
+
+  const refreshPendingMutations = useCallback(async (userId: string) => {
+    try {
+      const count = await countPendingShiftRequests(userId)
+      setPendingShiftMutations(count)
+    } catch (error) {
+      console.error(
+        "No se pudo comprobar el número de cambios pendientes",
+        error,
+      )
+    }
+  }, [])
+
+  const requestBackgroundSync = useCallback(async () => {
+    if (typeof window === "undefined") {
+      return
+    }
+
+    if (!("serviceWorker" in navigator)) {
+      return
+    }
+
+    if (!("SyncManager" in window)) {
+      return
+    }
+
+    try {
+      const registration = (await navigator.serviceWorker.ready) as ServiceWorkerRegistration & {
+        sync?: { register: (tag: string) => Promise<void> }
+      }
+
+      if (!registration.sync) {
+        return
+      }
+
+      await registration.sync.register(BACKGROUND_SYNC_TAG)
+    } catch (error) {
+      console.warn("No se pudo registrar la sincronización en segundo plano", error)
+    }
+  }, [])
+
+  const synchronizePendingShiftRequests = useCallback(async () => {
+    if (!currentUser) {
+      return
+    }
+
+    if (typeof navigator !== "undefined" && !navigator.onLine) {
+      setIsOffline(true)
+      return
+    }
+
+    if (isSyncingRef.current) {
+      return
+    }
+
+    const userId = currentUser.id
+
+    isSyncingRef.current = true
+    setIsSyncingPendingShifts(true)
+    setLastSyncError(null)
+
+    let encounteredError = false
+
+    try {
+      const pending = await listPendingShiftRequests(userId)
+      if (!pending.length) {
+        setPendingShiftMutations(0)
+        return
+      }
+
+      for (const entry of pending) {
+        try {
+          if (entry.method === "DELETE") {
+            const response = await fetch(entry.url, { method: "DELETE" })
+            if (!response.ok && response.status !== 404 && response.status !== 204) {
+              const payload = (await response.json().catch(() => null)) as
+                | { error?: string }
+                | null
+              const message =
+                payload?.error ??
+                `Error al sincronizar la eliminación (${response.status})`
+              throw new Error(message)
+            }
+
+            setShifts((current) => {
+              const target = entry.shiftId ?? entry.optimisticId
+              const filtered =
+                target == null ? current : current.filter((shift) => shift.id !== target)
+              const next = sortByDate(filtered)
+              persistShiftsSnapshot(userId, next)
+              return next
+            })
+          } else if (entry.method === "POST" && entry.body) {
+            const response = await fetch(entry.url, {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify(entry.body),
+            })
+
+            const data = await parseJsonResponse<{ shift: ApiShift }>(response)
+            const syncedShift = mapApiShift(data.shift)
+
+            setShifts((current) => {
+              const filtered = entry.optimisticId
+                ? current.filter((shift) => shift.id !== entry.optimisticId)
+                : current
+              const next = sortByDate([...filtered, syncedShift])
+              persistShiftsSnapshot(userId, next)
+              return next
+            })
+          } else if (entry.method === "PATCH" && entry.body && entry.shiftId) {
+            const response = await fetch(entry.url, {
+              method: "PATCH",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify(entry.body),
+            })
+
+            const data = await parseJsonResponse<{ shift: ApiShift }>(response)
+            const syncedShift = mapApiShift(data.shift)
+
+            setShifts((current) => {
+              const updated = current.map((shift) =>
+                shift.id === syncedShift.id ? syncedShift : shift,
+              )
+              const next = sortByDate(updated)
+              persistShiftsSnapshot(userId, next)
+              return next
+            })
+          }
+
+          await removePendingShiftRequest(entry.id)
+        } catch (error) {
+          encounteredError = true
+          console.error("No se pudo sincronizar una operación pendiente", error)
+          setLastSyncError(
+            error instanceof Error
+              ? error.message
+              : "No se pudieron sincronizar algunos cambios pendientes.",
+          )
+          break
+        }
+      }
+
+      if (!encounteredError) {
+        setLastSyncError(null)
+        if (typeof navigator === "undefined" || navigator.onLine) {
+          setIsOffline(false)
+        }
+      }
+    } finally {
+      await refreshPendingMutations(userId)
+      setIsSyncingPendingShifts(false)
+      isSyncingRef.current = false
+    }
+  }, [
+    currentUser,
+    mapApiShift,
+    parseJsonResponse,
+    persistShiftsSnapshot,
+    refreshPendingMutations,
+    sortByDate,
+  ])
+
+  useEffect(() => {
+    if (typeof window === "undefined") {
+      return
+    }
+
+    const handleOnline = () => {
+      setIsOffline(false)
+      void synchronizePendingShiftRequests()
+    }
+
+    const handleOffline = () => {
+      setIsOffline(true)
+    }
+
+    window.addEventListener("online", handleOnline)
+    window.addEventListener("offline", handleOffline)
+
+    const handleServiceWorkerMessage = (event: MessageEvent) => {
+      const data = event.data as { type?: string } | undefined
+      if (data?.type === "SYNC_PENDING_REQUESTS") {
+        void synchronizePendingShiftRequests()
+      }
+    }
+
+    if ("serviceWorker" in navigator) {
+      navigator.serviceWorker.addEventListener(
+        "message",
+        handleServiceWorkerMessage,
+      )
+    }
+
+    return () => {
+      window.removeEventListener("online", handleOnline)
+      window.removeEventListener("offline", handleOffline)
+      if ("serviceWorker" in navigator) {
+        navigator.serviceWorker.removeEventListener(
+          "message",
+          handleServiceWorkerMessage,
+        )
+      }
+    }
+  }, [synchronizePendingShiftRequests])
+
   const clearSession = useCallback(
     (message?: string, options?: { skipSupabaseSignOut?: boolean }) => {
       setCurrentUser(null)
@@ -354,37 +705,83 @@ export default function Home() {
         throw new Error("Selecciona un usuario antes de crear turnos")
       }
 
+      const userId = currentUser.id
+      const payload = buildShiftRequestPayload(userId, {
+        date,
+        type,
+        note,
+        label,
+        color,
+        pluses,
+      })
+
       try {
         const response = await fetch("/api/shifts", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            date,
-            type,
-            ...(note ? { note } : {}),
-            ...(label ? { label } : {}),
-            ...(color ? { color } : {}),
-            ...(pluses
-              ? {
-                  plusNight: pluses.night,
-                  plusHoliday: pluses.holiday,
-                  plusAvailability: pluses.availability,
-                  plusOther: pluses.other,
-                }
-              : {}),
-            userId: currentUser.id,
-          }),
+          body: JSON.stringify(payload),
         })
 
         const data = await parseJsonResponse<{ shift: ApiShift }>(response)
         const newShift = mapApiShift(data.shift)
-        setShifts((current) => sortByDate([...current, newShift]))
+        setShifts((current) => {
+          const next = sortByDate([...current, newShift])
+          persistShiftsSnapshot(userId, next)
+          return next
+        })
+        setIsOffline(false)
+        setLastSyncError(null)
       } catch (error) {
+        if (isLikelyOfflineError(error)) {
+          const optimisticId = generateTemporaryShiftId()
+          const optimisticShift = mapApiShift({
+            id: optimisticId,
+            date,
+            type,
+            note: payload.note,
+            label: payload.label,
+            color: payload.color,
+            plusNight: payload.plusNight,
+            plusHoliday: payload.plusHoliday,
+            plusAvailability: payload.plusAvailability,
+            plusOther: payload.plusOther,
+          })
+
+          setShifts((current) => {
+            const next = sortByDate([...current, optimisticShift])
+            persistShiftsSnapshot(userId, next)
+            return next
+          })
+
+          await addPendingShiftRequest({
+            id: createPendingRequestId(),
+            userId,
+            method: "POST",
+            url: "/api/shifts",
+            body: payload,
+            optimisticId,
+            createdAt: Date.now(),
+          })
+
+          await refreshPendingMutations(userId)
+          void requestBackgroundSync()
+          setIsOffline(true)
+          return
+        }
+
         console.error("No se pudo crear el turno", error)
         throw error
       }
     },
-    [currentUser, mapApiShift, parseJsonResponse, sortByDate]
+    [
+      currentUser,
+      mapApiShift,
+      parseJsonResponse,
+      persistShiftsSnapshot,
+      refreshPendingMutations,
+      requestBackgroundSync,
+      sortByDate,
+    ],
   )
 
   const handleUpdateShift = useCallback(
@@ -405,48 +802,92 @@ export default function Home() {
       color?: string
       pluses?: ShiftPluses
     }) => {
-      try {
-        if (!currentUser) {
-          throw new Error("Selecciona un usuario antes de actualizar turnos")
-        }
+      if (!currentUser) {
+        throw new Error("Selecciona un usuario antes de actualizar turnos")
+      }
 
-        const response = await fetch(`/api/shifts/${id}?userId=${currentUser.id}`, {
+      const userId = currentUser.id
+      const payload = buildShiftRequestPayload(userId, {
+        date,
+        type,
+        note,
+        label,
+        color,
+        pluses,
+      })
+
+      try {
+        const response = await fetch(`/api/shifts/${id}?userId=${userId}`, {
           method: "PATCH",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            date,
-            type,
-            note: note ?? null,
-            label: label ?? null,
-            color: color ?? null,
-            plusNight: pluses?.night ?? 0,
-            plusHoliday: pluses?.holiday ?? 0,
-            plusAvailability: pluses?.availability ?? 0,
-            plusOther: pluses?.other ?? 0,
-            userId: currentUser.id,
-          }),
+          body: JSON.stringify(payload),
         })
 
         const data = await parseJsonResponse<{ shift: ApiShift }>(response)
         const updatedShift = mapApiShift(data.shift)
-        setShifts((current) =>
-          sortByDate(
-            current.map((shift) =>
-              shift.id === id ? updatedShift : shift
-            )
+        setShifts((current) => {
+          const next = sortByDate(
+            current.map((shift) => (shift.id === id ? updatedShift : shift)),
           )
-        )
+          persistShiftsSnapshot(userId, next)
+          return next
+        })
+        setIsOffline(false)
+        setLastSyncError(null)
       } catch (error) {
+        if (isLikelyOfflineError(error)) {
+          const optimisticShift = mapApiShift({
+            id,
+            date,
+            type,
+            note: payload.note,
+            label: payload.label,
+            color: payload.color,
+            plusNight: payload.plusNight,
+            plusHoliday: payload.plusHoliday,
+            plusAvailability: payload.plusAvailability,
+            plusOther: payload.plusOther,
+          })
+
+          setShifts((current) => {
+            const next = sortByDate(
+              current.map((shift) => (shift.id === id ? optimisticShift : shift)),
+            )
+            persistShiftsSnapshot(userId, next)
+            return next
+          })
+
+          await addPendingShiftRequest({
+            id: createPendingRequestId(),
+            userId,
+            method: "PATCH",
+            url: `/api/shifts/${id}?userId=${userId}`,
+            body: payload,
+            shiftId: id,
+            createdAt: Date.now(),
+          })
+
+          await refreshPendingMutations(userId)
+          void requestBackgroundSync()
+          setIsOffline(true)
+          return
+        }
+
         if (error instanceof ApiError && error.status === 404) {
-          setShifts((current) => current.filter((shift) => shift.id !== id))
+          setShifts((current) => {
+            const filtered = current.filter((shift) => shift.id !== id)
+            const ordered = sortByDate(filtered)
+            persistShiftsSnapshot(userId, ordered)
+            return ordered
+          })
           setSelectedShift((current) =>
-            current && current.id === id ? null : current
+            current && current.id === id ? null : current,
           )
 
           console.error(`No se pudo actualizar el turno ${id}`, error)
           throw new ApiError(
             404,
-            "El turno que intentabas editar ya no existe. Se ha eliminado de la vista."
+            "El turno que intentabas editar ya no existe. Se ha eliminado de la vista.",
           )
         }
 
@@ -454,22 +895,28 @@ export default function Home() {
         throw error
       }
     },
-    [currentUser, mapApiShift, parseJsonResponse, sortByDate]
+    [
+      currentUser,
+      mapApiShift,
+      parseJsonResponse,
+      persistShiftsSnapshot,
+      refreshPendingMutations,
+      requestBackgroundSync,
+      sortByDate,
+    ],
   )
-
   const handleDeleteShift = useCallback(
     async (id: number) => {
       if (!currentUser) {
         throw new Error("Selecciona un usuario antes de eliminar turnos")
       }
 
+      const userId = currentUser.id
+
       try {
-        const response = await fetch(
-          `/api/shifts/${id}?userId=${currentUser.id}`,
-          {
-            method: "DELETE",
-          }
-        )
+        const response = await fetch(`/api/shifts/${id}?userId=${userId}`, {
+          method: "DELETE",
+        })
 
         if (!response.ok && response.status !== 204) {
           const payload = (await response.json().catch(() => null)) as
@@ -482,13 +929,47 @@ export default function Home() {
           throw new Error(message)
         }
 
-        setShifts((current) => current.filter((shift) => shift.id !== id))
+        setShifts((current) => {
+          const next = sortByDate(current.filter((shift) => shift.id !== id))
+          persistShiftsSnapshot(userId, next)
+          return next
+        })
+        setIsOffline(false)
+        setLastSyncError(null)
       } catch (error) {
+        if (isLikelyOfflineError(error)) {
+          setShifts((current) => {
+            const next = sortByDate(current.filter((shift) => shift.id !== id))
+            persistShiftsSnapshot(userId, next)
+            return next
+          })
+
+          await addPendingShiftRequest({
+            id: createPendingRequestId(),
+            userId,
+            method: "DELETE",
+            url: `/api/shifts/${id}?userId=${userId}`,
+            shiftId: id,
+            createdAt: Date.now(),
+          })
+
+          await refreshPendingMutations(userId)
+          void requestBackgroundSync()
+          setIsOffline(true)
+          return
+        }
+
         console.error(`No se pudo eliminar el turno ${id}`, error)
         throw error
       }
     },
-    [currentUser]
+    [
+      currentUser,
+      persistShiftsSnapshot,
+      refreshPendingMutations,
+      requestBackgroundSync,
+      sortByDate,
+    ],
   )
 
   const handleManualRotationConfirm = useCallback(
@@ -762,16 +1243,33 @@ export default function Home() {
     let isMounted = true
 
     const loadUsers = async () => {
+      let usedCachedUsers = false
+
+      if (typeof window !== "undefined") {
+        try {
+          const cached = await readCachedUsers()
+          if (isMounted && cached.length > 0) {
+            setUsers(cached)
+            setUserError(null)
+            setIsLoadingUsers(false)
+            usedCachedUsers = true
+          }
+        } catch (error) {
+          console.error("No se pudieron recuperar los usuarios en caché", error)
+        }
+      }
+
       try {
-        setIsLoadingUsers(true)
+        if (!usedCachedUsers) {
+          setIsLoadingUsers(true)
+        }
+
         const response = await fetch("/api/users", { cache: "no-store" })
         const data = await parseJsonResponse<{
           users: Array<
             Omit<UserSummary, "calendarId"> & { calendarId?: number | null }
           >
-        }>(
-          response
-        )
+        }>(response)
 
         if (!isMounted) {
           return
@@ -783,17 +1281,30 @@ export default function Home() {
 
         setUsers(sanitizedUsers)
         setUserError(null)
+        setIsLoadingUsers(false)
+
+        try {
+          await cacheUsers(
+            sanitizedUsers.map((user) => ({
+              id: user.id,
+              name: user.name,
+              email: user.email,
+              calendarId: user.calendarId ?? null,
+            })),
+          )
+        } catch (error) {
+          console.error("No se pudieron guardar los usuarios en caché", error)
+        }
       } catch (error) {
         console.error("No se pudieron cargar los usuarios", error)
         if (isMounted) {
-          setUserError(
-            error instanceof Error
-              ? error.message
-              : "No se pudieron cargar los usuarios"
-          )
-        }
-      } finally {
-        if (isMounted) {
+          if (!usedCachedUsers) {
+            setUserError(
+              error instanceof Error
+                ? error.message
+                : "No se pudieron cargar los usuarios",
+            )
+          }
           setIsLoadingUsers(false)
         }
       }
@@ -809,34 +1320,77 @@ export default function Home() {
   useEffect(() => {
     if (!currentUser) {
       setShifts([])
+      setPendingShiftMutations(0)
       return
     }
 
     let isMounted = true
 
-    const loadShiftsFromApi = async () => {
+    const loadShifts = async () => {
+      const userId = currentUser.id
+
+      if (typeof window !== "undefined") {
+        try {
+          const cached = await readCachedShiftsForUser(userId)
+          if (isMounted && cached.length > 0) {
+            const restored = sortByDate(cached.map((item) => fromCachedShiftEvent(item)))
+            setShifts(restored)
+          }
+        } catch (error) {
+          console.error("No se pudieron recuperar los turnos en caché", error)
+        }
+      }
+
       try {
-        const data = await fetchShiftsFromApi(currentUser.id)
+        const data = await fetchShiftsFromApi(userId)
         if (!isMounted) {
           return
         }
-        setShifts(sortByDate(data))
+        const ordered = sortByDate(data)
+        setShifts(ordered)
+        persistShiftsSnapshot(userId, ordered)
+        setIsOffline(false)
+        setLastSyncError(null)
       } catch (error) {
         console.error("No se pudieron cargar los turnos desde la API", error)
         if (error instanceof ApiError && error.status === 404 && isMounted) {
           clearSession(
-            "El usuario seleccionado ya no existe. Inicia sesión nuevamente."
+            "El usuario seleccionado ya no existe. Inicia sesión nuevamente.",
           )
+        }
+
+        if (isMounted && isLikelyOfflineError(error)) {
+          setIsOffline(true)
         }
       }
     }
 
-    void loadShiftsFromApi()
+    void loadShifts()
+    void refreshPendingMutations(currentUser.id)
 
     return () => {
       isMounted = false
     }
-  }, [clearSession, currentUser, fetchShiftsFromApi, sortByDate])
+  }, [
+    clearSession,
+    currentUser,
+    fetchShiftsFromApi,
+    persistShiftsSnapshot,
+    refreshPendingMutations,
+    sortByDate,
+  ])
+
+  useEffect(() => {
+    if (!currentUser) {
+      return
+    }
+
+    if (typeof navigator !== "undefined" && !navigator.onLine) {
+      return
+    }
+
+    void synchronizePendingShiftRequests()
+  }, [currentUser, synchronizePendingShiftRequests])
 
   const handleLoginSuccess = useCallback(
     (user: UserSummary) => {
@@ -928,17 +1482,33 @@ export default function Home() {
     clearSession(undefined, { skipSupabaseSignOut: true })
   }, [clearSession, supabase])
 
-  const handleUserCreated = useCallback((user: UserSummary) => {
-    const sanitized = sanitizeUserSummary(user)
-    if (!sanitized) {
-      return
-    }
+  const handleUserCreated = useCallback(
+    (user: UserSummary) => {
+      const sanitized = sanitizeUserSummary(user)
+      if (!sanitized) {
+        return
+      }
 
-    setUsers((current) => {
-      const filtered = current.filter((item) => item.id !== sanitized.id)
-      return [...filtered, sanitized].sort((a, b) => a.id.localeCompare(b.id))
-    })
-  }, [])
+      setUsers((current) => {
+        const filtered = current.filter((item) => item.id !== sanitized.id)
+        const next = [...filtered, sanitized].sort((a, b) =>
+          a.id.localeCompare(b.id),
+        )
+        void cacheUsers(
+          next.map((item) => ({
+            id: item.id,
+            name: item.name,
+            email: item.email,
+            calendarId: item.calendarId ?? null,
+          })),
+        ).catch((error) => {
+          console.error("No se pudieron actualizar los usuarios en caché", error)
+        })
+        return next
+      })
+    },
+    [],
+  )
 
   const handleOpenMobileAdd = useCallback(() => {
     setActiveMobileTab("calendar")
@@ -961,6 +1531,13 @@ export default function Home() {
       <div className="min-h-screen bg-slate-950 text-white">
         <main className="mx-auto flex min-h-screen w-full max-w-5xl items-center justify-center px-4 py-16">
           <div className="w-full space-y-6">
+            <OfflineStatusBanner
+              isOffline={isOffline}
+              pendingCount={pendingShiftMutations}
+              isSyncing={isSyncingPendingShifts}
+              lastError={lastSyncError}
+              onRetry={synchronizePendingShiftRequests}
+            />
             {userError && (
               <div className="rounded-2xl border border-red-400/40 bg-red-500/10 px-4 py-3 text-sm text-red-200">
                 {userError}
@@ -987,6 +1564,13 @@ export default function Home() {
       <DashboardSidebar />
 
       <div className="flex w-full flex-col">
+        <OfflineStatusBanner
+          isOffline={isOffline}
+          pendingCount={pendingShiftMutations}
+          isSyncing={isSyncingPendingShifts}
+          lastError={lastSyncError}
+          onRetry={synchronizePendingShiftRequests}
+        />
         <div className="hidden lg:block">
           <section className="rounded-3xl border border-white/10 bg-slate-950/70 px-6 py-6 shadow-[0_45px_120px_-55px_rgba(37,99,235,0.65)]">
             <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">

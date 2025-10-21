@@ -2,9 +2,11 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react"
 import { AnimatePresence, motion } from "framer-motion"
+import { AlertTriangle, CalendarDays, Check, Sparkles, X } from "lucide-react"
 import {
   addDays,
   addMonths,
+  differenceInCalendarDays,
   eachDayOfInterval,
   endOfMonth,
   format,
@@ -296,6 +298,44 @@ export default function ShiftPlannerLab({
     [currentMonth],
   )
 
+  const rotationTargetMonth = useMemo(() => {
+    const parsed = parseISO(rotationStart)
+    if (Number.isNaN(parsed.getTime())) {
+      return startOfMonth(currentMonth)
+    }
+
+    return startOfMonth(parsed)
+  }, [currentMonth, rotationStart])
+
+  const rotationTargetMonthLabel = useMemo(() => {
+    const raw = format(rotationTargetMonth, "MMMM yyyy", { locale: es })
+    return raw.charAt(0).toUpperCase() + raw.slice(1)
+  }, [rotationTargetMonth])
+
+  const monthHasEntries = useMemo(() => {
+    const monthStart = rotationTargetMonth
+    const monthEnd = endOfMonth(rotationTargetMonth)
+
+    return Object.values(entries).some((entry) => {
+      const entryDate = parseISO(entry.date)
+      return entryDate >= monthStart && entryDate <= monthEnd
+    })
+  }, [entries, rotationTargetMonth])
+
+  const rotationPatternLabel = useMemo(
+    () => `${rotationPattern[0]}×${rotationPattern[1]}`,
+    [rotationPattern],
+  )
+
+  const rotationStartLabel = useMemo(() => {
+    const parsed = parseISO(rotationStart)
+    if (Number.isNaN(parsed.getTime())) {
+      return rotationStart
+    }
+
+    return format(parsed, "dd 'de' MMMM yyyy", { locale: es })
+  }, [rotationStart])
+
   const progressWorked = monthDays.length
     ? Math.min(100, Math.round((stats.worked / monthDays.length) * 100))
     : 0
@@ -354,36 +394,31 @@ export default function ShiftPlannerLab({
       return false
     }
 
-    const targetMonth = isSameMonth(parsedStart, currentMonth)
-      ? startOfMonth(currentMonth)
-      : startOfMonth(parsedStart)
+    const targetMonth = rotationTargetMonth
     const monthStart = startOfMonth(targetMonth)
     const monthEnd = endOfMonth(targetMonth)
 
     updateEntries((prev) => {
       const updates: Record<string, PlannerEntry> = {}
-      let pointer = parsedStart < monthStart ? monthStart : parsedStart
-      let isWork = true
-      let remaining = workLength
+      const cycleLength = workLength + restLength
+      let pointer = monthStart
 
       while (pointer <= monthEnd) {
         const iso = toIsoDate(pointer)
-        const existing = prev[iso]
-        const shiftType: ShiftType = isWork ? "WORK" : "REST"
-        const palette = SHIFT_TYPES.find(({ value }) => value === shiftType)?.defaultColor
+        const diff = differenceInCalendarDays(pointer, parsedStart)
+        const normalized = ((diff % cycleLength) + cycleLength) % cycleLength
+        const shiftType: ShiftType = normalized < workLength ? "WORK" : "REST"
+        const palette =
+          SHIFT_TYPES.find(({ value }) => value === shiftType)?.defaultColor ??
+          (shiftType === "REST" ? "#64748b" : "#2563eb")
+
         updates[iso] = {
           date: iso,
           type: shiftType,
-          note: existing?.note ?? "",
-          color: existing?.color ?? palette ?? "#2563eb",
-          label: existing?.label ?? SHIFT_LABELS[shiftType],
-          pluses: existing?.pluses ? { ...existing.pluses } : { ...INITIAL_PLUSES },
-        }
-
-        remaining -= 1
-        if (remaining <= 0) {
-          isWork = !isWork
-          remaining = isWork ? workLength : restLength
+          note: "",
+          color: palette,
+          label: SHIFT_LABELS[shiftType],
+          pluses: { ...INITIAL_PLUSES },
         }
 
         pointer = addDays(pointer, 1)
@@ -396,11 +431,34 @@ export default function ShiftPlannerLab({
     })
 
     setCurrentMonth(monthStart)
-    pushToast("success", "La rotación se aplicó correctamente al calendario visible.")
+    pushToast(
+      "success",
+      monthHasEntries
+        ? `La rotación anterior se reemplazó con el nuevo patrón en ${rotationTargetMonthLabel}.`
+        : `La rotación se aplicó correctamente en ${rotationTargetMonthLabel}.`,
+    )
     return true
-  }, [currentMonth, pushToast, rotationPattern, rotationStart, updateEntries])
+  }, [
+    monthHasEntries,
+    pushToast,
+    rotationPattern,
+    rotationStart,
+    rotationTargetMonth,
+    rotationTargetMonthLabel,
+    updateEntries,
+  ])
 
   function confirmApplyRotation() {
+    if (monthHasEntries && typeof window !== "undefined") {
+      const shouldOverwrite = window.confirm(
+        `Ya existe una rotación aplicada en ${rotationTargetMonthLabel}. ¿Quieres reemplazarla con el nuevo patrón?`,
+      )
+
+      if (!shouldOverwrite) {
+        return
+      }
+    }
+
     const applied = handleApplyRotation()
     if (applied) {
       setIsConfirmingRotation(false)
@@ -640,33 +698,85 @@ export default function ShiftPlannerLab({
                   className="w-full rounded-lg border border-white/10 bg-white/5 px-3 py-2 text-sm text-white focus:border-sky-400 focus:outline-none focus:ring-2 focus:ring-sky-400/40 sm:max-w-[180px]"
                 />
                 {isConfirmingRotation ? (
-                  <div className="flex w-full flex-col gap-3 rounded-2xl border border-white/10 bg-white/5 p-3 text-[11px] text-white/70 sm:flex-row sm:items-center sm:justify-between sm:text-xs">
-                    <p className="flex-1 text-left sm:pr-4">
-                      Confirma si quieres aplicar el patrón seleccionado sobre el calendario mostrado.
-                    </p>
-                    <div className="flex flex-col gap-2 sm:flex-row">
-                      <button
-                        type="button"
-                        onClick={confirmApplyRotation}
-                        className="inline-flex items-center justify-center rounded-full bg-emerald-500 px-4 py-2 text-xs font-semibold uppercase tracking-wide text-emerald-950 shadow shadow-emerald-500/30 transition hover:brightness-110"
-                      >
-                        Confirmar
-                      </button>
-                      <button
-                        type="button"
-                        onClick={() => setIsConfirmingRotation(false)}
-                        className="inline-flex items-center justify-center rounded-full border border-white/20 bg-transparent px-4 py-2 text-xs font-semibold uppercase tracking-wide text-white/70 transition hover:border-white/40 hover:text-white"
-                      >
-                        Cancelar
-                      </button>
+                  <motion.div
+                    initial={{ opacity: 0, y: 10 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    transition={{ duration: 0.25, ease: "easeOut" }}
+                    className="relative w-full overflow-hidden rounded-2xl border border-white/15 bg-slate-950/75 p-4 text-left text-xs text-white/70 shadow-lg shadow-slate-950/40"
+                  >
+                    <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_top,_rgba(56,189,248,0.18),transparent_55%),_radial-gradient(circle_at_bottom,_rgba(236,72,153,0.16),transparent_60%)]" />
+                    <div className="relative flex flex-col gap-4">
+                      <div className="flex items-start gap-3">
+                        <div className="flex h-10 w-10 items-center justify-center rounded-full bg-sky-500/20 text-sky-200">
+                          <Sparkles className="h-5 w-5" />
+                        </div>
+                        <div className="space-y-1">
+                          <p className="text-sm font-semibold text-white">Aplicar nueva rotación</p>
+                          <p className="text-xs text-white/70">
+                            {monthHasEntries
+                              ? `Se reemplazarán los turnos configurados en ${rotationTargetMonthLabel} por el nuevo patrón seleccionado.`
+                              : "Confirma si quieres aplicar el patrón seleccionado sobre el calendario mostrado."}
+                          </p>
+                        </div>
+                      </div>
+
+                      <div className="grid gap-3 rounded-xl border border-white/10 bg-slate-900/70 p-3 sm:grid-cols-2">
+                        <div className="flex items-start gap-3">
+                          <Sparkles className="mt-1 h-4 w-4 text-sky-300" />
+                          <div className="space-y-1">
+                            <p className="text-[11px] uppercase tracking-wide text-white/40">Patrón</p>
+                            <p className="text-sm font-semibold text-white">{rotationPatternLabel}</p>
+                            <p className="text-[10px] text-white/50">
+                              {rotationPattern[0]} días de trabajo · {rotationPattern[1]} de descanso
+                            </p>
+                          </div>
+                        </div>
+                        <div className="flex items-start gap-3">
+                          <CalendarDays className="mt-1 h-4 w-4 text-fuchsia-300" />
+                          <div className="space-y-1">
+                            <p className="text-[11px] uppercase tracking-wide text-white/40">Inicio</p>
+                            <p className="text-sm font-semibold text-white">{rotationStartLabel}</p>
+                            <p className="text-[10px] text-white/50">Se aplicará al mes de {rotationTargetMonthLabel}.</p>
+                          </div>
+                        </div>
+                      </div>
+
+                      {monthHasEntries ? (
+                        <div className="flex items-center gap-2 rounded-xl border border-amber-400/40 bg-amber-500/10 p-3 text-[11px] text-amber-200">
+                          <AlertTriangle className="h-4 w-4" />
+                          <span>
+                            Se sustituirán los turnos existentes en {rotationTargetMonthLabel}.
+                          </span>
+                        </div>
+                      ) : null}
+
+                      <div className="flex flex-col gap-2 sm:flex-row sm:justify-end">
+                        <button
+                          type="button"
+                          onClick={confirmApplyRotation}
+                          className="inline-flex items-center justify-center gap-2 rounded-full bg-gradient-to-r from-emerald-400 to-emerald-500 px-4 py-2 text-xs font-semibold uppercase tracking-wide text-emerald-950 shadow shadow-emerald-500/30 transition hover:brightness-110 focus:outline-none focus:ring-2 focus:ring-emerald-400/40 focus:ring-offset-2 focus:ring-offset-slate-950"
+                        >
+                          <Check className="h-4 w-4" />
+                          Confirmar
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => setIsConfirmingRotation(false)}
+                          className="inline-flex items-center justify-center gap-2 rounded-full border border-white/20 px-4 py-2 text-xs font-semibold uppercase tracking-wide text-white/70 transition hover:border-white/40 hover:text-white focus:outline-none focus:ring-2 focus:ring-white/30 focus:ring-offset-2 focus:ring-offset-slate-950"
+                        >
+                          <X className="h-4 w-4" />
+                          Cancelar
+                        </button>
+                      </div>
                     </div>
-                  </div>
+                  </motion.div>
                 ) : (
                   <button
                     type="button"
                     onClick={() => setIsConfirmingRotation(true)}
-                    className="inline-flex items-center justify-center rounded-full bg-gradient-to-r from-sky-500 to-fuchsia-500 px-4 py-2 text-xs font-semibold uppercase tracking-wide text-white shadow shadow-sky-500/30 transition hover:brightness-110"
+                    className="inline-flex items-center justify-center gap-2 rounded-full bg-gradient-to-r from-sky-500 via-sky-400 to-fuchsia-500 px-4 py-2 text-xs font-semibold uppercase tracking-wide text-white shadow-lg shadow-sky-500/30 transition hover:scale-[1.02] hover:brightness-110 focus:outline-none focus:ring-2 focus:ring-sky-400/40 focus:ring-offset-2 focus:ring-offset-slate-950"
                   >
+                    <Sparkles className="h-4 w-4" />
                     Aplicar patrón
                   </button>
                 )}

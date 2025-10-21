@@ -6,6 +6,7 @@ import { motion, AnimatePresence } from "framer-motion"
 import type { UserSummary } from "@/types/users"
 import { getSupabaseBrowserClient } from "@/lib/supabase"
 import { exchangeAccessToken } from "@/lib/auth-client"
+import { buildRecoveryCallbackUrl } from "@/lib/auth-links"
 
 type UserAuthPanelProps = {
   users: UserSummary[]
@@ -232,11 +233,21 @@ export default function UserAuthPanel({
 
     try {
       setIsResetting(true)
+      let redirectTo: string | undefined
+
+      try {
+        redirectTo = buildRecoveryCallbackUrl()
+      } catch (error) {
+        setResetError(
+          error instanceof Error
+            ? error.message
+            : "No se pudo generar el enlace de recuperación. Revisa la configuración.",
+        )
+        return
+      }
+
       const { error } = await supabase.auth.resetPasswordForEmail(email, {
-        redirectTo:
-          typeof window !== "undefined"
-            ? `${window.location.origin}/auth/update-password`
-            : undefined,
+        redirectTo,
       })
 
       if (error) {

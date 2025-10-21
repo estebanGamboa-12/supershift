@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server"
 import { getSupabaseClient } from "@/lib/supabase"
-import { buildUpdatePasswordUrl } from "@/lib/auth-links"
+import { buildRecoveryCallbackUrl } from "@/lib/auth-links"
 
 export const runtime = "nodejs"
 
@@ -58,7 +58,7 @@ export async function POST(request: Request) {
     const redirect =
       resolveRedirect(payload?.redirect) ?? resolveRedirect(payload?.redirectTo)
 
-    const recoveryUrl = buildUpdatePasswordUrl({ redirect })
+    const recoveryUrl = buildRecoveryCallbackUrl({ redirect })
 
     const { error } = await supabase.auth.resetPasswordForEmail(email, {
       redirectTo: recoveryUrl,

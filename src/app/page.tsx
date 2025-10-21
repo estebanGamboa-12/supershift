@@ -429,46 +429,6 @@ export default function Home() {
     restoreSession()
   }, [restoreSession])
 
-  useEffect(() => {
-    if (typeof window === "undefined") {
-      return
-    }
-
-    const handleOnline = () => {
-      setIsOffline(false)
-      void synchronizePendingShiftRequests()
-    }
-
-    const handleOffline = () => {
-      setIsOffline(true)
-    }
-
-    window.addEventListener("online", handleOnline)
-    window.addEventListener("offline", handleOffline)
-
-    const handleServiceWorkerMessage = (event: MessageEvent) => {
-      const data = event.data as { type?: string } | undefined
-      if (data?.type === "SYNC_PENDING_REQUESTS") {
-        void synchronizePendingShiftRequests()
-      }
-    }
-
-    if ("serviceWorker" in navigator) {
-      navigator.serviceWorker.addEventListener("message", handleServiceWorkerMessage)
-    }
-
-    return () => {
-      window.removeEventListener("online", handleOnline)
-      window.removeEventListener("offline", handleOffline)
-      if ("serviceWorker" in navigator) {
-        navigator.serviceWorker.removeEventListener(
-          "message",
-          handleServiceWorkerMessage,
-        )
-      }
-    }
-  }, [synchronizePendingShiftRequests])
-
   const persistSession = useCallback((user: UserSummary) => {
     if (typeof window === "undefined") {
       return
@@ -525,7 +485,14 @@ export default function Home() {
     }
 
     try {
-      const registration = await navigator.serviceWorker.ready
+      const registration = (await navigator.serviceWorker.ready) as ServiceWorkerRegistration & {
+        sync?: { register: (tag: string) => Promise<void> }
+      }
+
+      if (!registration.sync) {
+        return
+      }
+
       await registration.sync.register(BACKGROUND_SYNC_TAG)
     } catch (error) {
       console.warn("No se pudo registrar la sincronización en segundo plano", error)
@@ -653,6 +620,49 @@ export default function Home() {
     refreshPendingMutations,
     sortByDate,
   ])
+
+  useEffect(() => {
+    if (typeof window === "undefined") {
+      return
+    }
+
+    const handleOnline = () => {
+      setIsOffline(false)
+      void synchronizePendingShiftRequests()
+    }
+
+    const handleOffline = () => {
+      setIsOffline(true)
+    }
+
+    window.addEventListener("online", handleOnline)
+    window.addEventListener("offline", handleOffline)
+
+    const handleServiceWorkerMessage = (event: MessageEvent) => {
+      const data = event.data as { type?: string } | undefined
+      if (data?.type === "SYNC_PENDING_REQUESTS") {
+        void synchronizePendingShiftRequests()
+      }
+    }
+
+    if ("serviceWorker" in navigator) {
+      navigator.serviceWorker.addEventListener(
+        "message",
+        handleServiceWorkerMessage,
+      )
+    }
+
+    return () => {
+      window.removeEventListener("online", handleOnline)
+      window.removeEventListener("offline", handleOffline)
+      if ("serviceWorker" in navigator) {
+        navigator.serviceWorker.removeEventListener(
+          "message",
+          handleServiceWorkerMessage,
+        )
+      }
+    }
+  }, [synchronizePendingShiftRequests])
 
   const clearSession = useCallback(
     (message?: string, options?: { skipSupabaseSignOut?: boolean }) => {

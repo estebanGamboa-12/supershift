@@ -4,10 +4,6 @@ import { getSupabaseClient } from "@/lib/supabase"
 
 export const runtime = "nodejs"
 
-type RouteContext = {
-  params: { userId: string }
-}
-
 function sanitizeId(value: unknown): string | null {
   if (typeof value !== "string") {
     return null
@@ -18,8 +14,12 @@ function sanitizeId(value: unknown): string | null {
 
 const DEFAULT_TIMEZONE = "Europe/Madrid"
 
-export async function GET(_request: Request, context: RouteContext) {
-  const userId = sanitizeId(context.params.userId)
+export async function GET(
+  _request: Request,
+  { params }: { params: Promise<{ userId: string }> },
+) {
+  const { userId: rawUserId } = await params
+  const userId = sanitizeId(rawUserId)
 
   if (!userId) {
     return NextResponse.json(

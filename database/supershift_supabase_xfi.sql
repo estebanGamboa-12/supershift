@@ -191,7 +191,7 @@ INSERT INTO shift_types (code, label, color) VALUES
   ('VACATION', 'Vacaciones', '#f97316'),
   ('WORK', 'Trabajo', '#2563eb');
 
-INSERT INTO users (id, email, name, password_hash, timezone, avatar_url) VALUES
+INSERT INTO users (id, email, name, password_hash, timezone, avatar_url) OVERRIDING SYSTEM VALUE VALUES
   (
     1,
     'admin@supershift.local',
@@ -211,7 +211,7 @@ INSERT INTO users (id, email, name, password_hash, timezone, avatar_url) VALUES
 
 SELECT setval(pg_get_serial_sequence('users', 'id'), 2, true);
 
-INSERT INTO teams (id, name, owner_user_id, created_at, updated_at) VALUES
+INSERT INTO teams (id, name, owner_user_id, created_at, updated_at) OVERRIDING SYSTEM VALUE VALUES
   (1, 'Equipo Demo', 1, now(), now());
 SELECT setval(pg_get_serial_sequence('teams', 'id'), 1, true);
 
@@ -219,16 +219,16 @@ INSERT INTO team_members (team_id, user_id, role, joined_at) VALUES
   (1, 1, 'owner', now()),
   (1, 2, 'member', now());
 
-INSERT INTO calendars (id, name, team_id, owner_user_id, timezone, color, created_at, updated_at) VALUES
+INSERT INTO calendars (id, name, team_id, owner_user_id, timezone, color, created_at, updated_at) OVERRIDING SYSTEM VALUE VALUES
   (1, 'Calendario Equipo', 1, NULL, 'Europe/Madrid', '#1e40af', now(), now()),
   (2, 'Calendario de Esteban', NULL, 2, 'Europe/Madrid', '#0ea5e9', now(), now());
 SELECT setval(pg_get_serial_sequence('calendars', 'id'), 2, true);
 
-INSERT INTO rotation_templates (id, calendar_id, name, description, start_date, days_horizon, created_by, created_at, updated_at) VALUES
+INSERT INTO rotation_templates (id, calendar_id, name, description, start_date, days_horizon, created_by, created_at, updated_at) OVERRIDING SYSTEM VALUE VALUES
   (1, 1, 'Ciclo 4x2', '4 días trabajo, 2 descanso', '2025-10-01', 60, 1, now(), now());
 SELECT setval(pg_get_serial_sequence('rotation_templates', 'id'), 1, true);
 
-INSERT INTO rotation_steps (id, template_id, day_offset, shift_type_code) VALUES
+INSERT INTO rotation_steps (id, template_id, day_offset, shift_type_code) OVERRIDING SYSTEM VALUE VALUES
   (1, 1, 0, 'WORK'),
   (2, 1, 1, 'WORK'),
   (3, 1, 2, 'WORK'),
@@ -237,7 +237,7 @@ INSERT INTO rotation_steps (id, template_id, day_offset, shift_type_code) VALUES
   (6, 1, 5, 'REST');
 SELECT setval(pg_get_serial_sequence('rotation_steps', 'id'), 6, true);
 
-INSERT INTO shifts (id, calendar_id, assignee_user_id, shift_type_code, start_at, end_at, all_day, note, label, color, plus_night, plus_holiday, plus_availability, plus_other, created_at, updated_at) VALUES
+INSERT INTO shifts (id, calendar_id, assignee_user_id, shift_type_code, start_at, end_at, all_day, note, label, color, plus_night, plus_holiday, plus_availability, plus_other, created_at, updated_at) OVERRIDING SYSTEM VALUE VALUES
   (1, 2, 2, 'WORK', '2025-10-01 00:00:00+00', '2025-10-01 23:59:59+00', true, 'Entrega de reporte mensual', 'Trabajo', '#2563eb', 0, 1, 0, 0, now(), now()),
   (2, 2, 2, 'REST', '2025-10-02 00:00:00+00', '2025-10-02 23:59:59+00', true, 'Recuperar horas de sueño', 'Descanso', '#64748b', 0, 0, 0, 0, now(), now()),
   (3, 2, 2, 'NIGHT', '2025-10-03 00:00:00+00', '2025-10-03 23:59:59+00', true, 'Cobertura guardia', 'Nocturno', '#7c3aed', 2, 0, 1, 0, now(), now());

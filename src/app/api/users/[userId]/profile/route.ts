@@ -1,12 +1,8 @@
 import { NextResponse } from "next/server"
 
-import { upsertUserProfile } from "@/app/api/users/route"
+import { upsertUserProfile } from "@/app/api/users/upsertUserProfile"
 
 export const runtime = "nodejs"
-
-type RouteContext = {
-  params: { userId: string }
-}
 
 function sanitizeString(value: unknown): string | null {
   if (typeof value !== "string") {
@@ -24,8 +20,12 @@ function sanitizeId(value: unknown): string | null {
   return trimmed.length > 0 ? trimmed : null
 }
 
-export async function PATCH(request: Request, context: RouteContext) {
-  const userId = sanitizeId(context.params.userId)
+export async function PATCH(
+  request: Request,
+  { params }: { params: Promise<{ userId: string }> },
+) {
+  const { userId: rawUserId } = await params
+  const userId = sanitizeId(rawUserId)
 
   if (!userId) {
     return NextResponse.json(

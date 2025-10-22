@@ -24,6 +24,8 @@ function sanitizeString(value: unknown): string | null {
   return trimmed.length > 0 ? trimmed : null
 }
 
+type RegistrationDelivery = "custom-email" | "supabase-email"
+
 async function createUserProfile({
   id,
   name,
@@ -132,11 +134,13 @@ async function registerUsingAdminClient({
   email,
   password,
   timezone,
+  authCallbackUrl,
 }: {
   name: string
   email: string
   password: string
   timezone: string
+  authCallbackUrl: string
 }) {
   const supabase = getSupabaseClient()
   const { data, error } = await supabase.auth.admin.generateLink({
@@ -147,7 +151,7 @@ async function registerUsingAdminClient({
       data: {
         full_name: name,
       },
-      redirectTo: buildAuthCallbackUrl(),
+      redirectTo: authCallbackUrl,
     },
   })
 
@@ -185,7 +189,7 @@ async function registerUsingAdminClient({
     text,
   })
 
-  return { user: userProfile }
+  return { user: userProfile, delivery: "custom-email" as RegistrationDelivery }
 }
 
 async function registerUsingSignUp({
@@ -193,11 +197,13 @@ async function registerUsingSignUp({
   email,
   password,
   timezone,
+  authCallbackUrl,
 }: {
   name: string
   email: string
   password: string
   timezone: string
+  authCallbackUrl: string
 }) {
   const supabase = createSupabaseAnonServerClient()
   const { data, error } = await supabase.auth.signUp({
@@ -207,7 +213,7 @@ async function registerUsingSignUp({
       data: {
         full_name: name,
       },
-      emailRedirectTo: buildAuthCallbackUrl(),
+      emailRedirectTo: authCallbackUrl,
     },
   })
 
@@ -229,7 +235,94 @@ async function registerUsingSignUp({
     avatarUrl: null,
   })
 
-  return { user: userProfile }
+  return { user: userProfile, delivery: "supabase-email" as RegistrationDelivery }
+}
+
+function getForwardedHost(headers: Headers): string | null {
+  const forwardedHost = headers.get("x-forwarded-host") ?? headers.get("forwarded")
+
+  if (forwardedHost) {
+    const directHost = forwardedHost
+      .split(",")
+      .map((value) => value.trim())
+      .find((value) => value.length > 0)
+
+    if (directHost) {
+      if (directHost.includes("host=")) {
+        const hostMatch = /host=([^;]+)/i.exec(directHost)
+        if (hostMatch?.[1]) {
+          return hostMatch[1].trim()
+        }
+      }
+
+      return directHost
+    }
+  }
+
+  return null
+}
+
+function resolveRequestOrigin(request: Request): string | null {
+  const { headers } = request
+
+  const headerOrigin = headers.get("origin")?.trim()
+  if (headerOrigin) {
+    return headerOrigin.replace(/\/$/, "")
+  }
+
+  const forwardedHost = getForwardedHost(headers)
+  if (forwardedHost) {
+    const protocolHeader = headers.get("x-forwarded-proto")
+    const protocol = protocolHeader
+      ? protocolHeader.split(",")[0]?.trim() || "https"
+      : "https"
+    return `${protocol}://${forwardedHost.replace(/\/$/, "")}`
+  }
+
+  const host = headers.get("host")?.trim()
+  if (host) {
+    try {
+      const url = new URL(request.url)
+      return `${url.protocol}//${host.replace(/\/$/, "")}`.replace(/\/$/, "")
+    } catch {
+      return `https://${host.replace(/\/$/, "")}`
+    }
+  }
+
+  try {
+    const url = new URL(request.url)
+    return url.origin.replace(/\/$/, "")
+  } catch {
+    return null
+  }
+}
+
+function resolveAuthCallbackUrl(request: Request): string {
+  try {
+    return buildAuthCallbackUrl()
+  } catch (error) {
+    const origin = resolveRequestOrigin(request)
+
+    if (origin) {
+      return `${origin.replace(/\/$/, "")}/auth/callback`
+    }
+
+    throw error
+  }
+}
+
+function hasCustomEmailConfiguration(): boolean {
+  const apiKey = process.env.RESEND_API_KEY
+  const sender = process.env.EMAIL_FROM ?? process.env.RESEND_FROM
+  return Boolean(apiKey && sender)
+}
+
+function buildRegistrationNotice(delivery: RegistrationDelivery): string {
+  if (delivery === "custom-email") {
+    return "Hemos enviado un correo de confirmación personalizado. Ábrelo para activar tu cuenta."
+  }
+
+  return "Hemos enviado un correo de verificación de Supabase. Revisa tu bandeja de entrada y sigue el enlace para activar tu cuenta."
 }
 
 export async function POST(request: Request) {
@@ -258,7 +351,16 @@ export async function POST(request: Request) {
   }
 
   try {
-    const shouldUseAdminFlow = Boolean(process.env.SUPABASE_SERVICE_ROLE_KEY)
+    const authCallbackUrl = resolveAuthCallbackUrl(request)
+    const hasServiceRoleKey = Boolean(process.env.SUPABASE_SERVICE_ROLE_KEY)
+    const shouldUseAdminFlow =
+      hasServiceRoleKey && hasCustomEmailConfiguration()
+
+    if (hasServiceRoleKey && !shouldUseAdminFlow) {
+      console.warn(
+        "Se ignoró el flujo admin de registro porque faltan las credenciales de correo (RESEND_API_KEY o EMAIL_FROM/RESEND_FROM).",
+      )
+    }
 
     if (shouldUseAdminFlow) {
       try {
@@ -267,9 +369,17 @@ export async function POST(request: Request) {
           email,
           password,
           timezone,
+          authCallbackUrl,
         })
 
-        return NextResponse.json(response, { status: 201 })
+        return NextResponse.json(
+          {
+            user: response.user,
+            delivery: response.delivery,
+            notice: buildRegistrationNotice(response.delivery),
+          },
+          { status: 201 },
+        )
       } catch (error) {
         if (!isSupabaseNotAdminError(error)) {
           throw error
@@ -286,9 +396,17 @@ export async function POST(request: Request) {
       email,
       password,
       timezone,
+      authCallbackUrl,
     })
 
-    return NextResponse.json(response, { status: 201 })
+    return NextResponse.json(
+      {
+        user: response.user,
+        delivery: response.delivery,
+        notice: buildRegistrationNotice(response.delivery),
+      },
+      { status: 201 },
+    )
   } catch (error) {
     if (error instanceof Error) {
       const message = error.message ?? ""

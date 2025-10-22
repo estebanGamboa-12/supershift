@@ -1630,6 +1630,8 @@ export default function Home() {
             name: item.name,
             email: item.email,
             calendarId: item.calendarId ?? null,
+            avatarUrl: item.avatarUrl,
+            timezone: item.timezone,
           })),
         ).catch((error) => {
           console.error("No se pudieron actualizar los usuarios en caché", error)

@@ -146,7 +146,7 @@ export default function UserAuthPanel({
       })
 
       const data = (await response.json().catch(() => null)) as
-        | { user?: UserSummary; error?: string }
+        | { user?: UserSummary; error?: string; notice?: string }
         | null
 
       if (!response.ok || !data?.user) {
@@ -154,8 +154,14 @@ export default function UserAuthPanel({
       }
 
       onUserCreated(data.user)
+      const notice =
+        typeof data.notice === "string" && data.notice.trim().length > 0
+          ? data.notice
+          : null
+
       setRegisterNotice(
-        "Hemos enviado un correo de confirmación personalizado. Ábrelo para activar tu cuenta.",
+        notice ??
+          "Hemos enviado un correo de verificación. Revisa tu bandeja de entrada para activar tu cuenta.",
       )
       setRegisterPassword("")
     } catch (error) {

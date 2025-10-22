@@ -4,6 +4,9 @@
 
 BEGIN;
 
+-- Asegura que podamos generar UUIDs cuando sea necesario
+CREATE EXTENSION IF NOT EXISTS "pgcrypto";
+
 -- Limpiar estado previo ----------------------------------------------------
 DROP TABLE IF EXISTS shift_notes CASCADE;
 DROP TABLE IF EXISTS shifts CASCADE;
@@ -41,7 +44,7 @@ CREATE TABLE shift_types (
 );
 
 CREATE TABLE users (
-  id              bigint GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
+  id              uuid PRIMARY KEY DEFAULT gen_random_uuid(),
   email           varchar(190) NOT NULL UNIQUE,
   name            varchar(190) NOT NULL,
   password_hash   varchar(255),
@@ -53,8 +56,8 @@ CREATE TABLE users (
 
 CREATE TABLE user_profile_history (
   id                   bigint GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
-  user_id              bigint NOT NULL REFERENCES users(id) ON DELETE CASCADE,
-  changed_by_user_id   bigint REFERENCES users(id) ON DELETE SET NULL,
+  user_id              uuid NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  changed_by_user_id   uuid REFERENCES users(id) ON DELETE SET NULL,
   previous_name        varchar(190),
   previous_timezone    varchar(64),
   previous_avatar_url  text,
@@ -69,7 +72,7 @@ CREATE INDEX idx_uph_changed_by ON user_profile_history (changed_by_user_id);
 CREATE TABLE teams (
   id              bigint GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
   name            varchar(190) NOT NULL,
-  owner_user_id   bigint NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  owner_user_id   uuid NOT NULL REFERENCES users(id) ON DELETE CASCADE,
   created_at      timestamptz NOT NULL DEFAULT now(),
   updated_at      timestamptz NOT NULL DEFAULT now()
 );
@@ -79,7 +82,7 @@ CREATE TABLE calendars (
   id              bigint GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
   name            varchar(190) NOT NULL,
   team_id         bigint REFERENCES teams(id) ON DELETE CASCADE,
-  owner_user_id   bigint REFERENCES users(id) ON DELETE SET NULL,
+  owner_user_id   uuid REFERENCES users(id) ON DELETE SET NULL,
   timezone        varchar(64) NOT NULL DEFAULT 'Europe/Madrid',
   color           varchar(16),
   created_at      timestamptz NOT NULL DEFAULT now(),
@@ -90,7 +93,7 @@ CREATE INDEX idx_cal_owner ON calendars (owner_user_id);
 
 CREATE TABLE team_members (
   team_id         bigint NOT NULL REFERENCES teams(id) ON DELETE CASCADE,
-  user_id         bigint NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  user_id         uuid NOT NULL REFERENCES users(id) ON DELETE CASCADE,
   role            team_member_role NOT NULL DEFAULT 'member',
   joined_at       timestamptz NOT NULL DEFAULT now(),
   PRIMARY KEY (team_id, user_id)
@@ -104,7 +107,7 @@ CREATE TABLE rotation_templates (
   description     varchar(255),
   start_date      date NOT NULL,
   days_horizon    integer NOT NULL DEFAULT 60,
-  created_by      bigint NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  created_by      uuid NOT NULL REFERENCES users(id) ON DELETE CASCADE,
   created_at      timestamptz NOT NULL DEFAULT now(),
   updated_at      timestamptz NOT NULL DEFAULT now()
 );
@@ -133,7 +136,7 @@ CREATE INDEX idx_rr_template ON rotation_runs (template_id);
 CREATE TABLE shifts (
   id                   bigint GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
   calendar_id          bigint NOT NULL REFERENCES calendars(id) ON DELETE CASCADE,
-  assignee_user_id     bigint REFERENCES users(id) ON DELETE SET NULL,
+  assignee_user_id     uuid REFERENCES users(id) ON DELETE SET NULL,
   shift_type_code      varchar(32) NOT NULL REFERENCES shift_types(code),
   start_at             timestamptz NOT NULL,
   end_at               timestamptz NOT NULL,
@@ -155,7 +158,7 @@ CREATE INDEX idx_shifts_type ON shifts (shift_type_code);
 CREATE TABLE shift_notes (
   id              bigint GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
   shift_id        bigint NOT NULL REFERENCES shifts(id) ON DELETE CASCADE,
-  author_id       bigint REFERENCES users(id) ON DELETE SET NULL,
+  author_id       uuid REFERENCES users(id) ON DELETE SET NULL,
   body            text NOT NULL,
   created_at      timestamptz NOT NULL DEFAULT now()
 );
@@ -191,9 +194,9 @@ INSERT INTO shift_types (code, label, color) VALUES
   ('VACATION', 'Vacaciones', '#f97316'),
   ('WORK', 'Trabajo', '#2563eb');
 
-INSERT INTO users (id, email, name, password_hash, timezone, avatar_url) OVERRIDING SYSTEM VALUE VALUES
+INSERT INTO users (id, email, name, password_hash, timezone, avatar_url) VALUES
   (
-    1,
+    '00000000-0000-0000-0000-000000000001',
     'admin@supershift.local',
     'Admin Supershift',
     '5f9a5c284860337f0b8fc4031b6c9d4a:b358197ed87accd54c26b1d7a63cac198639c6c7a5bb24e7b71b5d9a34ea43ab97c830608c5512413c9fdce0fe61d118c459826dffb63dfe0e5c448bba81f216',
@@ -201,7 +204,7 @@ INSERT INTO users (id, email, name, password_hash, timezone, avatar_url) OVERRID
     'https://avatars.githubusercontent.com/u/0000001?v=4'
   ),
   (
-    2,
+    '00000000-0000-0000-0000-000000000002',
     'esteban@example.com',
     'Esteban',
     '6e1b968c1df42190bef0ad9b35addcab:887582b2888acff2c62ee11857a1ebbbf10b8e04e418f2d2829f9eea8874ea039d5df13492208b0e97a12fd94598ce6814e0a0d48fef211d6084366081eef84f',
@@ -209,23 +212,40 @@ INSERT INTO users (id, email, name, password_hash, timezone, avatar_url) OVERRID
     'https://avatars.githubusercontent.com/u/0000002?v=4'
   );
 
-SELECT setval(pg_get_serial_sequence('users', 'id'), 2, true);
-
 INSERT INTO teams (id, name, owner_user_id, created_at, updated_at) OVERRIDING SYSTEM VALUE VALUES
-  (1, 'Equipo Demo', 1, now(), now());
+  (1, 'Equipo Demo', '00000000-0000-0000-0000-000000000001', now(), now());
 SELECT setval(pg_get_serial_sequence('teams', 'id'), 1, true);
 
 INSERT INTO team_members (team_id, user_id, role, joined_at) VALUES
-  (1, 1, 'owner', now()),
-  (1, 2, 'member', now());
+  (1, '00000000-0000-0000-0000-000000000001', 'owner', now()),
+  (1, '00000000-0000-0000-0000-000000000002', 'member', now());
 
 INSERT INTO calendars (id, name, team_id, owner_user_id, timezone, color, created_at, updated_at) OVERRIDING SYSTEM VALUE VALUES
   (1, 'Calendario Equipo', 1, NULL, 'Europe/Madrid', '#1e40af', now(), now()),
-  (2, 'Calendario de Esteban', NULL, 2, 'Europe/Madrid', '#0ea5e9', now(), now());
+  (
+    2,
+    'Calendario de Esteban',
+    NULL,
+    '00000000-0000-0000-0000-000000000002',
+    'Europe/Madrid',
+    '#0ea5e9',
+    now(),
+    now()
+  );
 SELECT setval(pg_get_serial_sequence('calendars', 'id'), 2, true);
 
 INSERT INTO rotation_templates (id, calendar_id, name, description, start_date, days_horizon, created_by, created_at, updated_at) OVERRIDING SYSTEM VALUE VALUES
-  (1, 1, 'Ciclo 4x2', '4 días trabajo, 2 descanso', '2025-10-01', 60, 1, now(), now());
+  (
+    1,
+    1,
+    'Ciclo 4x2',
+    '4 días trabajo, 2 descanso',
+    '2025-10-01',
+    60,
+    '00000000-0000-0000-0000-000000000001',
+    now(),
+    now()
+  );
 SELECT setval(pg_get_serial_sequence('rotation_templates', 'id'), 1, true);
 
 INSERT INTO rotation_steps (id, template_id, day_offset, shift_type_code) OVERRIDING SYSTEM VALUE VALUES
@@ -238,9 +258,60 @@ INSERT INTO rotation_steps (id, template_id, day_offset, shift_type_code) OVERRI
 SELECT setval(pg_get_serial_sequence('rotation_steps', 'id'), 6, true);
 
 INSERT INTO shifts (id, calendar_id, assignee_user_id, shift_type_code, start_at, end_at, all_day, note, label, color, plus_night, plus_holiday, plus_availability, plus_other, created_at, updated_at) OVERRIDING SYSTEM VALUE VALUES
-  (1, 2, 2, 'WORK', '2025-10-01 00:00:00+00', '2025-10-01 23:59:59+00', true, 'Entrega de reporte mensual', 'Trabajo', '#2563eb', 0, 1, 0, 0, now(), now()),
-  (2, 2, 2, 'REST', '2025-10-02 00:00:00+00', '2025-10-02 23:59:59+00', true, 'Recuperar horas de sueño', 'Descanso', '#64748b', 0, 0, 0, 0, now(), now()),
-  (3, 2, 2, 'NIGHT', '2025-10-03 00:00:00+00', '2025-10-03 23:59:59+00', true, 'Cobertura guardia', 'Nocturno', '#7c3aed', 2, 0, 1, 0, now(), now());
+  (
+    1,
+    2,
+    '00000000-0000-0000-0000-000000000002',
+    'WORK',
+    '2025-10-01 00:00:00+00',
+    '2025-10-01 23:59:59+00',
+    true,
+    'Entrega de reporte mensual',
+    'Trabajo',
+    '#2563eb',
+    0,
+    1,
+    0,
+    0,
+    now(),
+    now()
+  ),
+  (
+    2,
+    2,
+    '00000000-0000-0000-0000-000000000002',
+    'REST',
+    '2025-10-02 00:00:00+00',
+    '2025-10-02 23:59:59+00',
+    true,
+    'Recuperar horas de sueño',
+    'Descanso',
+    '#64748b',
+    0,
+    0,
+    0,
+    0,
+    now(),
+    now()
+  ),
+  (
+    3,
+    2,
+    '00000000-0000-0000-0000-000000000002',
+    'NIGHT',
+    '2025-10-03 00:00:00+00',
+    '2025-10-03 23:59:59+00',
+    true,
+    'Cobertura guardia',
+    'Nocturno',
+    '#7c3aed',
+    2,
+    0,
+    1,
+    0,
+    now(),
+    now()
+  );
 SELECT setval(pg_get_serial_sequence('shifts', 'id'), 3, true);
 
 COMMIT;

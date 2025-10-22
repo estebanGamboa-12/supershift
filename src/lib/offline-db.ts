@@ -250,6 +250,52 @@ export async function listPendingShiftRequests(userId: string): Promise<PendingS
   return pending.sort((a, b) => a.createdAt - b.createdAt)
 }
 
+export async function updatePendingRequestsForOptimisticId(
+  userId: string,
+  optimisticId: number,
+  newShiftId: number,
+): Promise<PendingShiftRequest[]> {
+  const db = await openDatabase()
+  if (!db) {
+    return []
+  }
+
+  const tx = db.transaction(PENDING_STORE, "readwrite")
+  const store = tx.objectStore(PENDING_STORE)
+  const index = store.index("byUser")
+  const entries = (await promisifyRequest(
+    index.getAll(IDBKeyRange.only(userId)),
+  )) as PendingShiftRequest[]
+
+  const updatedEntries: PendingShiftRequest[] = []
+
+  for (const entry of entries) {
+    if (entry.optimisticId !== optimisticId) {
+      continue
+    }
+
+    if (entry.method === "POST") {
+      continue
+    }
+
+    const updatedEntry: PendingShiftRequest = {
+      ...entry,
+      shiftId: newShiftId,
+      url: `/api/shifts/${newShiftId}?userId=${userId}`,
+    }
+
+    if ("optimisticId" in updatedEntry) {
+      delete (updatedEntry as { optimisticId?: number }).optimisticId
+    }
+
+    store.put(updatedEntry)
+    updatedEntries.push(updatedEntry)
+  }
+
+  await waitForTransaction(tx)
+  return updatedEntries
+}
+
 export async function countPendingShiftRequests(userId: string): Promise<number> {
   const db = await openDatabase()
   if (!db) {

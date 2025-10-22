@@ -41,6 +41,7 @@ import {
   readCachedShiftsForUser,
   readCachedUsers,
   removePendingShiftRequest,
+  updatePendingRequestsForOptimisticId,
   type CachedShiftEvent,
   type ShiftMutationRequestBody,
 } from "@/lib/offline-db"
@@ -568,6 +569,25 @@ export default function Home() {
               persistShiftsSnapshot(userId, next)
               return next
             })
+
+            if (entry.optimisticId != null) {
+              const updatedEntries = await updatePendingRequestsForOptimisticId(
+                userId,
+                entry.optimisticId,
+                syncedShift.id,
+              )
+
+              if (updatedEntries.length > 0) {
+                for (const updatedEntry of updatedEntries) {
+                  const index = pending.findIndex(
+                    (item) => item.id === updatedEntry.id,
+                  )
+                  if (index >= 0) {
+                    pending[index] = updatedEntry
+                  }
+                }
+              }
+            }
           } else if (entry.method === "PATCH" && entry.body && entry.shiftId) {
             const response = await fetch(entry.url, {
               method: "PATCH",
@@ -857,6 +877,7 @@ export default function Home() {
             return next
           })
 
+          const isOptimisticShift = id < 0
           await addPendingShiftRequest({
             id: createPendingRequestId(),
             userId,
@@ -864,6 +885,7 @@ export default function Home() {
             url: `/api/shifts/${id}?userId=${userId}`,
             body: payload,
             shiftId: id,
+            ...(isOptimisticShift ? { optimisticId: id } : {}),
             createdAt: Date.now(),
           })
 
@@ -944,12 +966,14 @@ export default function Home() {
             return next
           })
 
+          const isOptimisticShift = id < 0
           await addPendingShiftRequest({
             id: createPendingRequestId(),
             userId,
             method: "DELETE",
             url: `/api/shifts/${id}?userId=${userId}`,
             shiftId: id,
+            ...(isOptimisticShift ? { optimisticId: id } : {}),
             createdAt: Date.now(),
           })
 

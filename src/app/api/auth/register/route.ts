@@ -29,21 +29,23 @@ async function createUserProfile({
   name,
   email,
   timezone,
+  avatarUrl,
 }: {
   id: string
   name: string
   email: string
   timezone: string
+  avatarUrl: string | null
 }) {
   const supabase = getSupabaseClient()
 
   const { data, error } = await supabase
     .from("users")
     .upsert(
-      { id, name, email, timezone },
+      { id, name, email, timezone, avatar_url: avatarUrl },
       { onConflict: "id" },
     )
-    .select("id, name, email, timezone")
+    .select("id, name, email, timezone, avatar_url")
     .maybeSingle()
 
   if (error) {
@@ -51,7 +53,14 @@ async function createUserProfile({
   }
 
   const fallbackName = name || email.split("@")[0] || ""
-  const profile = data ?? { id, name: fallbackName, email, timezone }
+  const profile =
+    data ?? {
+      id,
+      name: fallbackName,
+      email,
+      timezone,
+      avatar_url: avatarUrl,
+    }
   const calendarId = await ensureCalendarForUser(
     profile.id,
     profile.name ?? fallbackName,
@@ -63,6 +72,11 @@ async function createUserProfile({
     name: String(profile.name ?? fallbackName),
     email: String(profile.email ?? email ?? ""),
     calendarId,
+    timezone: String(profile.timezone ?? timezone ?? "Europe/Madrid"),
+    avatarUrl:
+      profile.avatar_url != null && String(profile.avatar_url).trim().length > 0
+        ? String(profile.avatar_url)
+        : null,
   }
 }
 
@@ -155,6 +169,7 @@ async function registerUsingAdminClient({
     name,
     email,
     timezone,
+    avatarUrl: null,
   })
 
   const { subject, html, text } = buildVerificationEmail({
@@ -211,6 +226,7 @@ async function registerUsingSignUp({
     name,
     email,
     timezone,
+    avatarUrl: null,
   })
 
   return { user: userProfile }

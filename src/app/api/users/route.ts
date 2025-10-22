@@ -16,7 +16,7 @@ async function listUsers() {
   const supabase = getSupabaseClient()
   const { data: userRows, error: usersError } = await supabase
     .from("users")
-    .select("id, name, email")
+    .select("id, name, email, timezone, avatar_url")
     .order("created_at", { ascending: true })
 
   if (usersError) {
@@ -57,6 +57,14 @@ async function listUsers() {
     name: String(user.name ?? ""),
     email: String(user.email ?? ""),
     calendarId: calendarByUser.get(String(user.id)) ?? null,
+    avatarUrl:
+      user.avatar_url != null && String(user.avatar_url).trim().length > 0
+        ? String(user.avatar_url)
+        : null,
+    timezone:
+      user.timezone != null && String(user.timezone).trim().length > 0
+        ? String(user.timezone)
+        : "Europe/Madrid",
   }))
 }
 
@@ -68,48 +76,138 @@ function sanitizeId(value: unknown): string | null {
   return trimmed.length > 0 ? trimmed : null
 }
 
+type UpsertUserProfileParams = {
+  id: string
+  name: string
+  email: string
+  timezone: string
+  avatarUrl: string | null
+  changedByUserId?: string | null
+}
+
 async function upsertUserProfile({
   id,
   name,
   email,
   timezone,
-}: {
-  id: string
-  name: string
-  email: string
-  timezone: string
-}) {
+  avatarUrl,
+  changedByUserId,
+}: UpsertUserProfileParams) {
   const supabase = getSupabaseClient()
+  const { data: existingProfile, error: existingError } = await supabase
+    .from("users")
+    .select("id, name, email, timezone, avatar_url")
+    .eq("id", id)
+    .maybeSingle()
+
+  if (existingError) {
+    throw existingError
+  }
+
   const payload = {
     id,
     name,
     email,
     timezone,
+    avatar_url: avatarUrl,
   }
 
   const { data, error } = await supabase
     .from("users")
     .upsert(payload, { onConflict: "id" })
-    .select("id, name, email, timezone")
+    .select("id, name, email, timezone, avatar_url")
     .maybeSingle()
 
   if (error) {
     throw error
   }
 
-  const profile = data ?? payload
+  const profile =
+    data ?? ({
+      id,
+      name,
+      email,
+      timezone,
+      avatar_url: avatarUrl,
+    } as const)
+
+  const normalizeNullable = (value: unknown): string | null => {
+    if (typeof value !== "string") {
+      return null
+    }
+    const trimmed = value.trim()
+    return trimmed.length > 0 ? trimmed : null
+  }
+
+  const normalizeWithDefault = (
+    value: unknown,
+    fallback: string,
+  ): string => {
+    if (typeof value === "string") {
+      const trimmed = value.trim()
+      if (trimmed.length > 0) {
+        return trimmed
+      }
+    }
+    return fallback
+  }
+
+  const previousName = normalizeWithDefault(
+    existingProfile?.name,
+    name,
+  )
+  const previousTimezone = normalizeWithDefault(
+    existingProfile?.timezone,
+    timezone,
+  )
+  const previousAvatar = normalizeNullable(existingProfile?.avatar_url)
+
+  const nextName = normalizeWithDefault(profile.name, name)
+  const nextTimezone = normalizeWithDefault(profile.timezone, timezone)
+  const nextAvatar = normalizeNullable(profile.avatar_url)
 
   const calendarId = await ensureCalendarForUser(
-    profile.id,
-    profile.name,
-    profile.timezone,
+    String(profile.id),
+    nextName,
+    nextTimezone,
   )
+
+  const hasChanges = Boolean(
+    existingProfile &&
+      (previousName !== nextName ||
+        previousTimezone !== nextTimezone ||
+        previousAvatar !== nextAvatar),
+  )
+
+  if (hasChanges) {
+    const { error: historyError } = await supabase
+      .from("user_profile_history")
+      .insert({
+        user_id: id,
+        changed_by_user_id: changedByUserId ?? id,
+        previous_name: previousName || null,
+        previous_timezone: previousTimezone || null,
+        previous_avatar_url: previousAvatar,
+        new_name: nextName || null,
+        new_timezone: nextTimezone || null,
+        new_avatar_url: nextAvatar,
+      })
+
+    if (historyError) {
+      console.error(
+        "No se pudo registrar el historial de perfil del usuario",
+        historyError,
+      )
+    }
+  }
 
   return {
     id: String(profile.id),
-    name: String(profile.name ?? ""),
+    name: nextName,
     email: String(profile.email ?? ""),
     calendarId,
+    avatarUrl: nextAvatar,
+    timezone: nextTimezone,
   }
 }
 
@@ -132,6 +230,7 @@ export async function POST(request: Request) {
     name?: unknown
     email?: unknown
     timezone?: unknown
+    avatarUrl?: unknown
   } | null
 
   try {
@@ -147,6 +246,7 @@ export async function POST(request: Request) {
   const name = sanitizeString(payload?.name) ?? ""
   const email = sanitizeString(payload?.email)
   const timezone = sanitizeString(payload?.timezone) ?? "Europe/Madrid"
+  const avatarUrl = sanitizeString(payload?.avatarUrl)
 
   if (!id || !email) {
     return NextResponse.json(
@@ -163,6 +263,7 @@ export async function POST(request: Request) {
       name,
       email,
       timezone,
+      avatarUrl,
     })
     return NextResponse.json({ user }, { status: 201 })
   } catch (error) {
@@ -235,3 +336,5 @@ export async function POST(request: Request) {
     )
   }
 }
+
+export { upsertUserProfile, type UpsertUserProfileParams }

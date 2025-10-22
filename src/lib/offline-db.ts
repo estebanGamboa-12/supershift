@@ -105,6 +105,8 @@ export type CachedUser = {
   name: string
   email: string
   calendarId: number | null
+  avatarUrl: string | null
+  timezone: string
 }
 
 export type CachedShiftEvent = {

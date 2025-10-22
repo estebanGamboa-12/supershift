@@ -55,12 +55,15 @@ export async function POST(request: Request) {
     const normalizedEmail = authUser.email ? String(authUser.email) : ""
     const timezoneMetadata = extractTimezone(authUser)
 
+    const avatarMetadata = extractAvatarUrl(authUser)
+
     const profile = await ensureUserProfile({
       supabase,
       userId,
       fallbackName: preferredName,
       fallbackEmail: normalizedEmail,
       fallbackTimezone: timezoneMetadata,
+      fallbackAvatarUrl: avatarMetadata,
     })
 
     const calendarId = await getOrCreateCalendarForUser(userId)
@@ -81,6 +84,8 @@ export async function POST(request: Request) {
         name: profile.name,
         email: profile.email,
         calendarId,
+        avatarUrl: profile.avatarUrl,
+        timezone: profile.timezone,
       },
     })
   } catch (error) {
@@ -100,6 +105,7 @@ type EnsureProfileParams = {
   fallbackName: string
   fallbackEmail: string
   fallbackTimezone: string
+  fallbackAvatarUrl: string | null
 }
 
 async function ensureUserProfile({
@@ -108,10 +114,16 @@ async function ensureUserProfile({
   fallbackName,
   fallbackEmail,
   fallbackTimezone,
-}: EnsureProfileParams): Promise<{ name: string; email: string }> {
+  fallbackAvatarUrl,
+}: EnsureProfileParams): Promise<{
+  name: string
+  email: string
+  timezone: string
+  avatarUrl: string | null
+}> {
   const { data: existingProfile, error: profileError } = await supabase
     .from("users")
-    .select("id, name, email, timezone")
+    .select("id, name, email, timezone, avatar_url")
     .eq("id", userId)
     .maybeSingle()
 
@@ -124,6 +136,8 @@ async function ensureUserProfile({
   const profileEmail = normalizeText(existingProfile?.email) ?? fallbackEmail
   const profileTimezone =
     normalizeText(existingProfile?.timezone) ?? fallbackTimezone ?? "Europe/Madrid"
+  const profileAvatar =
+    normalizeText(existingProfile?.avatar_url) ?? fallbackAvatarUrl
 
   if (!profileEmail) {
     throw new Error("Supabase no devolvió un correo electrónico válido")
@@ -141,8 +155,9 @@ async function ensureUserProfile({
         name: profileName,
         email: profileEmail,
         timezone: profileTimezone,
+        avatar_url: profileAvatar,
       })
-      .select("name, email")
+      .select("name, email, timezone, avatar_url")
       .maybeSingle()
 
     if (createError) {
@@ -153,6 +168,10 @@ async function ensureUserProfile({
     return {
       name: normalizeText(created?.name) ?? profileName,
       email: normalizeText(created?.email) ?? profileEmail,
+      timezone:
+        normalizeText(created?.timezone) ?? profileTimezone ?? "Europe/Madrid",
+      avatarUrl:
+        normalizeText(created?.avatar_url) ?? profileAvatar ?? null,
     }
   }
 
@@ -167,13 +186,16 @@ async function ensureUserProfile({
   if (profileTimezone !== normalizeText(existingProfile.timezone)) {
     updates.timezone = profileTimezone
   }
+  if (profileAvatar && profileAvatar !== normalizeText(existingProfile.avatar_url)) {
+    updates.avatar_url = profileAvatar
+  }
 
   if (Object.keys(updates).length > 0) {
     const { data: updated, error: updateError } = await supabase
       .from("users")
       .update(updates)
       .eq("id", userId)
-      .select("name, email")
+      .select("name, email, timezone, avatar_url")
       .maybeSingle()
 
     if (updateError) {
@@ -184,12 +206,18 @@ async function ensureUserProfile({
     return {
       name: normalizeText(updated?.name) ?? profileName,
       email: normalizeText(updated?.email) ?? profileEmail,
+      timezone:
+        normalizeText(updated?.timezone) ?? profileTimezone ?? "Europe/Madrid",
+      avatarUrl:
+        normalizeText(updated?.avatar_url) ?? profileAvatar ?? null,
     }
   }
 
   return {
     name: profileName,
     email: profileEmail,
+    timezone: profileTimezone,
+    avatarUrl: profileAvatar ?? null,
   }
 }
 
@@ -232,6 +260,25 @@ function extractTimezone(user: AuthUser): string {
   )
 
   return timezone ?? "Europe/Madrid"
+}
+
+function extractAvatarUrl(user: AuthUser): string | null {
+  const metadata = user.user_metadata ?? {}
+  const candidates = [
+    metadata.avatar_url,
+    metadata.avatar,
+    metadata.picture,
+    metadata.profile_image,
+  ]
+
+  for (const candidate of candidates) {
+    const normalized = normalizeText(candidate)
+    if (normalized) {
+      return normalized
+    }
+  }
+
+  return null
 }
 
 function deriveNameFromEmail(email: string): string {

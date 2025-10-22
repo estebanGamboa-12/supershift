@@ -127,12 +127,30 @@ function sanitizeUserSummary(value: unknown): UserSummary | null {
     typeof candidate.email === "string" && candidate.email.trim().length > 0
       ? candidate.email
       : ""
+  const rawAvatar =
+    (candidate as { avatarUrl?: unknown }).avatarUrl ??
+    (candidate as { avatar_url?: unknown }).avatar_url ??
+    null
+  const avatarUrl =
+    typeof rawAvatar === "string" && rawAvatar.trim().length > 0
+      ? rawAvatar
+      : null
+  const rawTimezone =
+    (candidate as { timezone?: unknown }).timezone ??
+    (candidate as { time_zone?: unknown }).time_zone ??
+    null
+  const timezone =
+    typeof rawTimezone === "string" && rawTimezone.trim().length > 0
+      ? rawTimezone
+      : "Europe/Madrid"
 
   return {
     id,
     name,
     email,
     calendarId,
+    avatarUrl,
+    timezone,
   }
 }
 
@@ -1131,6 +1149,76 @@ export default function Home() {
     }
   }, [])
 
+  const handleUpdateProfile = useCallback(
+    async ({
+      name,
+      timezone,
+      avatarUrl,
+    }: {
+      name: string
+      timezone: string
+      avatarUrl: string | null
+    }) => {
+      if (!currentUser) {
+        throw new Error("No hay una sesión activa para actualizar el perfil")
+      }
+
+      const response = await fetch(`/api/users/${currentUser.id}/profile`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          name,
+          email: currentUser.email,
+          timezone,
+          avatarUrl,
+          updatedBy: currentUser.id,
+        }),
+      })
+
+      const data = await parseJsonResponse<{ user: UserSummary }>(response)
+      const sanitized = sanitizeUserSummary(data.user)
+
+      if (!sanitized) {
+        throw new Error(
+          "El servidor devolvió un perfil incompleto tras guardar los cambios",
+        )
+      }
+
+      setCurrentUser(sanitized)
+      persistSession(sanitized)
+
+      let updatedUsers: UserSummary[] | null = null
+      setUsers((previous) => {
+        const exists = previous.some((user) => user.id === sanitized.id)
+        const next = exists
+          ? previous.map((user) =>
+              user.id === sanitized.id ? sanitized : user,
+            )
+          : [...previous, sanitized]
+        updatedUsers = next
+        return next
+      })
+
+      const usersForCache = (updatedUsers ?? [sanitized]).map((user) => ({
+        id: user.id,
+        name: user.name,
+        email: user.email,
+        calendarId: user.calendarId ?? null,
+        avatarUrl: user.avatarUrl,
+        timezone: user.timezone,
+      }))
+
+      try {
+        await cacheUsers(usersForCache)
+      } catch (error) {
+        console.error("No se pudo actualizar la caché local de usuarios", error)
+      }
+
+      return sanitized
+    },
+    [currentUser, parseJsonResponse, persistSession],
+  )
+
   const orderedShifts = useMemo(
     () => sortByDate(shifts),
     [shifts, sortByDate]
@@ -1314,6 +1402,8 @@ export default function Home() {
               name: user.name,
               email: user.email,
               calendarId: user.calendarId ?? null,
+              avatarUrl: user.avatarUrl,
+              timezone: user.timezone,
             })),
           )
         } catch (error) {
@@ -1797,6 +1887,7 @@ export default function Home() {
                 user={currentUser}
                 defaultPreferences={userPreferences}
                 onSave={handleSavePreferences}
+                onUpdateProfile={handleUpdateProfile}
                 isSaving={isSavingPreferences}
                 lastSavedAt={preferencesSavedAt}
                 onLogout={handleLogout}
@@ -1921,6 +2012,7 @@ export default function Home() {
                       user={currentUser}
                       preferences={userPreferences}
                       onSave={handleSavePreferences}
+                      onUpdateProfile={handleUpdateProfile}
                       isSaving={isSavingPreferences}
                       lastSavedAt={preferencesSavedAt}
                       onLogout={handleLogout}

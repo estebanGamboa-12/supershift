@@ -21,6 +21,7 @@ DROP TABLE IF EXISTS `rotation_templates`;
 DROP TABLE IF EXISTS `team_members`;
 DROP TABLE IF EXISTS `calendars`;
 DROP TABLE IF EXISTS `teams`;
+DROP TABLE IF EXISTS `user_profile_history`;
 DROP TABLE IF EXISTS `users`;
 DROP TABLE IF EXISTS `shift_types`;
 
@@ -37,10 +38,29 @@ CREATE TABLE `users` (
   `name` varchar(190) NOT NULL,
   `password_hash` varchar(255) DEFAULT NULL,
   `timezone` varchar(64) NOT NULL DEFAULT 'Europe/Madrid',
+  `avatar_url` text DEFAULT NULL,
   `created_at` datetime NOT NULL DEFAULT current_timestamp(),
   `updated_at` datetime NOT NULL DEFAULT current_timestamp() ON UPDATE current_timestamp(),
   PRIMARY KEY (`id`),
   UNIQUE KEY `uq_users_email` (`email`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+CREATE TABLE `user_profile_history` (
+  `id` bigint(20) UNSIGNED NOT NULL AUTO_INCREMENT,
+  `user_id` bigint(20) UNSIGNED NOT NULL,
+  `changed_by_user_id` bigint(20) UNSIGNED DEFAULT NULL,
+  `previous_name` varchar(190) DEFAULT NULL,
+  `previous_timezone` varchar(64) DEFAULT NULL,
+  `previous_avatar_url` text DEFAULT NULL,
+  `new_name` varchar(190) DEFAULT NULL,
+  `new_timezone` varchar(64) DEFAULT NULL,
+  `new_avatar_url` text DEFAULT NULL,
+  `changed_at` datetime NOT NULL DEFAULT current_timestamp(),
+  PRIMARY KEY (`id`),
+  KEY `idx_uph_user` (`user_id`),
+  KEY `idx_uph_changed_by` (`changed_by_user_id`),
+  CONSTRAINT `fk_uph_user` FOREIGN KEY (`user_id`) REFERENCES `users` (`id`) ON DELETE CASCADE,
+  CONSTRAINT `fk_uph_changed_by` FOREIGN KEY (`changed_by_user_id`) REFERENCES `users` (`id`) ON DELETE SET NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 CREATE TABLE `teams` (
@@ -168,9 +188,23 @@ INSERT INTO `shift_types` (`code`, `label`, `color`) VALUES
   ('VACATION', 'Vacaciones', '#f97316'),
   ('WORK', 'Trabajo', '#2563eb');
 
-INSERT INTO `users` (`id`, `email`, `name`, `password_hash`, `timezone`) VALUES
-  (1, 'admin@supershift.local', 'Admin Supershift', '5f9a5c284860337f0b8fc4031b6c9d4a:b358197ed87accd54c26b1d7a63cac198639c6c7a5bb24e7b71b5d9a34ea43ab97c830608c5512413c9fdce0fe61d118c459826dffb63dfe0e5c448bba81f216', 'Europe/Madrid'),
-  (2, 'esteban@example.com', 'Esteban', '6e1b968c1df42190bef0ad9b35addcab:887582b2888acff2c62ee11857a1ebbbf10b8e04e418f2d2829f9eea8874ea039d5df13492208b0e97a12fd94598ce6814e0a0d48fef211d6084366081eef84f', 'Europe/Madrid');
+INSERT INTO `users` (`id`, `email`, `name`, `password_hash`, `timezone`, `avatar_url`) VALUES
+  (
+    1,
+    'admin@supershift.local',
+    'Admin Supershift',
+    '5f9a5c284860337f0b8fc4031b6c9d4a:b358197ed87accd54c26b1d7a63cac198639c6c7a5bb24e7b71b5d9a34ea43ab97c830608c5512413c9fdce0fe61d118c459826dffb63dfe0e5c448bba81f216',
+    'Europe/Madrid',
+    'https://avatars.githubusercontent.com/u/0000001?v=4'
+  ),
+  (
+    2,
+    'esteban@example.com',
+    'Esteban',
+    '6e1b968c1df42190bef0ad9b35addcab:887582b2888acff2c62ee11857a1ebbbf10b8e04e418f2d2829f9eea8874ea039d5df13492208b0e97a12fd94598ce6814e0a0d48fef211d6084366081eef84f',
+    'Europe/Madrid',
+    'https://avatars.githubusercontent.com/u/0000002?v=4'
+  );
 
 INSERT INTO `teams` (`id`, `name`, `owner_user_id`, `created_at`, `updated_at`) VALUES
   (1, 'Equipo Demo', 1, current_timestamp(), current_timestamp());

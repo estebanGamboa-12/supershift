@@ -1410,9 +1410,25 @@ export default function Home() {
 
   const synchronizeSupabaseSession = useCallback(
     async (session: Session | null) => {
+      const isBrowserOffline =
+        typeof navigator !== "undefined" && navigator && "onLine" in navigator
+          ? !navigator.onLine
+          : false
+
       if (!session?.access_token) {
+        if (isBrowserOffline) {
+          return
+        }
+
         if (currentUser) {
           clearSession(undefined, { skipSupabaseSignOut: true })
+        }
+        return
+      }
+
+      if (isBrowserOffline) {
+        if (!currentUser) {
+          restoreSession()
         }
         return
       }
@@ -1430,7 +1446,7 @@ export default function Home() {
         )
       }
     },
-    [clearSession, currentUser, handleLoginSuccess],
+    [clearSession, currentUser, handleLoginSuccess, restoreSession],
   )
 
   useEffect(() => {

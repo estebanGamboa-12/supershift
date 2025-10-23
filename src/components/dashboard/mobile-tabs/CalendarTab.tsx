@@ -87,6 +87,13 @@ const CalendarTab: FC<CalendarTabProps> = ({
                         {dateLabel}
                       </span>
                       <span className="font-semibold text-white">{typeLabel}</span>
+                      <span className="mt-1 text-[11px] text-white/60">
+                        {shift.startTime && shift.endTime
+                          ? `${shift.startTime} - ${shift.endTime}`
+                          : "Todo el día"}
+                        {shift.durationMinutes > 0 &&
+                          ` • ${Math.floor(shift.durationMinutes / 60)}h ${String(shift.durationMinutes % 60).padStart(2, "0")}m`}
+                      </span>
                       {shift.note && (
                         <span className="mt-1 text-xs text-white/60">{shift.note}</span>
                       )}

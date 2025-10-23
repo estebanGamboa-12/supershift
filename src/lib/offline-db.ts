@@ -116,6 +116,9 @@ export type CachedShiftEvent = {
   type: ShiftType
   start: string
   end: string
+  startTime?: string | null
+  endTime?: string | null
+  durationMinutes?: number
   note?: string
   label?: string
   color?: string
@@ -138,6 +141,8 @@ export type ShiftMutationRequestBody = {
   plusAvailability: number
   plusOther: number
   userId: string
+  startTime: string | null
+  endTime: string | null
 }
 
 export type PendingShiftRequest = {

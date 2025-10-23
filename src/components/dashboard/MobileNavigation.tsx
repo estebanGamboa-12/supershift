@@ -5,7 +5,9 @@ import type { FC } from "react"
 const NAV_ITEMS = [
   { value: "calendar", tab: "calendar", label: "Calendario", icon: "📅" },
   { value: "stats", tab: "stats", label: "Estadísticas", icon: "📊" },
+  { value: "hours", tab: "hours", label: "Horas", icon: "⏱️" },
   { value: "team", tab: "team", label: "Equipo", icon: "👥" },
+  { value: "history", tab: "history", label: "Historial", icon: "📜" },
   { value: "settings", tab: "settings", label: "Configuración", icon: "⚙️" },
 ] as const
 

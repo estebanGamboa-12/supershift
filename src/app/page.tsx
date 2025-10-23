@@ -20,6 +20,9 @@ import NextShiftCard from "@/components/dashboard/NextShiftCard"
 import PlanningHealthCard from "@/components/dashboard/PlanningHealthCard"
 import ShiftDistribution from "@/components/dashboard/ShiftDistribution"
 import TeamSpotlight from "@/components/dashboard/TeamSpotlight"
+import DailyHoursSummary from "@/components/dashboard/DailyHoursSummary"
+import ChangeHistoryPanel from "@/components/dashboard/ChangeHistoryPanel"
+import ResponsiveNav from "@/components/dashboard/ResponsiveNav"
 import UserAuthPanel from "@/components/auth/UserAuthPanel"
 import FloatingParticlesLoader from "@/components/FloatingParticlesLoader"
 import type { UserSummary } from "@/types/users"
@@ -28,6 +31,8 @@ import { getSupabaseBrowserClient } from "@/lib/supabase"
 import { exchangeAccessToken } from "@/lib/auth-client"
 import {
   CalendarTab,
+  HistoryTab,
+  HoursTab,
   SettingsTab,
   StatsTab,
   TeamTab,
@@ -50,6 +55,9 @@ import { OfflineStatusBanner } from "@/components/pwa/offline-status-banner"
 type ApiShift = {
   id: number
   date: string
+  startTime?: string | null
+  endTime?: string | null
+  durationMinutes?: number | null
   type: ShiftType
   note?: string | null
   label?: string | null
@@ -162,6 +170,35 @@ const SHIFT_TYPE_LABELS: Record<ShiftType, string> = {
   CUSTOM: "Personalizado",
 }
 
+const DEFAULT_SHIFT_START_TIME = "09:00"
+const DEFAULT_SHIFT_END_TIME = "17:00"
+
+const HISTORY_STORAGE_KEY = "planloop:shift-history"
+const MAX_HISTORY_ENTRIES = 100
+
+type ShiftSnapshot = {
+  date: string
+  type: ShiftType
+  startTime: string | null
+  endTime: string | null
+  durationMinutes: number
+  note?: string | null
+  label?: string | null
+  color?: string | null
+  pluses?: ShiftPluses
+}
+
+type ShiftHistoryEntry = {
+  id: string
+  shiftId: number
+  action: "create" | "update" | "delete"
+  timestamp: string
+  before?: ShiftSnapshot | null
+  after?: ShiftSnapshot | null
+}
+
+const SECTION_IDS = ["overview", "calendar", "hours", "history", "team", "settings"] as const
+
 const SESSION_STORAGE_KEY = "planloop:session"
 const SESSION_DURATION_MS = 1000 * 60 * 60 * 24 * 14 // 14 días
 
@@ -205,6 +242,9 @@ function toCachedShiftEvent(
     type: shift.type,
     start: shift.start.toISOString(),
     end: shift.end.toISOString(),
+    startTime: shift.startTime,
+    endTime: shift.endTime,
+    durationMinutes: shift.durationMinutes,
     ...(shift.note ? { note: shift.note } : {}),
     ...(shift.label ? { label: shift.label } : {}),
     ...(shift.color ? { color: shift.color } : {}),
@@ -222,12 +262,32 @@ function toCachedShiftEvent(
 }
 
 function fromCachedShiftEvent(shift: CachedShiftEvent): ShiftEvent {
+  const startDate = new Date(shift.start)
+  const endDate = new Date(shift.end)
+  if (endDate.getTime() <= startDate.getTime()) {
+    endDate.setDate(endDate.getDate() + 1)
+  }
+  const fallbackStartTime = startDate.toISOString().slice(11, 16)
+  const fallbackEndTime = endDate.toISOString().slice(11, 16)
+  const durationMinutes =
+    typeof shift.durationMinutes === "number" && Number.isFinite(shift.durationMinutes)
+      ? Math.max(0, Math.round(shift.durationMinutes))
+      : Math.max(0, Math.round((endDate.getTime() - startDate.getTime()) / 60000))
   return {
     id: shift.id,
     date: shift.date,
     type: shift.type,
-    start: new Date(shift.start),
-    end: new Date(shift.end),
+    start: startDate,
+    end: endDate,
+    startTime:
+      typeof shift.startTime === "string" && shift.startTime.trim().length >= 4
+        ? shift.startTime.slice(0, 5)
+        : fallbackStartTime,
+    endTime:
+      typeof shift.endTime === "string" && shift.endTime.trim().length >= 4
+        ? shift.endTime.slice(0, 5)
+        : fallbackEndTime,
+    durationMinutes,
     ...(shift.note ? { note: shift.note } : {}),
     ...(shift.label ? { label: shift.label } : {}),
     ...(shift.color ? { color: shift.color } : {}),
@@ -253,6 +313,8 @@ function buildShiftRequestPayload(
     label,
     color,
     pluses,
+    startTime,
+    endTime,
   }: {
     date: string
     type: ShiftType
@@ -260,6 +322,8 @@ function buildShiftRequestPayload(
     label?: string
     color?: string
     pluses?: ShiftPluses
+    startTime?: string | null
+    endTime?: string | null
   },
 ): ShiftMutationRequestBody {
   return {
@@ -273,6 +337,8 @@ function buildShiftRequestPayload(
     plusAvailability: pluses?.availability ?? 0,
     plusOther: pluses?.other ?? 0,
     userId,
+    startTime: startTime ?? null,
+    endTime: endTime ?? null,
   }
 }
 
@@ -315,6 +381,26 @@ export default function Home() {
   const [pendingShiftMutations, setPendingShiftMutations] = useState(0)
   const [lastSyncError, setLastSyncError] = useState<string | null>(null)
   const isSyncingRef = useRef(false)
+  const [shiftHistory, setShiftHistory] = useState<ShiftHistoryEntry[]>(() => {
+    if (typeof window === "undefined") {
+      return []
+    }
+    try {
+      const stored = window.localStorage.getItem(HISTORY_STORAGE_KEY)
+      if (!stored) {
+        return []
+      }
+      const parsed = JSON.parse(stored) as ShiftHistoryEntry[] | null
+      if (!Array.isArray(parsed)) {
+        return []
+      }
+      return parsed.slice(0, MAX_HISTORY_ENTRIES)
+    } catch (error) {
+      console.error("No se pudo recuperar el historial guardado", error)
+      return []
+    }
+  })
+  const [activeSection, setActiveSection] = useState<string>(SECTION_IDS[0])
 
   const supabase = useMemo(() => {
     if (typeof window === "undefined") {
@@ -336,12 +422,36 @@ export default function Home() {
     const plusOther = shift.plusOther ?? 0
     const hasPluses =
       plusNight > 0 || plusHoliday > 0 || plusAvailability > 0 || plusOther > 0
+    const startTime =
+      typeof shift.startTime === "string" && shift.startTime.trim().length >= 4
+        ? shift.startTime.slice(0, 5)
+        : null
+    const endTime =
+      typeof shift.endTime === "string" && shift.endTime.trim().length >= 4
+        ? shift.endTime.slice(0, 5)
+        : null
+    const startDate = startTime
+      ? new Date(`${shift.date}T${startTime}:00`)
+      : new Date(`${shift.date}T00:00:00`)
+    const endDate = endTime
+      ? new Date(`${shift.date}T${endTime}:00`)
+      : new Date(`${shift.date}T23:59:59`)
+    if (endDate.getTime() <= startDate.getTime()) {
+      endDate.setDate(endDate.getDate() + 1)
+    }
+    const durationMinutes =
+      typeof shift.durationMinutes === "number" && Number.isFinite(shift.durationMinutes)
+        ? Math.max(0, Math.round(shift.durationMinutes))
+        : Math.max(0, Math.round((endDate.getTime() - startDate.getTime()) / 60000))
     return {
       id: shift.id,
       date: shift.date,
       type: shift.type,
-      start: new Date(shift.date),
-      end: new Date(shift.date),
+      start: startDate,
+      end: endDate,
+      startTime,
+      endTime,
+      durationMinutes,
       ...(shift.note && shift.note.trim().length > 0
         ? { note: shift.note }
         : {}),
@@ -402,6 +512,111 @@ export default function Home() {
     return [...items].sort(
       (a, b) => new Date(a.date).getTime() - new Date(b.date).getTime()
     )
+  }, [])
+
+  useEffect(() => {
+    if (typeof window === "undefined") {
+      return
+    }
+    try {
+      window.localStorage.setItem(
+        HISTORY_STORAGE_KEY,
+        JSON.stringify(shiftHistory.slice(0, MAX_HISTORY_ENTRIES)),
+      )
+    } catch (error) {
+      console.error("No se pudo guardar el historial de cambios", error)
+    }
+  }, [shiftHistory])
+
+  const createSnapshot = useCallback((shift: ShiftEvent): ShiftSnapshot => {
+    return {
+      date: shift.date,
+      type: shift.type,
+      startTime: shift.startTime,
+      endTime: shift.endTime,
+      durationMinutes: shift.durationMinutes,
+      note: shift.note ?? null,
+      label: shift.label ?? null,
+      color: shift.color ?? null,
+      pluses: shift.pluses
+        ? {
+            night: shift.pluses.night,
+            holiday: shift.pluses.holiday,
+            availability: shift.pluses.availability,
+            other: shift.pluses.other,
+          }
+        : undefined,
+    }
+  }, [])
+
+  const recordHistoryEntry = useCallback(
+    (entry: Omit<ShiftHistoryEntry, "id" | "timestamp">) => {
+      const identifier =
+        typeof crypto !== "undefined" && typeof crypto.randomUUID === "function"
+          ? crypto.randomUUID()
+        : `${Date.now()}-${Math.random().toString(36).slice(2, 10)}`
+      const timestamp = new Date().toISOString()
+      setShiftHistory((current) => {
+        const next = [{ id: identifier, timestamp, ...entry }, ...current]
+        return next.slice(0, MAX_HISTORY_ENTRIES)
+      })
+    },
+    [],
+  )
+
+  const navItems = useMemo(
+    () => [
+      { id: "overview", label: "Resumen", description: "Indicadores clave" },
+      { id: "calendar", label: "Calendario", description: "Planificación" },
+      { id: "hours", label: "Horas", description: "Totales diarios" },
+      { id: "history", label: "Historial", description: "Cambios recientes" },
+      { id: "team", label: "Equipo", description: "Disponibilidad" },
+      { id: "settings", label: "Preferencias", description: "Perfil y cuenta" },
+    ],
+    [],
+  )
+
+  const handleNavigateSection = useCallback((sectionId: string) => {
+    setActiveSection(sectionId)
+    if (typeof window === "undefined") {
+      return
+    }
+    const element = document.getElementById(sectionId)
+    if (element) {
+      element.scrollIntoView({ behavior: "smooth", block: "start" })
+    }
+  }, [])
+
+  useEffect(() => {
+    if (typeof window === "undefined") {
+      return
+    }
+
+    const observer = new IntersectionObserver(
+      (entries) => {
+        const visible = entries
+          .filter((entry) => entry.isIntersecting)
+          .sort((a, b) => b.intersectionRatio - a.intersectionRatio)
+        if (visible.length > 0) {
+          const currentId = visible[0].target.id
+          if (currentId && SECTION_IDS.includes(currentId as (typeof SECTION_IDS)[number])) {
+            setActiveSection(currentId)
+          }
+        }
+      },
+      { rootMargin: "-45% 0px -45% 0px", threshold: [0.25, 0.6] },
+    )
+
+    SECTION_IDS.forEach((id) => {
+      const element = document.getElementById(id)
+      if (element) {
+        observer.observe(element)
+      }
+    })
+
+    return () => {
+      observer.disconnect()
+    }
   }, [])
 
   const restoreSession = useCallback(() => {
@@ -731,6 +946,8 @@ export default function Home() {
       label,
       color,
       pluses,
+      startTime,
+      endTime,
     }: {
       date: string
       type: ShiftType
@@ -738,6 +955,8 @@ export default function Home() {
       label?: string
       color?: string
       pluses?: ShiftPluses
+      startTime?: string | null
+      endTime?: string | null
     }) => {
       if (!currentUser) {
         throw new Error("Selecciona un usuario antes de crear turnos")
@@ -751,6 +970,8 @@ export default function Home() {
         label,
         color,
         pluses,
+        startTime,
+        endTime,
       })
 
       try {
@@ -765,6 +986,11 @@ export default function Home() {
         setShifts((current) => {
           const next = sortByDate([...current, newShift])
           persistShiftsSnapshot(userId, next)
+          recordHistoryEntry({
+            shiftId: newShift.id,
+            action: "create",
+            after: createSnapshot(newShift),
+          })
           return next
         })
         setIsOffline(false)
@@ -783,11 +1009,18 @@ export default function Home() {
             plusHoliday: payload.plusHoliday,
             plusAvailability: payload.plusAvailability,
             plusOther: payload.plusOther,
+            startTime: payload.startTime ?? undefined,
+            endTime: payload.endTime ?? undefined,
           })
 
           setShifts((current) => {
             const next = sortByDate([...current, optimisticShift])
             persistShiftsSnapshot(userId, next)
+            recordHistoryEntry({
+              shiftId: optimisticShift.id,
+              action: "create",
+              after: createSnapshot(optimisticShift),
+            })
             return next
           })
 
@@ -813,9 +1046,11 @@ export default function Home() {
     },
     [
       currentUser,
+      createSnapshot,
       mapApiShift,
       parseJsonResponse,
       persistShiftsSnapshot,
+      recordHistoryEntry,
       refreshPendingMutations,
       requestBackgroundSync,
       sortByDate,
@@ -831,6 +1066,8 @@ export default function Home() {
       label,
       color,
       pluses,
+      startTime,
+      endTime,
     }: {
       id: number
       date: string
@@ -839,6 +1076,8 @@ export default function Home() {
       label?: string
       color?: string
       pluses?: ShiftPluses
+      startTime?: string | null
+      endTime?: string | null
     }) => {
       if (!currentUser) {
         throw new Error("Selecciona un usuario antes de actualizar turnos")
@@ -852,6 +1091,8 @@ export default function Home() {
         label,
         color,
         pluses,
+        startTime,
+        endTime,
       })
 
       try {
@@ -864,10 +1105,22 @@ export default function Home() {
         const data = await parseJsonResponse<{ shift: ApiShift }>(response)
         const updatedShift = mapApiShift(data.shift)
         setShifts((current) => {
-          const next = sortByDate(
-            current.map((shift) => (shift.id === id ? updatedShift : shift)),
-          )
+          let previousSnapshot: ShiftSnapshot | null = null
+          const reordered = current.map((shift) => {
+            if (shift.id === id) {
+              previousSnapshot = createSnapshot(shift)
+              return updatedShift
+            }
+            return shift
+          })
+          const next = sortByDate(reordered)
           persistShiftsSnapshot(userId, next)
+          recordHistoryEntry({
+            shiftId: updatedShift.id,
+            action: previousSnapshot ? "update" : "create",
+            before: previousSnapshot,
+            after: createSnapshot(updatedShift),
+          })
           return next
         })
         setIsOffline(false)
@@ -885,13 +1138,27 @@ export default function Home() {
             plusHoliday: payload.plusHoliday,
             plusAvailability: payload.plusAvailability,
             plusOther: payload.plusOther,
+            startTime: payload.startTime ?? undefined,
+            endTime: payload.endTime ?? undefined,
           })
 
           setShifts((current) => {
-            const next = sortByDate(
-              current.map((shift) => (shift.id === id ? optimisticShift : shift)),
-            )
+            let previousSnapshot: ShiftSnapshot | null = null
+            const updatedList = current.map((shift) => {
+              if (shift.id === id) {
+                previousSnapshot = createSnapshot(shift)
+                return optimisticShift
+              }
+              return shift
+            })
+            const next = sortByDate(updatedList)
             persistShiftsSnapshot(userId, next)
+            recordHistoryEntry({
+              shiftId: id,
+              action: previousSnapshot ? "update" : "create",
+              before: previousSnapshot,
+              after: createSnapshot(optimisticShift),
+            })
             return next
           })
 
@@ -937,9 +1204,11 @@ export default function Home() {
     },
     [
       currentUser,
+      createSnapshot,
       mapApiShift,
       parseJsonResponse,
       persistShiftsSnapshot,
+      recordHistoryEntry,
       refreshPendingMutations,
       requestBackgroundSync,
       sortByDate,
@@ -970,8 +1239,16 @@ export default function Home() {
         }
 
         setShifts((current) => {
+          const target = current.find((shift) => shift.id === id) ?? null
           const next = sortByDate(current.filter((shift) => shift.id !== id))
           persistShiftsSnapshot(userId, next)
+          if (target) {
+            recordHistoryEntry({
+              shiftId: id,
+              action: "delete",
+              before: createSnapshot(target),
+            })
+          }
           return next
         })
         setIsOffline(false)
@@ -979,8 +1256,16 @@ export default function Home() {
       } catch (error) {
         if (isLikelyOfflineError(error)) {
           setShifts((current) => {
+            const target = current.find((shift) => shift.id === id) ?? null
             const next = sortByDate(current.filter((shift) => shift.id !== id))
             persistShiftsSnapshot(userId, next)
+            if (target) {
+              recordHistoryEntry({
+                shiftId: id,
+                action: "delete",
+                before: createSnapshot(target),
+              })
+            }
             return next
           })
 
@@ -1007,7 +1292,9 @@ export default function Home() {
     },
     [
       currentUser,
+      createSnapshot,
       persistShiftsSnapshot,
+      recordHistoryEntry,
       refreshPendingMutations,
       requestBackgroundSync,
       sortByDate,
@@ -1093,6 +1380,8 @@ export default function Home() {
               label: day.label,
               color: day.color,
               pluses: day.pluses,
+              startTime: shift.startTime ?? DEFAULT_SHIFT_START_TIME,
+              endTime: shift.endTime ?? DEFAULT_SHIFT_END_TIME,
             })
           } catch (error) {
             if (error instanceof ApiError && error.status === 404) {
@@ -1107,6 +1396,8 @@ export default function Home() {
                 ...(day.label ? { label: day.label } : {}),
                 ...(day.color ? { color: day.color } : {}),
                 pluses: day.pluses,
+                startTime: DEFAULT_SHIFT_START_TIME,
+                endTime: DEFAULT_SHIFT_END_TIME,
               })
               continue
             }
@@ -1123,6 +1414,8 @@ export default function Home() {
             ...(entry.label ? { label: entry.label } : {}),
             ...(entry.color ? { color: entry.color } : {}),
             pluses: entry.pluses,
+            startTime: DEFAULT_SHIFT_START_TIME,
+            endTime: DEFAULT_SHIFT_END_TIME,
           })
         }
       } catch (error) {
@@ -1278,6 +1571,28 @@ export default function Home() {
   }, [orderedShifts])
 
   const activeShiftTypes = Object.keys(typeCounts).length
+
+  const dailyHoursSummary = useMemo(() => {
+    const totals = new Map<string, { totalMinutes: number; shifts: ShiftEvent[] }>()
+    for (const shift of orderedShifts) {
+      const minutes = shift.durationMinutes
+      const existing = totals.get(shift.date)
+      if (existing) {
+        existing.totalMinutes += minutes
+        existing.shifts = [...existing.shifts, shift]
+      } else {
+        totals.set(shift.date, { totalMinutes: minutes, shifts: [shift] })
+      }
+    }
+
+    return Array.from(totals.entries())
+      .map(([date, data]) => ({
+        date,
+        totalMinutes: data.totalMinutes,
+        shifts: data.shifts.sort((a, b) => (a.startTime ?? "").localeCompare(b.startTime ?? "")),
+      }))
+      .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime())
+  }, [orderedShifts])
 
   const nextShiftCountdownLabel = useMemo(() => {
     if (daysUntilNextShift === null) {
@@ -1703,8 +2018,16 @@ export default function Home() {
           lastError={lastSyncError}
           onRetry={synchronizePendingShiftRequests}
         />
+        <ResponsiveNav
+          items={navItems}
+          activeId={activeSection}
+          onNavigate={handleNavigateSection}
+        />
         <div className="hidden lg:block">
-          <section className="rounded-3xl border border-white/10 bg-slate-950/70 px-6 py-6 shadow-[0_45px_120px_-55px_rgba(37,99,235,0.65)]">
+          <section
+            id="overview"
+            className="rounded-3xl border border-white/10 bg-slate-950/70 px-6 py-6 shadow-[0_45px_120px_-55px_rgba(37,99,235,0.65)]"
+          >
             <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
               <div>
                 <p className="text-sm text-white/60">Hola, {mobileGreeting}</p>
@@ -1761,10 +2084,13 @@ export default function Home() {
         <main className="flex-1 overflow-y-auto pb-[calc(6rem+env(safe-area-inset-bottom))] lg:pb-0">
           <div className="mx-auto w-full max-w-7xl space-y-10 px-0 py-6 sm:px-2 lg:px-0">
             <div className="hidden lg:flex lg:flex-col lg:gap-8">
-              <section className="rounded-3xl border border-white/10 bg-slate-950/70 p-6">
-                <header className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
-                  <div>
-                    <h2 className="text-2xl font-semibold">Calendario</h2>
+              <section
+                id="calendar"
+                className="rounded-3xl border border-white/10 bg-slate-950/70 p-6"
+              >
+              <header className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
+                <div>
+                  <h2 className="text-2xl font-semibold">Calendario</h2>
                     <p className="text-sm text-white/60">
                       Visualiza y organiza tus turnos directamente en el calendario.
                     </p>
@@ -1828,6 +2154,18 @@ export default function Home() {
                                 <p className="text-sm font-semibold text-white">
                                   {shift.label ?? SHIFT_TYPE_LABELS[shift.type] ?? shift.type}
                                 </p>
+                                <div className="mt-1 flex flex-wrap items-center gap-2 text-xs text-white/60">
+                                  <span>
+                                    {shift.startTime && shift.endTime
+                                      ? `${shift.startTime} - ${shift.endTime}`
+                                      : "Todo el día"}
+                                  </span>
+                                  {shift.durationMinutes > 0 && (
+                                    <span className="inline-flex items-center gap-1 rounded-full border border-white/10 px-2 py-0.5 text-[11px] text-white/60">
+                                      ⏱️ {`${Math.floor(shift.durationMinutes / 60)}h ${String(shift.durationMinutes % 60).padStart(2, "0")}m`}
+                                    </span>
+                                  )}
+                                </div>
                               </div>
                               <div className="flex flex-col gap-2 sm:items-end">
                                 <span className="inline-flex items-center gap-2 rounded-full border border-white/10 px-3 py-1 text-xs text-white/60">
@@ -1860,6 +2198,20 @@ export default function Home() {
                 </div>
               </section>
 
+              <div id="hours" className="mt-8">
+                <DailyHoursSummary
+                  entries={dailyHoursSummary}
+                  shiftTypeLabels={SHIFT_TYPE_LABELS}
+                />
+              </div>
+
+              <div id="history" className="mt-8">
+                <ChangeHistoryPanel
+                  entries={shiftHistory}
+                  shiftTypeLabels={SHIFT_TYPE_LABELS}
+                />
+              </div>
+
               <div className="grid gap-6 xl:grid-cols-2 2xl:grid-cols-3">
                 <NextShiftCard
                   nextShift={nextShift}
@@ -1879,21 +2231,25 @@ export default function Home() {
                   shiftTypeLabels={SHIFT_TYPE_LABELS}
                 />
 
-                <TeamSpotlight
-                  upcomingShifts={upcomingShifts}
-                  shiftTypeLabels={SHIFT_TYPE_LABELS}
-                />
+                <div id="team">
+                  <TeamSpotlight
+                    upcomingShifts={upcomingShifts}
+                    shiftTypeLabels={SHIFT_TYPE_LABELS}
+                  />
+                </div>
               </div>
 
-              <ConfigurationPanel
-                user={currentUser}
-                defaultPreferences={userPreferences}
-                onSave={handleSavePreferences}
-                onUpdateProfile={handleUpdateProfile}
-                isSaving={isSavingPreferences}
-                lastSavedAt={preferencesSavedAt}
-                onLogout={handleLogout}
-              />
+              <div id="settings">
+                <ConfigurationPanel
+                  user={currentUser}
+                  defaultPreferences={userPreferences}
+                  onSave={handleSavePreferences}
+                  onUpdateProfile={handleUpdateProfile}
+                  isSaving={isSavingPreferences}
+                  lastSavedAt={preferencesSavedAt}
+                  onLogout={handleLogout}
+                />
+              </div>
             </div>
 
               <div className="lg:hidden">
@@ -2002,9 +2358,23 @@ export default function Home() {
                     />
                   )}
 
+                  {activeMobileTab === "hours" && (
+                    <HoursTab
+                      entries={dailyHoursSummary}
+                      shiftTypeLabels={SHIFT_TYPE_LABELS}
+                    />
+                  )}
+
                   {activeMobileTab === "team" && (
                     <TeamTab
                       upcomingShifts={upcomingShifts}
+                      shiftTypeLabels={SHIFT_TYPE_LABELS}
+                    />
+                  )}
+
+                  {activeMobileTab === "history" && (
+                    <HistoryTab
+                      entries={shiftHistory}
                       shiftTypeLabels={SHIFT_TYPE_LABELS}
                     />
                   )}

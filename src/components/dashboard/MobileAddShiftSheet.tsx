@@ -14,7 +14,13 @@ const SHIFT_TYPE_LABELS: Record<ShiftType, string> = {
 type MobileAddShiftSheetProps = {
   open: boolean
   onClose: () => void
-  onAdd: (shift: { date: string; type: ShiftType; note?: string }) => Promise<void>
+  onAdd: (shift: {
+    date: string
+    type: ShiftType
+    note?: string
+    startTime: string
+    endTime: string
+  }) => Promise<void>
   selectedDate?: string | null
   onDateConsumed?: () => void
 }
@@ -29,6 +35,8 @@ export default function MobileAddShiftSheet({
   const [date, setDate] = useState("")
   const [type, setType] = useState<ShiftType>("WORK")
   const [note, setNote] = useState("")
+  const [startTime, setStartTime] = useState("09:00")
+  const [endTime, setEndTime] = useState("17:00")
   const [error, setError] = useState("")
   const [submitError, setSubmitError] = useState("")
   const [isSubmitting, setIsSubmitting] = useState(false)
@@ -50,6 +58,8 @@ export default function MobileAddShiftSheet({
         setDate("")
         setType("WORK")
         setNote("")
+        setStartTime("09:00")
+        setEndTime("17:00")
       }, 200)
       return () => clearTimeout(timeout)
     }
@@ -77,6 +87,11 @@ export default function MobileAddShiftSheet({
       return
     }
 
+    if (!startTime || !endTime) {
+      setError("Indica la hora de inicio y finalización")
+      return
+    }
+
     setError("")
     setSubmitError("")
     try {
@@ -85,6 +100,8 @@ export default function MobileAddShiftSheet({
         date,
         type,
         note: note.trim() ? note.trim() : undefined,
+        startTime,
+        endTime,
       })
       onClose()
     } catch (submissionError) {
@@ -159,6 +176,29 @@ export default function MobileAddShiftSheet({
             ))}
           </select>
         </label>
+
+        <div className="grid grid-cols-2 gap-3">
+          <label className="flex flex-col gap-2 text-sm text-white/80">
+            Hora de inicio
+            <input
+              type="time"
+              value={startTime}
+              onChange={(event) => setStartTime(event.target.value)}
+              className="rounded-xl border border-white/15 bg-slate-900 px-3 py-2 text-white focus:border-blue-400 focus:outline-none focus:ring-2 focus:ring-blue-500/40"
+              required
+            />
+          </label>
+          <label className="flex flex-col gap-2 text-sm text-white/80">
+            Hora de finalización
+            <input
+              type="time"
+              value={endTime}
+              onChange={(event) => setEndTime(event.target.value)}
+              className="rounded-xl border border-white/15 bg-slate-900 px-3 py-2 text-white focus:border-blue-400 focus:outline-none focus:ring-2 focus:ring-blue-500/40"
+              required
+            />
+          </label>
+        </div>
 
         <label className="flex flex-col gap-2 text-sm text-white/80">
           Nota (opcional)

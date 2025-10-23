@@ -42,12 +42,14 @@ export type ApiShift = {
 }
 
 export const SHIFT_SELECT_COLUMNS =
-  "id, calendar_id, start_at, shift_type_code, note, label, color, plus_night, plus_holiday, plus_availability, plus_other"
+  "id, calendar_id, start_at, end_at, all_day, shift_type_code, note, label, color, plus_night, plus_holiday, plus_availability, plus_other"
 
 export type DatabaseShiftRow = {
   id: number
   calendar_id: number | null
   start_at: string | null
+  end_at: string | null
+  all_day: boolean | number | null
   shift_type_code: string | null
   note: string | null
   label: string | null
@@ -137,8 +139,11 @@ export function normalizeTime(value: unknown): string | null {
 
 export function adaptDatabaseShiftRow(row: DatabaseShiftRow): ShiftRow {
   const date = normalizeDateFromStart(row.start_at)
-  const startTime = normalizeTimeFromDateTime(row.start_at)
-  const endTime = normalizeTimeFromDateTime(row.end_at)
+  const isAllDay = row.all_day === true || row.all_day === 1
+  const startTimeCandidate = normalizeTimeFromDateTime(row.start_at)
+  const endTimeCandidate = normalizeTimeFromDateTime(row.end_at)
+  const startTime = isAllDay ? null : startTimeCandidate
+  const endTime = isAllDay ? null : endTimeCandidate
 
   const startDateTime = startTime ? new Date(`${date}T${startTime}:00`) : null
   const endDateTime = endTime ? new Date(`${date}T${endTime}:00`) : null

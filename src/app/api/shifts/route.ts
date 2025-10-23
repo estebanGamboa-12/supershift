@@ -285,7 +285,7 @@ export async function POST(request: Request) {
         shift_type_code: type,
         start_at: startAt,
         end_at: endAt,
-        all_day: isAllDay ? 1 : 0,
+        all_day: isAllDay,
         note,
         label,
         color,

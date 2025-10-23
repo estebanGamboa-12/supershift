@@ -200,7 +200,7 @@ export async function PATCH(request: NextRequest, context: Params) {
       })
       updates.start_at = startAt
       updates.end_at = endAt
-      updates.all_day = scheduleStartTime && scheduleEndTime ? 0 : 1
+      updates.all_day = !scheduleStartTime || !scheduleEndTime
     }
 
     if ("type" in payload) {

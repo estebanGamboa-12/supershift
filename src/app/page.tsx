@@ -6,22 +6,12 @@ import { es } from "date-fns/locale"
 import type { ShiftEvent, ShiftPluses, ShiftType } from "@/types/shifts"
 import EditShiftModal from "@/components/EditShiftModal"
 import type { ManualRotationDay } from "@/components/ManualRotationBuilder"
-import ShiftPlannerLab from "@/components/ShiftPlannerLab"
-import ConfigurationPanel, {
-  DEFAULT_USER_PREFERENCES,
-  type UserPreferences,
-} from "@/components/dashboard/ConfigurationPanel"
+import { DEFAULT_USER_PREFERENCES, type UserPreferences } from "@/components/dashboard/ConfigurationPanel"
 import DashboardSidebar from "@/components/dashboard/DashboardSidebar"
 // eslint-disable-next-line @typescript-eslint/no-unused-vars
 import DashboardHeader from "@/components/dashboard/DashboardHeader"
 import MobileNavigation, { type MobileTab } from "@/components/dashboard/MobileNavigation"
 import MobileAddShiftSheet from "@/components/dashboard/MobileAddShiftSheet"
-import NextShiftCard from "@/components/dashboard/NextShiftCard"
-import PlanningHealthCard from "@/components/dashboard/PlanningHealthCard"
-import ShiftDistribution from "@/components/dashboard/ShiftDistribution"
-import TeamSpotlight from "@/components/dashboard/TeamSpotlight"
-import DailyHoursSummary from "@/components/dashboard/DailyHoursSummary"
-import ChangeHistoryPanel from "@/components/dashboard/ChangeHistoryPanel"
 import ResponsiveNav from "@/components/dashboard/ResponsiveNav"
 import UserAuthPanel from "@/components/auth/UserAuthPanel"
 import FloatingParticlesLoader from "@/components/FloatingParticlesLoader"
@@ -197,8 +187,6 @@ type ShiftHistoryEntry = {
   after?: ShiftSnapshot | null
 }
 
-const SECTION_IDS = ["overview", "calendar", "hours", "history", "team", "settings"] as const
-
 const SESSION_STORAGE_KEY = "planloop:session"
 const SESSION_DURATION_MS = 1000 * 60 * 60 * 24 * 14 // 14 días
 
@@ -355,7 +343,7 @@ export default function Home() {
   const [selectedShift, setSelectedShift] = useState<ShiftEvent | null>(null)
   const [selectedDateFromCalendar, setSelectedDateFromCalendar] =
     useState<string | null>(null)
-  const [activeMobileTab, setActiveMobileTab] = useState<MobileTab>("calendar")
+  const [activeTab, setActiveTab] = useState<MobileTab>("calendar")
   const [isMobileAddOpen, setIsMobileAddOpen] = useState(false)
   const [users, setUsers] = useState<UserSummary[]>([])
   const [currentUser, setCurrentUser] = useState<UserSummary | null>(null)
@@ -400,7 +388,6 @@ export default function Home() {
       return []
     }
   })
-  const [activeSection, setActiveSection] = useState<string>(SECTION_IDS[0])
 
   const supabase = useMemo(() => {
     if (typeof window === "undefined") {
@@ -566,57 +553,18 @@ export default function Home() {
 
   const navItems = useMemo(
     () => [
-      { id: "overview", label: "Resumen", description: "Indicadores clave" },
       { id: "calendar", label: "Calendario", description: "Planificación" },
+      { id: "stats", label: "Estadísticas", description: "Indicadores clave" },
       { id: "hours", label: "Horas", description: "Totales diarios" },
-      { id: "history", label: "Historial", description: "Cambios recientes" },
       { id: "team", label: "Equipo", description: "Disponibilidad" },
+      { id: "history", label: "Historial", description: "Cambios recientes" },
       { id: "settings", label: "Preferencias", description: "Perfil y cuenta" },
     ],
     [],
   )
 
-  const handleNavigateSection = useCallback((sectionId: string) => {
-    setActiveSection(sectionId)
-    if (typeof window === "undefined") {
-      return
-    }
-    const element = document.getElementById(sectionId)
-    if (element) {
-      element.scrollIntoView({ behavior: "smooth", block: "start" })
-    }
-  }, [])
-
-  useEffect(() => {
-    if (typeof window === "undefined") {
-      return
-    }
-
-    const observer = new IntersectionObserver(
-      (entries) => {
-        const visible = entries
-          .filter((entry) => entry.isIntersecting)
-          .sort((a, b) => b.intersectionRatio - a.intersectionRatio)
-        if (visible.length > 0) {
-          const currentId = visible[0].target.id
-          if (currentId && SECTION_IDS.includes(currentId as (typeof SECTION_IDS)[number])) {
-            setActiveSection(currentId)
-          }
-        }
-      },
-      { rootMargin: "-45% 0px -45% 0px", threshold: [0.25, 0.6] },
-    )
-
-    SECTION_IDS.forEach((id) => {
-      const element = document.getElementById(id)
-      if (element) {
-        observer.observe(element)
-      }
-    })
-
-    return () => {
-      observer.disconnect()
-    }
+  const handleNavigateTab = useCallback((sectionId: string) => {
+    setActiveTab(sectionId as MobileTab)
   }, [])
 
   const restoreSession = useCallback(() => {
@@ -1651,17 +1599,11 @@ export default function Home() {
     ]
   )
 
-  const upcomingCalendarShifts = useMemo(() => {
-    return orderedShifts
-      .filter((shift) => differenceInCalendarDays(new Date(shift.date), new Date()) >= -3)
-      .slice(0, 10)
-  }, [orderedShifts])
-
   useEffect(() => {
     if (!selectedDateFromCalendar) return
     if (typeof window === "undefined") return
     if (window.innerWidth < 1024) {
-      setActiveMobileTab("calendar")
+      setActiveTab("calendar")
       setIsMobileAddOpen(true)
     }
   }, [selectedDateFromCalendar])
@@ -1958,7 +1900,7 @@ export default function Home() {
   )
 
   const handleOpenMobileAdd = useCallback(() => {
-    setActiveMobileTab("calendar")
+    setActiveTab("calendar")
     setIsMobileAddOpen(true)
     setSelectedDateFromCalendar(format(new Date(), "yyyy-MM-dd"))
   }, [])
@@ -2020,12 +1962,11 @@ export default function Home() {
         />
         <ResponsiveNav
           items={navItems}
-          activeId={activeSection}
-          onNavigate={handleNavigateSection}
+          activeId={activeTab}
+          onNavigate={handleNavigateTab}
         />
         <div className="hidden lg:block">
           <section
-            id="overview"
             className="rounded-3xl border border-white/10 bg-slate-950/70 px-6 py-6 shadow-[0_45px_120px_-55px_rgba(37,99,235,0.65)]"
           >
             <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
@@ -2052,7 +1993,14 @@ export default function Home() {
             </div>
 
             <div className="mt-6 flex flex-wrap gap-2 text-xs font-semibold uppercase tracking-wide text-white/60">
-              {["Resumen", "Estadísticas", "Agenda", "Equipo"].map((tab) => (
+              {[
+                "Calendario",
+                "Estadísticas",
+                "Horas",
+                "Equipo",
+                "Historial",
+                "Configuración",
+              ].map((tab) => (
                 <span
                   key={tab}
                   className="rounded-full border border-white/10 bg-white/5 px-4 py-1"
@@ -2061,195 +2009,155 @@ export default function Home() {
                 </span>
               ))}
             </div>
-
-            <dl className="mt-6 grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
-              {summaryCards.map((card) => (
-                <div
-                  key={card.title}
-                  className="rounded-2xl border border-white/10 bg-white/5 px-5 py-4 shadow-inner shadow-blue-500/10"
-                >
-                  <dt className="text-[11px] uppercase tracking-wide text-white/60">
-                    {card.title}
-                  </dt>
-                  <dd className="mt-2 text-3xl font-semibold text-white">
-                    {card.value}
-                  </dd>
-                  <p className="mt-1 text-xs text-white/50">{card.description}</p>
-                </div>
-              ))}
-            </dl>
           </section>
         </div>
 
         <main className="flex-1 overflow-y-auto pb-[calc(6rem+env(safe-area-inset-bottom))] lg:pb-0">
           <div className="mx-auto w-full max-w-7xl space-y-10 px-0 py-6 sm:px-2 lg:px-0">
             <div className="hidden lg:flex lg:flex-col lg:gap-8">
-              <section
-                id="calendar"
-                className="rounded-3xl border border-white/10 bg-slate-950/70 p-6"
-              >
-              <header className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
-                <div>
-                  <h2 className="text-2xl font-semibold">Calendario</h2>
-                    <p className="text-sm text-white/60">
-                      Visualiza y organiza tus turnos directamente en el calendario.
-                    </p>
-                  </div>
-                  <button
-                    type="button"
-                    onClick={handleOpenMobileAdd}
-                    className="inline-flex items-center gap-2 rounded-full border border-white/15 px-4 py-2 text-xs font-semibold uppercase tracking-wide text-white/80 transition hover:border-blue-400/40 hover:text-white"
-                  >
-                    <span aria-hidden className="text-base">＋</span>
-                    Añadir turno
-                  </button>
-                </header>
-
-                <div className="mt-6">
-                  <ShiftPlannerLab
-                    initialEntries={plannerDays}
-                    onCommit={handleManualRotationConfirm}
-                    isCommitting={isCommittingRotation}
-                    errorMessage={rotationError}
-                  />
-                </div>
-              </section>
-
-              <section className="rounded-3xl border border-white/10 bg-slate-950/70 p-6">
-                <header className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
-                  <div>
-                    <h2 className="text-2xl font-semibold">Próximos turnos</h2>
-                    <p className="text-sm text-white/60">
-                      Consulta el listado de turnos programados a corto plazo.
-                    </p>
-                  </div>
-                </header>
-
-                <div className="mt-6 overflow-hidden rounded-2xl border border-white/10">
-                  {upcomingCalendarShifts.length > 0 ? (
-                    <ul className="divide-y divide-white/10">
-                      {upcomingCalendarShifts.map((shift) => {
-                        const daysFromToday = differenceInCalendarDays(
-                          new Date(shift.date),
-                          new Date()
-                        )
-                        const relativeLabel =
-                          daysFromToday === 0
-                            ? "Hoy"
-                            : daysFromToday > 0
-                              ? `En ${daysFromToday} día${daysFromToday === 1 ? "" : "s"}`
-                              : `Hace ${Math.abs(daysFromToday)} día${Math.abs(daysFromToday) === 1 ? "" : "s"}`
-
-                        return (
-                          <li key={shift.id}>
-                            <button
-                              type="button"
-                              onClick={() => handleSelectShift(shift)}
-                              className="flex w-full flex-col gap-3 bg-slate-950/40 px-5 py-4 text-left transition hover:bg-slate-900/60 sm:flex-row sm:items-center sm:justify-between"
-                            >
-                              <div>
-                                <p className="text-xs uppercase tracking-wide text-white/50">
-                                  {format(new Date(shift.date), "EEEE d 'de' MMMM", { locale: es })}
-                                </p>
-                                <p className="text-sm font-semibold text-white">
-                                  {shift.label ?? SHIFT_TYPE_LABELS[shift.type] ?? shift.type}
-                                </p>
-                                <div className="mt-1 flex flex-wrap items-center gap-2 text-xs text-white/60">
-                                  <span>
-                                    {shift.startTime && shift.endTime
-                                      ? `${shift.startTime} - ${shift.endTime}`
-                                      : "Todo el día"}
-                                  </span>
-                                  {shift.durationMinutes > 0 && (
-                                    <span className="inline-flex items-center gap-1 rounded-full border border-white/10 px-2 py-0.5 text-[11px] text-white/60">
-                                      ⏱️ {`${Math.floor(shift.durationMinutes / 60)}h ${String(shift.durationMinutes % 60).padStart(2, "0")}m`}
-                                    </span>
-                                  )}
-                                </div>
-                              </div>
-                              <div className="flex flex-col gap-2 sm:items-end">
-                                <span className="inline-flex items-center gap-2 rounded-full border border-white/10 px-3 py-1 text-xs text-white/60">
-                                  <span
-                                    className="h-2 w-2 rounded-full"
-                                    style={{ backgroundColor: shift.color ?? "#64748b" }}
-                                    aria-hidden
-                                  />
-                                  {SHIFT_TYPE_LABELS[shift.type] ?? shift.type}
-                                </span>
-                                <span className="text-xs text-white/40">{relativeLabel}</span>
-                              </div>
-                            </button>
-                          </li>
-                        )
-                      })}
-                    </ul>
-                  ) : (
-                    <div className="flex flex-col items-center justify-center gap-3 bg-slate-950/40 px-6 py-16 text-center text-sm text-white/60">
-                      <p>No hay turnos próximos registrados.</p>
-                      <button
-                        type="button"
-                        onClick={handleOpenMobileAdd}
-                        className="rounded-full border border-white/15 px-4 py-2 text-xs font-semibold uppercase tracking-wide text-white/80 transition hover:border-blue-400/40 hover:text-white"
-                      >
-                        Crear primer turno
-                      </button>
+              {activeTab === "calendar" && (
+                <section className="rounded-3xl border border-white/10 bg-slate-950/70 p-6">
+                  <header className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
+                    <div>
+                      <h2 className="text-2xl font-semibold">Calendario</h2>
+                      <p className="text-sm text-white/60">
+                        Visualiza y organiza tus turnos directamente en el calendario.
+                      </p>
                     </div>
-                  )}
-                </div>
-              </section>
+                    <button
+                      type="button"
+                      onClick={handleOpenMobileAdd}
+                      className="inline-flex items-center gap-2 rounded-full border border-white/15 px-4 py-2 text-xs font-semibold uppercase tracking-wide text-white/80 transition hover:border-blue-400/40 hover:text-white"
+                    >
+                      <span aria-hidden className="text-base">＋</span>
+                      Añadir turno
+                    </button>
+                  </header>
 
-              <div id="hours" className="mt-8">
-                <DailyHoursSummary
-                  entries={dailyHoursSummary}
-                  shiftTypeLabels={SHIFT_TYPE_LABELS}
-                />
-              </div>
+                  <div className="mt-6">
+                    <CalendarTab
+                      nextShift={nextShift ?? null}
+                      daysUntilNextShift={daysUntilNextShift}
+                      shiftTypeLabels={SHIFT_TYPE_LABELS}
+                      orderedShifts={orderedShifts}
+                      plannerDays={plannerDays}
+                      onCommitPlanner={handleManualRotationConfirm}
+                      isCommittingPlanner={isCommittingRotation}
+                      plannerError={rotationError}
+                      onSelectEvent={handleSelectShift}
+                    />
+                  </div>
+                </section>
+              )}
 
-              <div id="history" className="mt-8">
-                <ChangeHistoryPanel
-                  entries={shiftHistory}
-                  shiftTypeLabels={SHIFT_TYPE_LABELS}
-                />
-              </div>
+              {activeTab === "stats" && (
+                <section className="rounded-3xl border border-white/10 bg-slate-950/70 p-6">
+                  <header className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
+                    <div>
+                      <h2 className="text-2xl font-semibold">Indicadores clave</h2>
+                      <p className="text-sm text-white/60">
+                        Analiza la salud de tu planificación y los turnos programados.
+                      </p>
+                    </div>
+                  </header>
 
-              <div className="grid gap-6 xl:grid-cols-2 2xl:grid-cols-3">
-                <NextShiftCard
-                  nextShift={nextShift}
-                  daysUntilNextShift={daysUntilNextShift}
-                  shiftTypeLabels={SHIFT_TYPE_LABELS}
-                />
+                  <div className="mt-6">
+                    <StatsTab
+                      summaryCards={summaryCards}
+                      currentMonthShiftCount={currentMonthShifts.length}
+                      totalShiftCount={orderedShifts.length}
+                      activeShiftTypes={activeShiftTypes}
+                      typeCounts={typeCounts}
+                      shiftTypeLabels={SHIFT_TYPE_LABELS}
+                    />
+                  </div>
+                </section>
+              )}
 
-                <PlanningHealthCard
-                  currentMonthShiftCount={currentMonthShifts.length}
-                  totalShiftCount={orderedShifts.length}
-                  activeShiftTypes={activeShiftTypes}
-                />
+              {activeTab === "hours" && (
+                <section className="rounded-3xl border border-white/10 bg-slate-950/70 p-6">
+                  <header className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
+                    <div>
+                      <h2 className="text-2xl font-semibold">Horas registradas</h2>
+                      <p className="text-sm text-white/60">
+                        Consulta el total de horas agrupadas por día y tipo de turno.
+                      </p>
+                    </div>
+                  </header>
 
-                <ShiftDistribution
-                  typeCounts={typeCounts}
-                  totalShifts={orderedShifts.length}
-                  shiftTypeLabels={SHIFT_TYPE_LABELS}
-                />
+                  <div className="mt-6">
+                    <HoursTab
+                      entries={dailyHoursSummary}
+                      shiftTypeLabels={SHIFT_TYPE_LABELS}
+                    />
+                  </div>
+                </section>
+              )}
 
-                <div id="team">
-                  <TeamSpotlight
-                    upcomingShifts={upcomingShifts}
-                    shiftTypeLabels={SHIFT_TYPE_LABELS}
-                  />
-                </div>
-              </div>
+              {activeTab === "team" && (
+                <section className="rounded-3xl border border-white/10 bg-slate-950/70 p-6">
+                  <header className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
+                    <div>
+                      <h2 className="text-2xl font-semibold">Equipo conectado</h2>
+                      <p className="text-sm text-white/60">
+                        Anticípate a la disponibilidad del equipo y sus próximos turnos.
+                      </p>
+                    </div>
+                  </header>
 
-              <div id="settings">
-                <ConfigurationPanel
-                  user={currentUser}
-                  defaultPreferences={userPreferences}
-                  onSave={handleSavePreferences}
-                  onUpdateProfile={handleUpdateProfile}
-                  isSaving={isSavingPreferences}
-                  lastSavedAt={preferencesSavedAt}
-                  onLogout={handleLogout}
-                />
-              </div>
+                  <div className="mt-6">
+                    <TeamTab
+                      upcomingShifts={upcomingShifts}
+                      shiftTypeLabels={SHIFT_TYPE_LABELS}
+                    />
+                  </div>
+                </section>
+              )}
+
+              {activeTab === "history" && (
+                <section className="rounded-3xl border border-white/10 bg-slate-950/70 p-6">
+                  <header className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
+                    <div>
+                      <h2 className="text-2xl font-semibold">Historial de cambios</h2>
+                      <p className="text-sm text-white/60">
+                        Revisa las modificaciones recientes y mantén el control del registro.
+                      </p>
+                    </div>
+                  </header>
+
+                  <div className="mt-6">
+                    <HistoryTab
+                      entries={shiftHistory}
+                      shiftTypeLabels={SHIFT_TYPE_LABELS}
+                    />
+                  </div>
+                </section>
+              )}
+
+              {activeTab === "settings" && (
+                <section className="rounded-3xl border border-white/10 bg-slate-950/70 p-6">
+                  <header className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
+                    <div>
+                      <h2 className="text-2xl font-semibold">Configuración</h2>
+                      <p className="text-sm text-white/60">
+                        Ajusta tus preferencias personales y la información de tu cuenta.
+                      </p>
+                    </div>
+                  </header>
+
+                  <div className="mt-6">
+                    <SettingsTab
+                      user={currentUser}
+                      preferences={userPreferences}
+                      onSave={handleSavePreferences}
+                      onUpdateProfile={handleUpdateProfile}
+                      isSaving={isSavingPreferences}
+                      lastSavedAt={preferencesSavedAt}
+                      onLogout={handleLogout}
+                    />
+                  </div>
+                </section>
+              )}
             </div>
 
               <div className="lg:hidden">
@@ -2334,7 +2242,7 @@ export default function Home() {
                 </section>
 
                 <div className="mx-auto mt-6 flex w-full max-w-3xl flex-col gap-6 pb-32">
-                  {activeMobileTab === "calendar" && (
+                  {activeTab === "calendar" && (
                     <CalendarTab
                       nextShift={nextShift ?? null}
                       daysUntilNextShift={daysUntilNextShift}
@@ -2348,8 +2256,9 @@ export default function Home() {
                     />
                   )}
 
-                  {activeMobileTab === "stats" && (
+                  {activeTab === "stats" && (
                     <StatsTab
+                      summaryCards={summaryCards}
                       currentMonthShiftCount={currentMonthShifts.length}
                       totalShiftCount={orderedShifts.length}
                       activeShiftTypes={activeShiftTypes}
@@ -2358,28 +2267,28 @@ export default function Home() {
                     />
                   )}
 
-                  {activeMobileTab === "hours" && (
+                  {activeTab === "hours" && (
                     <HoursTab
                       entries={dailyHoursSummary}
                       shiftTypeLabels={SHIFT_TYPE_LABELS}
                     />
                   )}
 
-                  {activeMobileTab === "team" && (
+                  {activeTab === "team" && (
                     <TeamTab
                       upcomingShifts={upcomingShifts}
                       shiftTypeLabels={SHIFT_TYPE_LABELS}
                     />
                   )}
 
-                  {activeMobileTab === "history" && (
+                  {activeTab === "history" && (
                     <HistoryTab
                       entries={shiftHistory}
                       shiftTypeLabels={SHIFT_TYPE_LABELS}
                     />
                   )}
 
-                  {activeMobileTab === "settings" && (
+                  {activeTab === "settings" && (
                     <SettingsTab
                       user={currentUser}
                       preferences={userPreferences}
@@ -2397,7 +2306,7 @@ export default function Home() {
         </div>
       </div>
 
-      <MobileNavigation active={activeMobileTab} onChange={setActiveMobileTab} />
+      <MobileNavigation active={activeTab} onChange={setActiveTab} />
 
       <MobileAddShiftSheet
         open={isMobileAddOpen}

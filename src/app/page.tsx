@@ -1,6 +1,7 @@
 "use client"
 
 import { useMemo, useState } from "react"
+import type { JSX } from "react"
 import type { LucideIcon } from "lucide-react"
 import {
   ArrowDownRight,

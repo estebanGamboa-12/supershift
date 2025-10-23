@@ -7,7 +7,14 @@ import { CalendarDays, Trash2, Save, X } from "lucide-react"
 
 type Props = {
   shift: ShiftEvent
-  onSave: (updatedShift: { id: number; date: string; type: ShiftType; note?: string }) => Promise<void>
+  onSave: (updatedShift: {
+    id: number
+    date: string
+    type: ShiftType
+    startTime: string
+    endTime: string
+    note?: string
+  }) => Promise<void>
   onDelete: (id: number) => Promise<void>
   onClose: () => void
 }
@@ -34,6 +41,8 @@ export default function EditShiftModal({ shift, onSave, onDelete, onClose }: Pro
   const [date, setDate] = useState("")
   const [type, setType] = useState<ShiftType>("WORK")
   const [note, setNote] = useState("")
+  const [startTime, setStartTime] = useState("09:00")
+  const [endTime, setEndTime] = useState("17:00")
   const [isDeleting, setIsDeleting] = useState(false)
   const [isProcessingDelete, setIsProcessingDelete] = useState(false)
   const [isSaving, setIsSaving] = useState(false)
@@ -45,6 +54,8 @@ export default function EditShiftModal({ shift, onSave, onDelete, onClose }: Pro
       setDate(shift.date)
       setType(shift.type)
       setNote(shift.note || "")
+      setStartTime(shift.startTime ?? "09:00")
+      setEndTime(shift.endTime ?? "17:00")
       setIsDeleting(false)
       setIsProcessingDelete(false)
       setSaveError("")
@@ -64,11 +75,18 @@ export default function EditShiftModal({ shift, onSave, onDelete, onClose }: Pro
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
-    if (!date || isSaving) return
+    if (!date || !startTime || !endTime || isSaving) return
     setSaveError("")
     try {
       setIsSaving(true)
-      await onSave({ id: shift.id, date, type, note: note.trim() ? note.trim() : undefined })
+      await onSave({
+        id: shift.id,
+        date,
+        type,
+        startTime,
+        endTime,
+        note: note.trim() ? note.trim() : undefined,
+      })
       onClose()
     } catch (error) {
       setSaveError(error instanceof Error ? error.message : "No se pudo guardar el turno.")
@@ -137,6 +155,49 @@ export default function EditShiftModal({ shift, onSave, onDelete, onClose }: Pro
                     </option>
                   ))}
                 </select>
+              </div>
+
+              <div className="grid grid-cols-2 gap-3">
+                <label className="flex flex-col gap-1.5 text-[11px] text-white/70">
+                  Hora de inicio
+                  <input
+                    type="time"
+                    value={startTime}
+                    onChange={(event) => setStartTime(event.target.value)}
+                    className="rounded-lg border border-white/10 bg-white/10 px-2.5 py-1.5 text-xs text-white focus:border-blue-500 focus:ring-2 focus:ring-blue-400/30"
+                    required
+                  />
+                </label>
+                <label className="flex flex-col gap-1.5 text-[11px] text-white/70">
+                  Hora de finalización
+                  <input
+                    type="time"
+                    value={endTime}
+                    onChange={(event) => setEndTime(event.target.value)}
+                    className="rounded-lg border border-white/10 bg-white/10 px-2.5 py-1.5 text-xs text-white focus:border-blue-500 focus:ring-2 focus:ring-blue-400/30"
+                    required
+                  />
+                </label>
+              </div>
+
+              <div className="flex items-center justify-between rounded-lg border border-white/10 bg-white/5 px-3 py-2 text-[11px] text-white/70">
+                <span>Duración estimada</span>
+                <span className="text-white">
+                  {(() => {
+                    const start = startTime ? new Date(`1970-01-01T${startTime}:00`) : null
+                    const end = endTime ? new Date(`1970-01-01T${endTime}:00`) : null
+                    if (!start || !end) {
+                      return "--"
+                    }
+                    if (end <= start) {
+                      end.setDate(end.getDate() + 1)
+                    }
+                    const diffMinutes = Math.round((end.getTime() - start.getTime()) / 60000)
+                    const hours = Math.floor(diffMinutes / 60)
+                    const minutes = diffMinutes % 60
+                    return `${hours}h ${minutes.toString().padStart(2, "0")}m`
+                  })()}
+                </span>
               </div>
 
               <div>

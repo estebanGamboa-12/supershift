@@ -6,6 +6,7 @@ import {
   buildDateRange,
   mapShiftRow,
   normalizeDate,
+  normalizeTime,
   SHIFT_SELECT_COLUMNS,
   type ApiShift,
   type DatabaseShiftRow,
@@ -70,6 +71,8 @@ export async function PATCH(request: NextRequest, context: Params) {
           plusHoliday?: unknown
           plusAvailability?: unknown
           plusOther?: unknown
+          startTime?: unknown
+          endTime?: unknown
         }
       | null
 
@@ -85,20 +88,119 @@ export async function PATCH(request: NextRequest, context: Params) {
       ? (await findCalendarIdForUser(userId)) ?? getFallbackCalendarId()
       : getFallbackCalendarId()
 
+    const supabase = getSupabaseClient()
+    const existingResult = await supabase
+      .from("shifts")
+      .select(SHIFT_SELECT_COLUMNS)
+      .eq("id", id)
+      .eq("calendar_id", calendarId)
+      .maybeSingle()
+
+    if (existingResult.error) {
+      console.error(`Error fetching shift ${id} before update`, existingResult.error)
+      return NextResponse.json(
+        {
+          error:
+            "No se pudo preparar la actualización del turno en Supabase. Inténtalo de nuevo más tarde.",
+        },
+        { status: 500 },
+      )
+    }
+
+    if (!existingResult.data) {
+      return NextResponse.json(
+        { error: "No se encontró el turno especificado" },
+        { status: 404 },
+      )
+    }
+
+    const currentShift = adaptDatabaseShiftRow(existingResult.data as DatabaseShiftRow)
     const updates: Record<string, unknown> = {}
+
+    let scheduleDate = currentShift.date
+    let scheduleStartTime = currentShift.startTime
+    let scheduleEndTime = currentShift.endTime
+    let shouldUpdateSchedule = false
 
     if ("date" in payload) {
       const date = normalizeDate(payload.date)
       if (!date) {
         return NextResponse.json(
           { error: "La fecha debe tener formato YYYY-MM-DD" },
-          { status: 400 }
+          { status: 400 },
         )
       }
 
-      const { startAt, endAt } = buildDateRange(date)
+      scheduleDate = date
+      shouldUpdateSchedule = true
+    }
+
+    let providedStartTime: string | null | undefined
+    if ("startTime" in payload) {
+      if (payload.startTime === null) {
+        providedStartTime = null
+      } else {
+        const normalized = normalizeTime(payload.startTime)
+        if (normalized === null) {
+          return NextResponse.json(
+            { error: "La hora de inicio debe tener formato HH:MM" },
+            { status: 400 },
+          )
+        }
+        providedStartTime = normalized
+      }
+    }
+
+    let providedEndTime: string | null | undefined
+    if ("endTime" in payload) {
+      if (payload.endTime === null) {
+        providedEndTime = null
+      } else {
+        const normalized = normalizeTime(payload.endTime)
+        if (normalized === null) {
+          return NextResponse.json(
+            { error: "La hora de finalización debe tener formato HH:MM" },
+            { status: 400 },
+          )
+        }
+        providedEndTime = normalized
+      }
+    }
+
+    if (
+      (providedStartTime !== undefined && providedEndTime === undefined) ||
+      (providedStartTime === undefined && providedEndTime !== undefined)
+    ) {
+      return NextResponse.json(
+        { error: "Debes indicar tanto la hora de inicio como la de finalización" },
+        { status: 400 },
+      )
+    }
+
+    if (providedStartTime !== undefined && providedEndTime !== undefined) {
+      scheduleStartTime = providedStartTime
+      scheduleEndTime = providedEndTime
+      shouldUpdateSchedule = true
+    }
+
+    if (shouldUpdateSchedule) {
+      if ((scheduleStartTime && !scheduleEndTime) || (!scheduleStartTime && scheduleEndTime)) {
+        return NextResponse.json(
+          {
+            error:
+              "Debes indicar tanto la hora de inicio como la de finalización para actualizar el horario",
+          },
+          { status: 400 },
+        )
+      }
+
+      const { startAt, endAt } = buildDateRange(scheduleDate, {
+        startTime: scheduleStartTime,
+        endTime: scheduleEndTime,
+      })
       updates.start_at = startAt
       updates.end_at = endAt
+      updates.all_day = !scheduleStartTime || !scheduleEndTime
     }
 
     if ("type" in payload) {
@@ -236,7 +338,6 @@ export async function PATCH(request: NextRequest, context: Params) {
       )
     }
 
-    const supabase = getSupabaseClient()
     const { data, error } = await supabase
       .from("shifts")
       .update(updates)

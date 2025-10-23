@@ -70,7 +70,20 @@ const NextShiftCard: FC<NextShiftCardProps> = ({
                   : `En ${daysUntilNextShift} día${daysUntilNextShift === 1 ? "" : "s"}`}
               </span>
             )}
+
+            <span className="rounded-full border border-white/10 bg-white/5 px-3 py-1 text-xs text-white/70">
+              {nextShift.startTime && nextShift.endTime
+                ? `${nextShift.startTime} - ${nextShift.endTime}`
+                : "Todo el día"}
+            </span>
           </div>
+
+          {nextShift.durationMinutes > 0 && (
+            <div className="inline-flex items-center gap-2 rounded-2xl border border-white/10 bg-white/5 px-3 py-1 text-xs text-white/80">
+              <span aria-hidden>⏱️</span>
+              {`${Math.floor(nextShift.durationMinutes / 60)}h ${String(nextShift.durationMinutes % 60).padStart(2, "0")}m`}
+            </div>
+          )}
 
           {/* Nota */}
           {nextShift.note && (

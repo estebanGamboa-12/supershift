@@ -7,6 +7,7 @@ import {
   SHIFT_SELECT_COLUMNS,
   mapShiftRow,
   normalizeDate,
+  normalizeTime,
   type ApiShift,
   type DatabaseShiftRow,
 } from "./utils"
@@ -97,6 +98,8 @@ export async function POST(request: Request) {
           note?: unknown
           label?: unknown
           color?: unknown
+          startTime?: unknown
+          endTime?: unknown
           plusNight?: unknown
           plusHoliday?: unknown
           plusAvailability?: unknown
@@ -247,7 +250,32 @@ export async function POST(request: Request) {
       )
     }
 
-    const { startAt, endAt } = buildDateRange(date)
+    const startTime = normalizeTime(payload.startTime)
+    const endTime = normalizeTime(payload.endTime)
+
+    if (payload.startTime !== undefined && startTime === null) {
+      return NextResponse.json(
+        { error: "La hora de inicio debe tener formato HH:MM" },
+        { status: 400 },
+      )
+    }
+
+    if (payload.endTime !== undefined && endTime === null) {
+      return NextResponse.json(
+        { error: "La hora de finalización debe tener formato HH:MM" },
+        { status: 400 },
+      )
+    }
+
+    if ((startTime && !endTime) || (!startTime && endTime)) {
+      return NextResponse.json(
+        { error: "Debes indicar tanto la hora de inicio como la de finalización" },
+        { status: 400 },
+      )
+    }
+
+    const { startAt, endAt } = buildDateRange(date, { startTime, endTime })
+    const isAllDay = !startTime || !endTime
 
     const supabase = getSupabaseClient()
     const { data, error } = await supabase
@@ -257,7 +285,7 @@ export async function POST(request: Request) {
         shift_type_code: type,
         start_at: startAt,
         end_at: endAt,
-        all_day: 1,
+        all_day: isAllDay,
         note,
         label,
         color,

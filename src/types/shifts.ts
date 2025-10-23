@@ -13,6 +13,9 @@ export type ShiftEvent = {
   type: ShiftType
   start: Date
   end: Date
+  startTime: string | null
+  endTime: string | null
+  durationMinutes: number
   note?: string
   label?: string
   color?: string

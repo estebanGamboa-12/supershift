@@ -19,6 +19,7 @@ DROP TABLE IF EXISTS `rotation_runs`;
 DROP TABLE IF EXISTS `rotation_steps`;
 DROP TABLE IF EXISTS `rotation_templates`;
 DROP TABLE IF EXISTS `team_members`;
+DROP TABLE IF EXISTS `team_invites`;
 DROP TABLE IF EXISTS `calendars`;
 DROP TABLE IF EXISTS `teams`;
 DROP TABLE IF EXISTS `user_profile_history`;
@@ -99,6 +100,23 @@ CREATE TABLE `team_members` (
   KEY `idx_tm_user` (`user_id`),
   CONSTRAINT `fk_tm_team` FOREIGN KEY (`team_id`) REFERENCES `teams` (`id`) ON DELETE CASCADE,
   CONSTRAINT `fk_tm_user` FOREIGN KEY (`user_id`) REFERENCES `users` (`id`) ON DELETE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+CREATE TABLE `team_invites` (
+  `id` bigint(20) UNSIGNED NOT NULL AUTO_INCREMENT,
+  `team_id` bigint(20) UNSIGNED NOT NULL,
+  `token` char(36) NOT NULL,
+  `created_by_user_id` bigint(20) UNSIGNED NOT NULL,
+  `max_uses` int(11) NOT NULL DEFAULT 5,
+  `uses` int(11) NOT NULL DEFAULT 0,
+  `expires_at` datetime DEFAULT NULL,
+  `created_at` datetime NOT NULL DEFAULT current_timestamp(),
+  PRIMARY KEY (`id`),
+  UNIQUE KEY `uq_team_invites_token` (`token`),
+  KEY `idx_team_invites_team` (`team_id`),
+  KEY `idx_team_invites_creator` (`created_by_user_id`),
+  CONSTRAINT `fk_invites_team` FOREIGN KEY (`team_id`) REFERENCES `teams` (`id`) ON DELETE CASCADE,
+  CONSTRAINT `fk_invites_creator` FOREIGN KEY (`created_by_user_id`) REFERENCES `users` (`id`) ON DELETE CASCADE
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 CREATE TABLE `rotation_templates` (

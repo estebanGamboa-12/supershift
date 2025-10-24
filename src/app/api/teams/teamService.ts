@@ -201,7 +201,7 @@ export async function getTeamDetails(
 export async function findMembershipForUser(
   supabase: SupabaseAdminClient,
   userId: string,
-): Promise<PostgrestSingleResponse<TeamMemberRow>> {
+): Promise<PostgrestSingleResponse<TeamMemberRow | null>> {
   return supabase
     .from("team_members")
     .select("team_id, user_id, role, joined_at")

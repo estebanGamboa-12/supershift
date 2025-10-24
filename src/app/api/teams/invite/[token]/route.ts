@@ -5,7 +5,13 @@ import { getTeamMemberLimit } from "../../teamService"
 
 export const runtime = "nodejs"
 
+type RouteParams = Record<string, string | string[] | undefined>
+
 function sanitizeToken(value: unknown): string | null {
+  if (Array.isArray(value)) {
+    return sanitizeToken(value[0])
+  }
+
   if (typeof value !== "string") {
     return null
   }
@@ -15,9 +21,10 @@ function sanitizeToken(value: unknown): string | null {
 
 export async function GET(
   _request: Request,
-  { params }: { params: { token: string } },
+  context: { params: Promise<RouteParams> },
 ) {
-  const token = sanitizeToken(params.token)
+  const params = await context.params
+  const token = sanitizeToken(params?.token)
 
   if (!token) {
     return NextResponse.json(

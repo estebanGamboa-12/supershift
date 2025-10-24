@@ -1,6 +1,7 @@
 "use client"
 
 import { useState, useMemo, useCallback, useEffect, useRef } from "react"
+import { useRouter } from "next/navigation"
 import { differenceInCalendarDays, format } from "date-fns"
 import { es } from "date-fns/locale"
 import type { ShiftEvent, ShiftPluses, ShiftType } from "@/types/shifts"
@@ -19,6 +20,7 @@ import type { UserSummary } from "@/types/users"
 import type { Session } from "@supabase/supabase-js"
 import { getSupabaseBrowserClient } from "@/lib/supabase"
 import { exchangeAccessToken } from "@/lib/auth-client"
+import { loadStoredPreferences } from "@/lib/preferences-storage"
 import {
   CalendarTab,
   HistoryTab,
@@ -339,6 +341,7 @@ function createPendingRequestId(): string {
 }
 
 export default function Home() {
+  const router = useRouter()
   const [shifts, setShifts] = useState<ShiftEvent[]>([])
   const [selectedShift, setSelectedShift] = useState<ShiftEvent | null>(null)
   const [selectedDateFromCalendar, setSelectedDateFromCalendar] =
@@ -1775,8 +1778,21 @@ export default function Home() {
 
       setCurrentUser(sanitized)
       persistSession(sanitized)
+
+      if (typeof window !== "undefined") {
+        const storedPreferences = loadStoredPreferences()
+        if (!storedPreferences) {
+          const params = new URLSearchParams()
+          if (sanitized.calendarId) {
+            params.set("calendarId", String(sanitized.calendarId))
+          }
+          params.set("userId", sanitized.id)
+          const query = params.toString()
+          router.push(`/onboarding${query ? `?${query}` : ""}`)
+        }
+      }
     },
-    [clearSession, persistSession],
+    [clearSession, persistSession, router],
   )
 
   const synchronizeSupabaseSession = useCallback(

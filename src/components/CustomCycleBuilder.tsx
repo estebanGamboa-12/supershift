@@ -844,15 +844,45 @@ export function CustomCycleBuilder({
           start_date: startDate,
           days_horizon: cycleLength * repetitions,
           created_by: userId,
-          pattern_payload: submissionPayload,
         }
 
-        const { error } = await supabase
+        const { data: template, error: templateError } = await supabase
           .from("rotation_templates")
           .insert([templatePayload])
+          .select("id")
+          .single()
 
-        if (error) {
-          throw new Error(`No se pudo guardar el patrón en rotation_templates: ${error.message}`)
+        if (templateError) {
+          throw new Error(
+            `No se pudo guardar el patrón en rotation_templates: ${templateError.message}`,
+          )
+        }
+
+        const templateId = template?.id
+
+        if (!templateId) {
+          throw new Error(
+            "No se pudo obtener el identificador del nuevo registro en rotation_templates",
+          )
+        }
+
+        const stepsPayload = normalizedPattern.map((shiftType, index) => ({
+          template_id: templateId,
+          day_offset: index,
+          shift_type_code: shiftType,
+        }))
+
+        if (stepsPayload.length > 0) {
+          const { error: stepsError } = await supabase
+            .from("rotation_steps")
+            .insert(stepsPayload)
+
+          if (stepsError) {
+            await supabase.from("rotation_templates").delete().eq("id", templateId)
+            throw new Error(
+              `No se pudieron guardar los pasos del patrón en rotation_steps: ${stepsError.message}`,
+            )
+          }
         }
       } else {
         if (!userId) {

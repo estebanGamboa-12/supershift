@@ -1,14 +1,18 @@
 import { redirect } from "next/navigation"
 
+type RouteParams = Record<string, string | string[] | undefined>
+
 type AuthPageProps = {
-  searchParams?: Record<string, string | string[] | undefined>
+  searchParams?: Promise<RouteParams>
 }
 
-export default function AuthPage({ searchParams }: AuthPageProps) {
+export default async function AuthPage({ searchParams }: AuthPageProps) {
   const params = new URLSearchParams()
 
-  if (searchParams) {
-    for (const [key, value] of Object.entries(searchParams)) {
+  const resolvedParams = searchParams ? await searchParams : undefined
+
+  if (resolvedParams) {
+    for (const [key, value] of Object.entries(resolvedParams)) {
       if (typeof value === "string") {
         params.set(key, value)
       } else if (Array.isArray(value)) {

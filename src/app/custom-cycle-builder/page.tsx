@@ -35,20 +35,24 @@ function sanitizeUserId(value: string | string[] | undefined): string | undefine
   return trimmed.length > 0 ? trimmed : undefined
 }
 
-export default function CustomCycleBuilderPage({
+type BuilderPageSearchParams =
+  | Promise<Record<string, string | string[] | undefined>>
+  | undefined
+
+export default async function CustomCycleBuilderPage({
   searchParams,
 }: {
-  searchParams: {
-    calendarId?: string | string[]
-    userId?: string | string[]
-    table?: string | string[]
-    repetitions?: string | string[]
-  }
+  searchParams: BuilderPageSearchParams
 }) {
-  const calendarId = toPositiveInteger(searchParams.calendarId)
-  const initialRepetitions = toPositiveInteger(searchParams.repetitions)
-  const defaultTable = sanitizeTable(searchParams.table)
-  const userId = sanitizeUserId(searchParams.userId)
+  const resolvedSearchParams = ((await searchParams) ?? {}) as Record<
+    string,
+    string | string[] | undefined
+  >
+
+  const calendarId = toPositiveInteger(resolvedSearchParams.calendarId)
+  const initialRepetitions = toPositiveInteger(resolvedSearchParams.repetitions)
+  const defaultTable = sanitizeTable(resolvedSearchParams.table)
+  const userId = sanitizeUserId(resolvedSearchParams.userId)
 
   return (
     <main className="min-h-screen bg-slate-950 py-12 text-white">

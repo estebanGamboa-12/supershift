@@ -2,8 +2,7 @@
 
 import Image from "next/image"
 import { useEffect, useMemo, useRef, useState, type FC, type FormEvent } from "react"
-import { format } from "date-fns"
-import { es } from "date-fns/locale"
+import { formatCompactDate } from "@/lib/formatDate"
 import type { ShiftEvent, ShiftType } from "@/types/shifts"
 import NextShiftCard from "./NextShiftCard"
 import PlanningHealthCard from "./PlanningHealthCard"
@@ -55,8 +54,8 @@ const DashboardHeader: FC<DashboardHeaderProps> = ({
     return shifts
       .map((shift) => {
         const note = shift.note?.trim() ?? ""
-        const dateLabel = format(new Date(shift.date), "EEEE d 'de' MMMM yyyy", {
-          locale: es,
+        const dateLabel = formatCompactDate(new Date(shift.date), {
+          includeYear: true,
         })
         const typeLabel = shift.label ?? shiftTypeLabels[shift.type] ?? shift.type
         const haystack = [
@@ -111,7 +110,7 @@ const DashboardHeader: FC<DashboardHeaderProps> = ({
             <div className="space-y-2">
               <div className="inline-flex items-center gap-3 rounded-full border border-emerald-400/30 bg-emerald-500/10 px-4 py-1 text-xs font-semibold uppercase tracking-wide text-emerald-200">
                 <span className="inline-flex h-1.5 w-1.5 rounded-full bg-emerald-400" aria-hidden />
-                Hoy es {format(new Date(), "EEEE d 'de' MMMM", { locale: es })}
+                Hoy es {formatCompactDate(new Date())}
               </div>
               <div>
                 <p className="text-sm text-blue-200/70">Panel de rendimiento</p>

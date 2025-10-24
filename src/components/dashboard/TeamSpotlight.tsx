@@ -1,6 +1,5 @@
 import type { FC } from "react"
-import { format } from "date-fns"
-import { es } from "date-fns/locale"
+import { formatCompactDate } from "@/lib/formatDate"
 import type { ShiftEvent, ShiftType } from "@/types/shifts"
 
 type TeamSpotlightProps = {
@@ -52,7 +51,7 @@ const TeamSpotlight: FC<TeamSpotlightProps> = ({
                 <div>
                   <p className="text-xs uppercase tracking-wide text-white/50">Próximo turno</p>
                   <p className="font-semibold text-white">
-                    {format(new Date(shift.date), "EEEE d MMMM", { locale: es })}
+                    {formatCompactDate(new Date(shift.date))}
                   </p>
                 </div>
                 <span

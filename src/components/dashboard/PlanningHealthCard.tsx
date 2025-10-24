@@ -1,6 +1,5 @@
 import type { FC } from "react"
-import { format } from "date-fns"
-import { es } from "date-fns/locale"
+import { formatCompactMonth } from "@/lib/formatDate"
 
 type PlanningHealthCardProps = {
   currentMonthShiftCount: number
@@ -29,7 +28,7 @@ const PlanningHealthCard: FC<PlanningHealthCardProps> = ({
       <dl className="grid gap-4 sm:grid-cols-2">
         <div className="rounded-2xl border border-white/10 bg-gradient-to-br from-slate-900/70 to-slate-950/80 p-5 shadow-inner shadow-blue-500/10">
           <dt className="text-xs font-semibold uppercase tracking-wide text-white/50">
-            {format(new Date(), "MMMM yyyy", { locale: es })}
+            {formatCompactMonth(new Date())}
           </dt>
           <dd className="mt-2 text-3xl font-bold text-white">
             {currentMonthShiftCount}

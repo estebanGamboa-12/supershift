@@ -11,7 +11,13 @@ type CreateInvitePayload = {
 
 export const runtime = "nodejs"
 
+type RouteParams = Record<string, string | string[] | undefined>
+
 function sanitizeId(value: unknown): string | null {
+  if (Array.isArray(value)) {
+    return sanitizeId(value[0])
+  }
+
   if (typeof value !== "string") {
     return null
   }
@@ -21,9 +27,10 @@ function sanitizeId(value: unknown): string | null {
 
 export async function POST(
   request: Request,
-  { params }: { params: { teamId: string } },
+  context: { params: Promise<RouteParams> },
 ) {
-  const teamId = sanitizeId(params.teamId)
+  const params = await context.params
+  const teamId = sanitizeId(params?.teamId)
 
   if (!teamId) {
     return NextResponse.json(

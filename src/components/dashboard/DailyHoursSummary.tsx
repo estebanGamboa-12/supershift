@@ -1,8 +1,7 @@
 "use client"
 
 import type { FC } from "react"
-import { format } from "date-fns"
-import { es } from "date-fns/locale"
+import { formatCompactDate } from "@/lib/formatDate"
 import type { ShiftType } from "@/types/shifts"
 
 export type DailyHoursEntry = {
@@ -62,7 +61,7 @@ const DailyHoursSummary: FC<DailyHoursSummaryProps> = ({ entries, shiftTypeLabel
       <div className="mt-6 space-y-4">
         {entries.map((entry) => {
           const totalLabel = toHoursLabel(entry.totalMinutes)
-          const formattedDate = format(new Date(entry.date), "EEEE d 'de' MMMM", { locale: es })
+          const formattedDate = formatCompactDate(new Date(entry.date))
           return (
             <article
               key={entry.date}

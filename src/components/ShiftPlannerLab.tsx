@@ -20,6 +20,7 @@ import {
 import { es } from "date-fns/locale"
 import type { ManualRotationDay } from "@/components/ManualRotationBuilder"
 import type { ShiftType } from "@/types/shifts"
+import { formatCompactDate, formatCompactMonth } from "@/lib/formatDate"
 
 type PlannerPluses = {
   night: number
@@ -294,7 +295,7 @@ export default function ShiftPlannerLab({
   }, [orderedEntries])
 
   const monthLabel = useMemo(
-    () => format(currentMonth, "MMMM yyyy", { locale: es }),
+    () => formatCompactMonth(currentMonth),
     [currentMonth],
   )
 
@@ -307,10 +308,10 @@ export default function ShiftPlannerLab({
     return startOfMonth(parsed)
   }, [currentMonth, rotationStart])
 
-  const rotationTargetMonthLabel = useMemo(() => {
-    const raw = format(rotationTargetMonth, "MMMM yyyy", { locale: es })
-    return raw.charAt(0).toUpperCase() + raw.slice(1)
-  }, [rotationTargetMonth])
+  const rotationTargetMonthLabel = useMemo(
+    () => formatCompactMonth(rotationTargetMonth),
+    [rotationTargetMonth],
+  )
 
   const monthHasEntries = useMemo(() => {
     const monthStart = rotationTargetMonth
@@ -333,7 +334,7 @@ export default function ShiftPlannerLab({
       return rotationStart
     }
 
-    return format(parsed, "dd 'de' MMMM yyyy", { locale: es })
+    return formatCompactDate(parsed, { includeYear: true })
   }, [rotationStart])
 
   const progressWorked = monthDays.length
@@ -598,7 +599,7 @@ export default function ShiftPlannerLab({
 
     return {
       date: selectedDate,
-      display: format(baseDate, "EEEE d 'de' MMMM yyyy", { locale: es }),
+      display: formatCompactDate(baseDate, { includeYear: true }),
       type: baseType,
       note: existing?.note ?? "",
       color: palette,

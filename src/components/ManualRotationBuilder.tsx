@@ -15,6 +15,7 @@ import {
 } from "date-fns"
 import { es } from "date-fns/locale"
 import { AnimatePresence, motion } from "framer-motion"
+import { formatCompactDate, formatCompactMonth } from "@/lib/formatDate"
 
 const WEEK_STARTS_ON = 1
 
@@ -92,7 +93,7 @@ function InlineCalendar({ selectedDates, onSelectDate }: InlineCalendarProps) {
 
         <div className="text-right">
           <p className="text-base font-semibold text-white sm:text-lg">
-            {format(currentMonth, "MMMM yyyy", { locale: es })}
+            {formatCompactMonth(currentMonth)}
           </p>
           <p className="text-[11px] uppercase tracking-[0.35em] text-white/40">Calendario</p>
         </div>
@@ -487,7 +488,7 @@ export function ManualRotationBuilder({
                     const parsed = parseISO(day.date)
                     const isValid = !Number.isNaN(parsed.getTime())
                     const dateLabel = isValid
-                      ? format(parsed, "EEEE d 'de' MMMM", { locale: es })
+                      ? formatCompactDate(parsed)
                       : day.date
                     const accent = day.color ?? SHIFT_TYPE_HEX_COLORS[day.type]
                     return (
@@ -700,7 +701,7 @@ export function ManualRotationBuilder({
 
               <h3 className="text-xl font-semibold text-white">Configurar día</h3>
               <p className="mt-1 text-sm text-slate-300">
-                {format(editor.date, "EEEE d 'de' MMMM yyyy", { locale: es })}
+                {formatCompactDate(editor.date, { includeYear: true })}
               </p>
 
               <div className="mt-6 space-y-5">

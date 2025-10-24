@@ -2176,16 +2176,25 @@ export default function Home() {
                           Hola, {mobileGreeting}
                         </h2>
                       </div>
-                      <button
-                        type="button"
-                        onClick={handleOpenMobileAdd}
-                        className="inline-flex items-center gap-2 rounded-2xl border border-blue-400/40 bg-gradient-to-br from-blue-500/40 to-indigo-500/40 px-4 py-2 text-sm font-semibold uppercase tracking-wide text-white shadow-lg shadow-blue-500/30 transition hover:from-blue-400/50 hover:to-indigo-400/50 focus:outline-none focus:ring-2 focus:ring-blue-400/60"
-                      >
-                        <span aria-hidden className="text-lg font-bold leading-none">
-                          +
-                        </span>
-                        Añadir turno
-                      </button>
+                      <div className="flex flex-col items-end gap-2 sm:flex-row">
+                        <button
+                          type="button"
+                          onClick={handleOpenMobileAdd}
+                          className="inline-flex items-center gap-2 rounded-2xl border border-blue-400/40 bg-gradient-to-br from-blue-500/40 to-indigo-500/40 px-4 py-2 text-sm font-semibold uppercase tracking-wide text-white shadow-lg shadow-blue-500/30 transition hover:from-blue-400/50 hover:to-indigo-400/50 focus:outline-none focus:ring-2 focus:ring-blue-400/60"
+                        >
+                          <span aria-hidden className="text-lg font-bold leading-none">
+                            +
+                          </span>
+                          Añadir turno
+                        </button>
+                        <button
+                          type="button"
+                          onClick={handleLogout}
+                          className="inline-flex items-center justify-center gap-2 rounded-2xl border border-white/15 px-4 py-2 text-[11px] font-semibold uppercase tracking-wide text-white/80 transition hover:border-red-400/40 hover:text-red-200 focus:outline-none focus:ring-2 focus:ring-red-400/40"
+                        >
+                          Cerrar sesión
+                        </button>
+                      </div>
                     </div>
                     <p className="mt-4 text-sm text-white/70">
                       Mantén el control de tus turnos con la misma experiencia premium que en escritorio.

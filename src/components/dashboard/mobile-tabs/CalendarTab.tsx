@@ -1,12 +1,12 @@
 "use client"
 
 import type { FC } from "react"
-import { format, isAfter, startOfDay } from "date-fns"
-import { es } from "date-fns/locale"
+import { isAfter, startOfDay } from "date-fns"
 import ShiftPlannerLab from "@/components/ShiftPlannerLab"
 import type { ManualRotationDay } from "@/components/ManualRotationBuilder"
 import NextShiftCard from "@/components/dashboard/NextShiftCard"
 import type { ShiftEvent, ShiftType } from "@/types/shifts"
+import { formatCompactDate } from "@/lib/formatDate"
 
 type CalendarTabProps = {
   nextShift: ShiftEvent | null
@@ -73,7 +73,7 @@ const CalendarTab: FC<CalendarTabProps> = ({
           {upcomingShifts.length > 0 ? (
             upcomingShifts.map((shift) => {
               const typeLabel = shift.label ?? shiftTypeLabels[shift.type] ?? shift.type
-              const dateLabel = format(new Date(shift.date), "EEEE d 'de' MMM", { locale: es })
+              const dateLabel = formatCompactDate(new Date(shift.date))
 
               return (
                 <li key={shift.id}>

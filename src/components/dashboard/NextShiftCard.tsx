@@ -1,6 +1,5 @@
 import type { FC } from "react"
-import { format } from "date-fns"
-import { es } from "date-fns/locale"
+import { formatCompactDate } from "@/lib/formatDate"
 import type { ShiftEvent, ShiftType } from "@/types/shifts"
 
 type NextShiftCardProps = {
@@ -42,7 +41,7 @@ const NextShiftCard: FC<NextShiftCardProps> = ({
         <div className="mt-4 space-y-4">
           {/* Fecha */}
           <p className="text-3xl font-bold text-white">
-            {format(new Date(nextShift.date), "EEEE d 'de' MMMM yyyy", { locale: es })}
+            {formatCompactDate(new Date(nextShift.date), { includeYear: true })}
           </p>
 
           {/* Etiquetas */}

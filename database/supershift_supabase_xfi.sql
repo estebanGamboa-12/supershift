@@ -14,6 +14,7 @@ DROP TABLE IF EXISTS rotation_runs CASCADE;
 DROP TABLE IF EXISTS rotation_steps CASCADE;
 DROP TABLE IF EXISTS rotation_templates CASCADE;
 DROP TABLE IF EXISTS team_members CASCADE;
+DROP TABLE IF EXISTS team_invites CASCADE;
 DROP TABLE IF EXISTS calendars CASCADE;
 DROP TABLE IF EXISTS teams CASCADE;
 DROP TABLE IF EXISTS user_profile_history CASCADE;
@@ -99,6 +100,21 @@ CREATE TABLE team_members (
   PRIMARY KEY (team_id, user_id)
 );
 CREATE INDEX idx_tm_user ON team_members (user_id);
+
+CREATE TABLE team_invites (
+  id                bigint GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
+  team_id           bigint NOT NULL REFERENCES teams(id) ON DELETE CASCADE,
+  token             uuid NOT NULL DEFAULT gen_random_uuid(),
+  created_by_user_id uuid NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  max_uses          integer NOT NULL DEFAULT 5,
+  uses              integer NOT NULL DEFAULT 0,
+  expires_at        timestamptz,
+  created_at        timestamptz NOT NULL DEFAULT now(),
+  last_used_at      timestamptz
+);
+CREATE UNIQUE INDEX uq_team_invites_token ON team_invites (token);
+CREATE INDEX idx_team_invites_team ON team_invites (team_id);
+CREATE INDEX idx_team_invites_creator ON team_invites (created_by_user_id);
 
 CREATE TABLE rotation_templates (
   id              bigint GENERATED ALWAYS AS IDENTITY PRIMARY KEY,

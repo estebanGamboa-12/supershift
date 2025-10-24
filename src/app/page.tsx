@@ -2125,6 +2125,7 @@ export default function Home() {
                     <TeamTab
                       upcomingShifts={upcomingShifts}
                       shiftTypeLabels={SHIFT_TYPE_LABELS}
+                      currentUser={currentUser}
                     />
                   </div>
                 </section>
@@ -2303,6 +2304,7 @@ export default function Home() {
                     <TeamTab
                       upcomingShifts={upcomingShifts}
                       shiftTypeLabels={SHIFT_TYPE_LABELS}
+                      currentUser={currentUser}
                     />
                   )}
 

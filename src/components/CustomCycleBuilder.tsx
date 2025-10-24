@@ -29,6 +29,23 @@ type CustomCycleBuilderProps = {
    * Por defecto, el patrón se repite cuatro veces.
    */
   initialRepetitions?: number
+  /**
+   * Estado inicial del cuestionario, útil para precargar respuestas guardadas.
+   */
+  initialQuestionnaire?: QuestionnaireState
+  /**
+   * Controla si el cuestionario debe mostrarse al montar el componente.
+   * Útil cuando se quiere reabrir el constructor con un patrón ya definido.
+   */
+  showQuestionnaireOnMount?: boolean
+  /**
+   * Se ejecuta cuando el usuario finaliza el cuestionario inicial.
+   * Permite integrar acciones de onboarding como marcar la configuración como completada.
+   */
+  onQuestionnaireComplete?: (payload: {
+    snapshot: PreferencesSnapshot
+    state: QuestionnaireState
+  }) => void
 }
 
 type ShiftOption = {
@@ -80,11 +97,29 @@ const SHIFT_STYLES: Record<ShiftType, string> = {
   CUSTOM: "border-fuchsia-400/40 bg-fuchsia-500/20 text-fuchsia-100",
 }
 
-type WorkGoal = "balance" | "rest_first" | "compact_work" | "development"
+export function createPreferencesSnapshot(
+  preferences: QuestionnaireState,
+): PreferencesSnapshot {
+  return {
+    role: preferences.role.trim() || null,
+    goal: preferences.goal,
+    work_block: Math.max(1, Math.min(14, preferences.workBlock)),
+    rest_block: Math.max(1, Math.min(14, preferences.restBlock)),
+    night_preference: preferences.nightPreference,
+    include_vacation_day: preferences.includeVacationDay,
+    include_personal_focus: preferences.includePersonalFocus,
+    custom_focus_label: preferences.includePersonalFocus
+      ? preferences.customFocusLabel.trim() || null
+      : null,
+    notes: preferences.notes.trim() || null,
+  }
+}
 
-type NightPreference = "none" | "occasional" | "rotation"
+export type WorkGoal = "balance" | "rest_first" | "compact_work" | "development"
 
-type QuestionnaireState = {
+export type NightPreference = "none" | "occasional" | "rotation"
+
+export type QuestionnaireState = {
   role: string
   goal: WorkGoal
   workBlock: number
@@ -97,7 +132,7 @@ type QuestionnaireState = {
   notes: string
 }
 
-type PreferencesSnapshot = {
+export type PreferencesSnapshot = {
   role: string | null
   goal: WorkGoal
   work_block: number
@@ -117,27 +152,27 @@ type SubmissionPayload = {
   preferences_snapshot?: PreferencesSnapshot
 }
 
-const GOAL_DESCRIPTIONS: Record<WorkGoal, string> = {
+export const GOAL_DESCRIPTIONS: Record<WorkGoal, string> = {
   balance: "Equilibrar carga de trabajo y descansos",
   rest_first: "Priorizar descansos frecuentes",
   compact_work: "Concentrar jornadas laborales seguidas",
   development: "Reservar tiempo para formación o proyectos personales",
 }
 
-const GOAL_LABELS: Record<WorkGoal, string> = {
+export const GOAL_LABELS: Record<WorkGoal, string> = {
   balance: "Equilibrio general",
   rest_first: "Más descansos",
   compact_work: "Bloques intensivos",
   development: "Espacio para crecer",
 }
 
-const NIGHT_PREFERENCE_DESCRIPTIONS: Record<NightPreference, string> = {
+export const NIGHT_PREFERENCE_DESCRIPTIONS: Record<NightPreference, string> = {
   none: "Evitar turnos nocturnos",
   occasional: "Agregar noches ocasionales",
   rotation: "Incluir bloques nocturnos regulares",
 }
 
-const DEFAULT_QUESTIONNAIRE: QuestionnaireState = {
+export const DEFAULT_QUESTIONNAIRE: QuestionnaireState = {
   role: "",
   goal: "balance",
   workBlock: 4,
@@ -329,15 +364,30 @@ function DayCell({
   )
 }
 
-function PreferenceQuestionnaire({
-  value,
-  onChange,
-  onComplete,
-}: {
+export type PreferenceQuestionnaireProps = {
   value: QuestionnaireState
   onChange: (value: QuestionnaireState) => void
   onComplete: () => void
-}) {
+  title?: string
+  subtitle?: string
+  ctaLabel?: string
+  onCancel?: () => void
+  cancelLabel?: string
+  footnote?: string
+}
+
+export function PreferenceQuestionnaire({
+  value,
+  onChange,
+  onComplete,
+  title,
+  subtitle,
+  ctaLabel = "Continuar y generar propuesta",
+  onCancel,
+  cancelLabel = "Cancelar",
+  footnote =
+    "Utilizaremos estas respuestas para proponer un patrón inicial y podrás modificarlo antes de guardarlo en Supabase.",
+}: PreferenceQuestionnaireProps) {
   const handleChange = useCallback(<Key extends keyof QuestionnaireState>(
     key: Key,
     nextValue: QuestionnaireState[Key],
@@ -355,12 +405,11 @@ function PreferenceQuestionnaire({
     >
       <header className="space-y-3">
         <motion.h2 layout className="text-2xl font-semibold text-white">
-          Personalicemos tu calendario
+          {title ?? "Personalicemos tu calendario"}
         </motion.h2>
         <p className="max-w-3xl text-sm text-white/70">
-          Responde estas preguntas para que podamos sugerirte la estructura inicial de tu
-          ciclo. Siempre podrás ajustar los detalles o volver a editar estas
-          preferencias desde tu perfil cuando cambien tus necesidades laborales.
+          {subtitle ??
+            "Responde estas preguntas para que podamos sugerirte la estructura inicial de tu ciclo. Siempre podrás ajustar los detalles o volver a editar estas preferencias desde tu perfil cuando cambien tus necesidades laborales."}
         </p>
       </header>
 
@@ -565,33 +614,41 @@ function PreferenceQuestionnaire({
 
       <div className="flex flex-col gap-3 rounded-2xl border border-white/10 bg-slate-950/70 p-6 sm:flex-row sm:items-center sm:justify-between">
         <div className="space-y-1 text-sm text-white/70">
-          <p>
-            Utilizaremos estas respuestas para proponer un patrón inicial y podrás modificarlo
-            antes de guardarlo en Supabase.
-          </p>
+          <p>{footnote}</p>
           <p className="text-xs text-white/50">
             Más adelante podrás actualizar estas preferencias desde tu perfil si cambias de
             equipo o rol.
           </p>
         </div>
-        <button
-          type="button"
-          onClick={onComplete}
-          className="inline-flex items-center gap-2 rounded-2xl border border-sky-400/60 bg-sky-500/80 px-5 py-3 text-sm font-semibold text-white shadow-lg shadow-sky-500/20 transition hover:bg-sky-400/80 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:ring-offset-slate-900"
-        >
-          Continuar y generar propuesta
-          <svg
-            viewBox="0 0 24 24"
-            className="h-4 w-4"
-            fill="none"
-            stroke="currentColor"
-            strokeWidth={1.5}
-            strokeLinecap="round"
-            strokeLinejoin="round"
+        <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
+          {onCancel && (
+            <button
+              type="button"
+              onClick={onCancel}
+              className="inline-flex items-center justify-center gap-2 rounded-2xl border border-white/15 bg-transparent px-5 py-3 text-sm font-semibold text-white/80 transition hover:border-white/30 hover:text-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:ring-offset-slate-900"
+            >
+              {cancelLabel}
+            </button>
+          )}
+          <button
+            type="button"
+            onClick={onComplete}
+            className="inline-flex items-center gap-2 rounded-2xl border border-sky-400/60 bg-sky-500/80 px-5 py-3 text-sm font-semibold text-white shadow-lg shadow-sky-500/20 transition hover:bg-sky-400/80 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:ring-offset-slate-900"
           >
-            <path d="M5 12h14m-6-6 6 6-6 6" />
-          </svg>
-        </button>
+            {ctaLabel}
+            <svg
+              viewBox="0 0 24 24"
+              className="h-4 w-4"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth={1.5}
+              strokeLinecap="round"
+              strokeLinejoin="round"
+            >
+              <path d="M5 12h14m-6-6 6 6-6 6" />
+            </svg>
+          </button>
+        </div>
       </div>
     </motion.section>
   )
@@ -602,18 +659,29 @@ export function CustomCycleBuilder({
   userId,
   defaultTable = "rotation_templates",
   initialRepetitions = 4,
+  initialQuestionnaire,
+  showQuestionnaireOnMount,
+  onQuestionnaireComplete,
 }: CustomCycleBuilderProps) {
   const supabase = useMemo(() => getSupabaseBrowserClient(), [])
-  const [preferences, setPreferences] = useState<QuestionnaireState>(DEFAULT_QUESTIONNAIRE)
-  const [hasCompletedQuestionnaire, setHasCompletedQuestionnaire] = useState(false)
-  const [cycleLength, setCycleLength] = useState<number>(7)
-  const [pattern, setPattern] = useState<DayPattern[]>(() =>
-    Array.from({ length: 7 }, () => ({ type: "WORK" })),
+  const [preferences, setPreferences] = useState<QuestionnaireState>(
+    initialQuestionnaire ?? DEFAULT_QUESTIONNAIRE,
   )
+  const [hasCompletedQuestionnaire, setHasCompletedQuestionnaire] = useState(
+    showQuestionnaireOnMount === false,
+  )
+  const initialPattern = useMemo(
+    () => buildPatternFromPreferences(initialQuestionnaire ?? DEFAULT_QUESTIONNAIRE),
+    [initialQuestionnaire],
+  )
+  const [cycleLength, setCycleLength] = useState<number>(initialPattern.length)
+  const [pattern, setPattern] = useState<DayPattern[]>(initialPattern)
   const [selectedTable, setSelectedTable] = useState<
     "rotation_templates" | "user_patterns"
   >(defaultTable)
-  const [startDate, setStartDate] = useState(() => DEFAULT_QUESTIONNAIRE.startDate)
+  const [startDate, setStartDate] = useState(
+    () => initialQuestionnaire?.startDate ?? DEFAULT_QUESTIONNAIRE.startDate,
+  )
   const [templateName, setTemplateName] = useState("Ciclo personalizado")
   const [templateDescription, setTemplateDescription] = useState("")
   const [repetitions, setRepetitions] = useState<number>(initialRepetitions ?? 4)
@@ -621,6 +689,26 @@ export function CustomCycleBuilder({
   const [feedback, setFeedback] = useState<
     { type: "success" | "error"; message: string } | undefined
   >(undefined)
+
+  useEffect(() => {
+    if (!initialQuestionnaire) {
+      return
+    }
+
+    setPreferences(initialQuestionnaire)
+    const generatedPattern = buildPatternFromPreferences(initialQuestionnaire)
+    setPattern(generatedPattern)
+    setCycleLength(generatedPattern.length)
+    setStartDate(initialQuestionnaire.startDate || DEFAULT_QUESTIONNAIRE.startDate)
+  }, [initialQuestionnaire])
+
+  useEffect(() => {
+    if (showQuestionnaireOnMount === false) {
+      setHasCompletedQuestionnaire(true)
+    } else {
+      setHasCompletedQuestionnaire(false)
+    }
+  }, [showQuestionnaireOnMount])
 
   useEffect(() => {
     setPattern((previous) => {
@@ -656,19 +744,7 @@ export function CustomCycleBuilder({
       return undefined
     }
 
-    return {
-      role: preferences.role.trim() || null,
-      goal: preferences.goal,
-      work_block: Math.max(1, Math.min(14, preferences.workBlock)),
-      rest_block: Math.max(1, Math.min(14, preferences.restBlock)),
-      night_preference: preferences.nightPreference,
-      include_vacation_day: preferences.includeVacationDay,
-      include_personal_focus: preferences.includePersonalFocus,
-      custom_focus_label: preferences.includePersonalFocus
-        ? preferences.customFocusLabel.trim() || null
-        : null,
-      notes: preferences.notes.trim() || null,
-    }
+    return createPreferencesSnapshot(preferences)
   }, [hasCompletedQuestionnaire, preferences])
 
   const submissionPayload = useMemo<SubmissionPayload>(() => {
@@ -718,6 +794,7 @@ export function CustomCycleBuilder({
   const handleQuestionnaireComplete = useCallback(() => {
     const generatedPattern = buildPatternFromPreferences(preferences)
     const fallbackStartDate = format(new Date(), "yyyy-MM-dd")
+    const snapshot = createPreferencesSnapshot(preferences)
 
     setPattern(generatedPattern)
     setCycleLength(generatedPattern.length)
@@ -735,7 +812,8 @@ export function CustomCycleBuilder({
     setRepetitions(recommendedRepetitions)
     setFeedback(undefined)
     setHasCompletedQuestionnaire(true)
-  }, [initialRepetitions, preferences])
+    onQuestionnaireComplete?.({ snapshot, state: preferences })
+  }, [initialRepetitions, onQuestionnaireComplete, preferences])
 
   const handleSave = useCallback(async () => {
     setIsSaving(true)

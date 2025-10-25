@@ -73,11 +73,10 @@ export async function POST(
 
     const requester = teamDetails.members.find((member) => member.id === userId)
 
-    if (!requester || (requester.role !== "owner" && requester.role !== "admin")) {
+    if (!requester || requester.role !== "owner") {
       return NextResponse.json(
         {
-          error:
-            "Solo los propietarios o administradores pueden generar enlaces de invitación",
+          error: "Solo el propietario puede generar enlaces de invitación",
         },
         { status: 403 },
       )

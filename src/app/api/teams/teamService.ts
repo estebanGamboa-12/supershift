@@ -27,6 +27,8 @@ type TeamMemberRow = {
 type UserRow = {
   id: string
   name: string | null
+  email: string | null
+  timezone: string | null
   avatar_url: string | null
 }
 
@@ -61,6 +63,11 @@ function mapMemberRow(
   return {
     id: String(row.user_id),
     name: user?.name ? String(user.name) : "Miembro del equipo",
+    email: user?.email ? String(user.email) : "",
+    timezone:
+      user?.timezone && String(user.timezone).trim().length > 0
+        ? String(user.timezone)
+        : null,
     avatarUrl: user?.avatar_url ? String(user.avatar_url) : null,
     role:
       row.role === "owner" || row.role === "admin"
@@ -140,7 +147,7 @@ export async function getTeamDetails(
   if (memberIds.length > 0) {
     const { data: userRows, error: usersError } = await supabase
       .from("users")
-      .select("id, name, avatar_url")
+      .select("id, name, email, timezone, avatar_url")
       .in("id", memberIds)
 
     if (usersError) {
@@ -151,6 +158,8 @@ export async function getTeamDetails(
       userMap.set(String(user.id), {
         id: String(user.id),
         name: user.name != null ? String(user.name) : null,
+        email: user.email != null ? String(user.email) : null,
+        timezone: user.timezone != null ? String(user.timezone) : null,
         avatar_url:
           user.avatar_url != null ? String(user.avatar_url) : null,
       })

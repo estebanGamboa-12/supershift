@@ -2,7 +2,7 @@ import { NextResponse } from "next/server"
 
 import { getSupabaseClient } from "@/lib/supabase"
 
-import { getTeamDetails } from "../../../../teamService"
+import { getTeamDetails } from "../../../teamService"
 
 type RouteParams = Record<string, string | string[] | undefined>
 

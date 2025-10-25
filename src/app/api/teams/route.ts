@@ -181,8 +181,16 @@ export async function GET(request: Request) {
       String(membership.data.team_id),
     )
 
+    const sanitizedTeam: TeamDetails | null = teamDetails
+      ? {
+          ...teamDetails,
+          invite:
+            teamDetails.ownerUserId === userId ? teamDetails.invite : null,
+        }
+      : null
+
     return NextResponse.json({
-      team: teamDetails,
+      team: sanitizedTeam,
       memberLimit: getTeamMemberLimit(),
     })
   } catch (error) {

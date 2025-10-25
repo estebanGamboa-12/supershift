@@ -64,6 +64,10 @@ const TeamSpotlight: FC<TeamSpotlightProps> = ({
   const [inviteError, setInviteError] = useState<string | null>(null)
   const [copyState, setCopyState] = useState<"idle" | "copied" | "error">("idle")
   const [origin, setOrigin] = useState("")
+  const [selectedMemberId, setSelectedMemberId] = useState<string | null>(null)
+  const [memberActionError, setMemberActionError] = useState<string | null>(null)
+  const [memberActionNotice, setMemberActionNotice] = useState<string | null>(null)
+  const [isRemovingMember, setIsRemovingMember] = useState(false)
 
   useEffect(() => {
     if (typeof window !== "undefined") {
@@ -178,7 +182,7 @@ const TeamSpotlight: FC<TeamSpotlightProps> = ({
   )
 
   const handleGenerateInvite = useCallback(async () => {
-    if (!currentUser?.id || !team) {
+    if (!currentUser?.id || !team || currentUser.id !== team.ownerUserId) {
       return
     }
 
@@ -263,6 +267,88 @@ const TeamSpotlight: FC<TeamSpotlightProps> = ({
   }, [team])
 
   const memberList = useMemo(() => team?.members ?? [], [team])
+  const isCurrentUserOwner = Boolean(team && currentUser?.id === team.ownerUserId)
+  const selectedMember = useMemo(
+    () => memberList.find((member) => member.id === selectedMemberId) ?? null,
+    [memberList, selectedMemberId],
+  )
+
+  useEffect(() => {
+    if (!selectedMemberId) {
+      return
+    }
+    const exists = memberList.some((member) => member.id === selectedMemberId)
+    if (!exists) {
+      setSelectedMemberId(null)
+    }
+  }, [memberList, selectedMemberId])
+
+  useEffect(() => {
+    if (selectedMemberId) {
+      setMemberActionError(null)
+      setMemberActionNotice(null)
+    }
+  }, [selectedMemberId])
+
+  const handleRemoveMember = useCallback(
+    async (memberId: string) => {
+      if (!team || !currentUser?.id || currentUser.id !== team.ownerUserId) {
+        return
+      }
+
+      if (memberId === currentUser.id) {
+        setMemberActionError("No puedes eliminarte a ti mismo del equipo")
+        return
+      }
+
+      setIsRemovingMember(true)
+      setMemberActionError(null)
+      setMemberActionNotice(null)
+
+      try {
+        const response = await fetch(
+          `/api/teams/${encodeURIComponent(team.id)}/members/${encodeURIComponent(memberId)}`,
+          {
+            method: "DELETE",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ requesterId: currentUser.id }),
+          },
+        )
+
+        const data = (await response.json().catch(() => null)) as
+          | { error?: string }
+          | null
+
+        if (!response.ok) {
+          throw new Error(
+            (data && typeof data?.error === "string"
+              ? data.error
+              : null) ?? "No se pudo eliminar al miembro",
+          )
+        }
+
+        setMemberActionNotice("Miembro eliminado correctamente")
+        setSelectedMemberId(null)
+        await refreshTeam(currentUser.id)
+      } catch (error) {
+        const message =
+          error instanceof Error
+            ? error.message
+            : "No se pudo eliminar al miembro"
+        setMemberActionError(message)
+      } finally {
+        setIsRemovingMember(false)
+      }
+    },
+    [currentUser?.id, refreshTeam, team],
+  )
+
+  const canRemoveSelectedMember = Boolean(
+    selectedMember &&
+      isCurrentUserOwner &&
+      currentUser?.id &&
+      selectedMember.id !== currentUser.id,
+  )
 
   return (
     <section className="space-y-5 rounded-3xl border border-white/10 bg-gradient-to-br from-slate-900/80 to-slate-950/90 p-6 text-white shadow-xl shadow-blue-500/10 backdrop-blur">
@@ -330,39 +416,154 @@ const TeamSpotlight: FC<TeamSpotlightProps> = ({
             </div>
 
             <ul className="space-y-3">
-              {memberList.map((member) => (
-                <li
-                  key={member.id}
-                  className="flex items-center justify-between rounded-2xl border border-white/10 bg-slate-900/70 px-4 py-3"
-                >
-                  <div className="flex items-center gap-3">
-                    {member.avatarUrl ? (
-                      <Image
-                        src={member.avatarUrl}
-                        alt={member.name}
-                        width={36}
-                        height={36}
-                        className="h-9 w-9 rounded-full border border-white/20 object-cover"
-                        unoptimized
-                      />
-                    ) : (
-                      <span className="flex h-9 w-9 items-center justify-center rounded-full border border-white/20 bg-white/10 text-sm font-semibold">
-                        {formatMemberInitials(member.name)}
-                      </span>
-                    )}
-                    <div>
-                      <p className="text-sm font-semibold text-white">{member.name}</p>
-                      <p className="text-xs text-white/60">
-                        {memberRoleLabel[member.role] ?? "Miembro"}
-                      </p>
-                    </div>
-                  </div>
-                  <p className="text-xs text-white/50">
-                    Desde {formatCompactDate(new Date(member.joinedAt))}
-                  </p>
-                </li>
-              ))}
+              {memberList.map((member) => {
+                const isSelected = member.id === selectedMemberId
+                return (
+                  <li key={member.id}>
+                    <button
+                      type="button"
+                      onClick={() => setSelectedMemberId(member.id)}
+                      className={`flex w-full items-center justify-between rounded-2xl border px-4 py-3 text-left transition focus:outline-none focus:ring-2 focus:ring-blue-500/70 ${
+                        isSelected
+                          ? "border-blue-400/50 bg-blue-500/10"
+                          : "border-white/10 bg-slate-900/70 hover:border-blue-300/30 hover:bg-slate-900/80"
+                      }`}
+                      aria-pressed={isSelected}
+                    >
+                      <div className="flex items-center gap-3">
+                        {member.avatarUrl ? (
+                          <Image
+                            src={member.avatarUrl}
+                            alt={member.name}
+                            width={36}
+                            height={36}
+                            className="h-9 w-9 rounded-full border border-white/20 object-cover"
+                            unoptimized
+                          />
+                        ) : (
+                          <span className="flex h-9 w-9 items-center justify-center rounded-full border border-white/20 bg-white/10 text-sm font-semibold">
+                            {formatMemberInitials(member.name)}
+                          </span>
+                        )}
+                        <div>
+                          <p className="text-sm font-semibold text-white">{member.name}</p>
+                          <p className="text-xs text-white/60">
+                            {memberRoleLabel[member.role] ?? "Miembro"}
+                          </p>
+                        </div>
+                      </div>
+                      <div className="flex flex-col items-end gap-1 text-xs text-white/60">
+                        <span>
+                          Desde {formatCompactDate(new Date(member.joinedAt))}
+                        </span>
+                        <span
+                          className={`text-[11px] font-semibold uppercase tracking-wide ${
+                            isSelected ? "text-blue-100" : "text-blue-200/80"
+                          }`}
+                        >
+                          {isSelected ? "Perfil abierto" : "Ver perfil"}
+                        </span>
+                      </div>
+                    </button>
+                  </li>
+                )
+              })}
             </ul>
+
+            {memberList.length > 0 && (
+              <div className="space-y-3 rounded-2xl border border-white/10 bg-slate-900/60 p-4">
+                {selectedMember ? (
+                  <div className="space-y-4">
+                    <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+                      <div className="flex items-center gap-3">
+                        {selectedMember.avatarUrl ? (
+                          <Image
+                            src={selectedMember.avatarUrl}
+                            alt={selectedMember.name}
+                            width={44}
+                            height={44}
+                            className="h-11 w-11 rounded-full border border-white/20 object-cover"
+                            unoptimized
+                          />
+                        ) : (
+                          <span className="flex h-11 w-11 items-center justify-center rounded-full border border-white/20 bg-white/10 text-base font-semibold">
+                            {formatMemberInitials(selectedMember.name)}
+                          </span>
+                        )}
+                        <div>
+                          <p className="text-base font-semibold text-white">
+                            {selectedMember.name}
+                          </p>
+                          <p className="text-xs text-white/60">
+                            {memberRoleLabel[selectedMember.role] ?? "Miembro"}
+                          </p>
+                        </div>
+                      </div>
+                      {canRemoveSelectedMember && (
+                        <button
+                          type="button"
+                          onClick={() => handleRemoveMember(selectedMember.id)}
+                          disabled={isRemovingMember}
+                          className="inline-flex items-center gap-2 rounded-lg border border-rose-400/40 bg-rose-500/10 px-3 py-1 text-xs font-semibold uppercase tracking-wide text-rose-100 transition hover:border-rose-300/60 hover:bg-rose-500/20 disabled:cursor-not-allowed disabled:opacity-70"
+                        >
+                          {isRemovingMember ? "Eliminando..." : "Eliminar del equipo"}
+                        </button>
+                      )}
+                    </div>
+
+                    <dl className="grid grid-cols-1 gap-3 text-sm text-white/80 sm:grid-cols-2">
+                      <div>
+                        <dt className="text-xs font-semibold uppercase tracking-wide text-white/60">
+                          Correo
+                        </dt>
+                        <dd>{selectedMember.email || "No indicado"}</dd>
+                      </div>
+                      <div>
+                        <dt className="text-xs font-semibold uppercase tracking-wide text-white/60">
+                          Zona horaria
+                        </dt>
+                        <dd>{selectedMember.timezone ?? "No especificada"}</dd>
+                      </div>
+                      <div>
+                        <dt className="text-xs font-semibold uppercase tracking-wide text-white/60">
+                          Rol
+                        </dt>
+                        <dd>{memberRoleLabel[selectedMember.role] ?? "Miembro"}</dd>
+                      </div>
+                      <div>
+                        <dt className="text-xs font-semibold uppercase tracking-wide text-white/60">
+                          Miembro desde
+                        </dt>
+                        <dd>{formatCompactDate(new Date(selectedMember.joinedAt))}</dd>
+                      </div>
+                    </dl>
+
+                    {isCurrentUserOwner &&
+                      selectedMember.id === currentUser?.id && (
+                        <p className="text-xs text-white/60">
+                          Eres el propietario del equipo. No puedes eliminar tu propio
+                          perfil.
+                        </p>
+                      )}
+                  </div>
+                ) : (
+                  <p className="text-sm text-white/60">
+                    Selecciona un miembro para ver los detalles de su perfil.
+                  </p>
+                )}
+                {memberActionNotice && (
+                  <p className="text-xs text-emerald-200">{memberActionNotice}</p>
+                )}
+                {memberActionError && (
+                  <p className="text-xs text-rose-200">{memberActionError}</p>
+                )}
+                {!isCurrentUserOwner && (
+                  <p className="text-xs text-white/60">
+                    Solo el propietario puede gestionar los miembros del equipo.
+                  </p>
+                )}
+              </div>
+            )}
           </div>
         ) : (
           <form className="space-y-3" onSubmit={handleCreateTeam}>
@@ -448,23 +649,31 @@ const TeamSpotlight: FC<TeamSpotlightProps> = ({
           <button
             type="button"
             onClick={handleGenerateInvite}
-            disabled={!team || isGeneratingInvite || spotsLeft <= 0}
+            disabled={!team || !isCurrentUserOwner || isGeneratingInvite || spotsLeft <= 0}
             className="w-full rounded-lg bg-gradient-to-r from-blue-500 to-indigo-500 px-4 py-2 text-xs font-semibold text-white shadow transition hover:from-blue-400 hover:to-indigo-400 disabled:cursor-not-allowed disabled:opacity-60"
           >
             {!team
               ? "Crea un equipo para generar enlaces"
-              : spotsLeft <= 0
-                ? "Sin plazas disponibles"
-                : isGeneratingInvite
-                  ? "Generando enlace..."
-                  : "Generar enlace compartido"}
+              : !isCurrentUserOwner
+                ? "Solo el propietario puede generar enlaces"
+                : spotsLeft <= 0
+                  ? "Sin plazas disponibles"
+                  : isGeneratingInvite
+                    ? "Generando enlace..."
+                    : "Generar enlace compartido"}
           </button>
-          {inviteError && (
+          {inviteError && isCurrentUserOwner && (
             <p className="text-xs text-red-200">{inviteError}</p>
+          )}
+          {team && !isCurrentUserOwner && (
+            <p className="text-xs text-blue-100/70">
+              Solo la persona que creó el equipo puede compartir nuevos enlaces de
+              invitación.
+            </p>
           )}
         </div>
 
-        {invite && inviteUrl && (
+        {isCurrentUserOwner && invite && inviteUrl && (
           <div className="space-y-2 rounded-xl border border-blue-400/30 bg-slate-950/40 p-3 text-xs">
             <p className="font-semibold text-blue-100">Enlace listo</p>
             <p className="break-all text-white/90">{inviteUrl}</p>

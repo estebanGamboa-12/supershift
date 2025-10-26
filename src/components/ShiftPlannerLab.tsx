@@ -861,6 +861,12 @@ export default function ShiftPlannerLab({
                       SHIFT_TYPES.find(({ value }) => value === entry.type)?.defaultColor ||
                       "#2563eb"
                     : "#2563eb"
+                  const fullLabel = entry
+                    ? entry.label || SHIFT_LABELS[entry.type]
+                    : ""
+                  const compactLabel = fullLabel
+                    ? fullLabel.slice(0, 3).toUpperCase()
+                    : ""
 
                   return (
                     <button
@@ -885,7 +891,8 @@ export default function ShiftPlannerLab({
                             transformOrigin: "center",
                           }}
                         >
-                          {entry.label || SHIFT_LABELS[entry.type]}
+                          <span className="sm:hidden">{compactLabel}</span>
+                          <span className="hidden sm:inline">{fullLabel}</span>
                         </motion.span>
                       ) : (
                         <div className="mt-1 flex items-center justify-center">

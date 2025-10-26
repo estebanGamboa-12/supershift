@@ -618,7 +618,7 @@ export default function ShiftPlannerLab({
   return (
     <div className="relative overflow-hidden rounded-3xl border border-white/10 bg-slate-950/70 text-white shadow-[0_40px_90px_-35px_rgba(15,23,42,0.95)]">
       <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_top,_rgba(59,130,246,0.18),transparent_60%),_radial-gradient(circle_at_bottom_right,_rgba(236,72,153,0.14),transparent_55%)]" />
-      <div className="relative grid gap-6 p-4 sm:p-6 xl:grid-cols-[1.4fr_1fr]">
+      <div className="relative flex flex-col gap-6 p-4 sm:p-6">
         <section className="space-y-4 rounded-2xl border border-white/10 bg-white/5 p-4 sm:p-5 backdrop-blur-xl">
           <header className="border-b border-white/10 pb-4">
             <div className="flex flex-col gap-1 sm:flex-row sm:items-end sm:justify-between">
@@ -926,94 +926,30 @@ export default function ShiftPlannerLab({
           </div>
         </section>
 
-        <aside className="space-y-4">
-          <section className="space-y-4 rounded-2xl border border-white/10 bg-slate-950/60 p-4 sm:p-5">
-            <header>
-              <p className="text-xs uppercase tracking-[0.35em] text-white/40">Resumen mensual</p>
-              <h3 className="mt-2 text-xl font-semibold text-white">Control de pluses por nivel</h3>
-            </header>
-
-            <div className="space-y-3 text-sm text-white/70">
-              <p>
-                Total de pluses del mes: <strong className="text-emerald-300">{stats.totalPluses}</strong>
-              </p>
-              <p className="text-xs text-white/50">Ajusta los niveles por turno para nocturnidad, festivos, disponibilidad y horas extra.</p>
-            </div>
-
-            <div className="space-y-3">
-              {(Object.entries(stats.pluses) as [keyof PlannerPluses, number][]).map(([key, value]) => {
-                const labels: Record<keyof PlannerPluses, string> = {
-                  night: "Nocturnidad",
-                  holiday: "Festivos",
-                  availability: "Disponibilidad",
-                  other: "Horas extra",
-                }
-                const maxValue = Math.max(stats.totalPluses, 1)
-                const width = Math.min(100, Math.round((value / maxValue) * 100))
-                return (
-                  <div key={key} className="space-y-1">
-                    <div className="flex items-center justify-between text-xs text-white/60">
-                      <span>{labels[key]}</span>
-                      <span>{value}</span>
-                    </div>
-                    <div className="h-2 rounded-full bg-white/10">
-                      <div className="h-2 rounded-full bg-gradient-to-r from-sky-500 via-cyan-500 to-fuchsia-500" style={{ width: `${width}%` }} />
-                    </div>
-                  </div>
-                )
-              })}
-            </div>
-
-            <div className="space-y-2 text-xs text-white/40">
-              <p className="uppercase tracking-[0.3em]">Distribución de turnos</p>
-              <div className="grid gap-2 text-sm">
-                {SHIFT_TYPES.map(({ value, label }) => (
-                  <div
-                    key={value}
-                    className="flex items-center justify-between rounded-xl border border-white/10 bg-white/5 px-3 py-2"
-                  >
-                    <span className="inline-flex items-center gap-2 text-xs font-semibold uppercase tracking-wide text-white/70">
-                      <span className="h-2.5 w-2.5 rounded-full" style={{ backgroundColor: SHIFT_TYPES.find((type) => type.value === value)?.defaultColor }} />
-                      {label}
-                    </span>
-                    <span className="text-sm font-semibold text-white">{stats.byType[value] ?? 0}</span>
-                  </div>
-                ))}
-              </div>
-            </div>
-
-            <div className="flex flex-col gap-3 pt-2 text-xs">
-              <p className="inline-flex items-center justify-center rounded-full border border-emerald-500/40 bg-emerald-500/10 px-4 py-2 text-center font-semibold uppercase tracking-wide text-emerald-200">
-                {isCommitting
-                  ? "Guardando cambios en tu calendario..."
-                  : "Cambios guardados automáticamente"}
-              </p>
-              <button
-                type="button"
-                onClick={handleExportCSV}
-                disabled={orderedEntries.length === 0}
-                className="inline-flex items-center justify-center rounded-full border border-white/20 bg-white/5 px-4 py-2 text-sm font-semibold text-white/80 transition hover:bg-white/10 disabled:cursor-not-allowed disabled:opacity-40"
-              >
-                Exportar CSV
-              </button>
-              <button
-                type="button"
-                onClick={handleExportPdf}
-                disabled={orderedEntries.length === 0}
-                className="inline-flex items-center justify-center rounded-full border border-white/20 bg-white/5 px-4 py-2 text-sm font-semibold text-white/80 transition hover:bg-white/10 disabled:cursor-not-allowed disabled:opacity-40"
-              >
-                Exportar PDF
-              </button>
-              {errorMessage ? <p className="text-center text-sm text-rose-300">{errorMessage}</p> : null}
-            </div>
-          </section>
-
-          <section className="rounded-2xl border border-white/10 bg-slate-950/60 p-4 text-sm text-white/70 sm:p-5">
-            <p>
-              Combina los modos manual y automático para ajustar turnos especiales, vacaciones o guardias. Los cambios se aplican automáticamente sobre tu calendario real y podrás seguir editando desde la vista general.
-            </p>
-          </section>
-        </aside>
+        <div className="flex flex-col gap-4 rounded-2xl border border-white/10 bg-slate-950/60 p-4 text-sm text-white/70 sm:p-5 lg:flex-row lg:items-center lg:justify-between">
+          <p className="inline-flex items-center justify-center rounded-full border border-emerald-500/40 bg-emerald-500/10 px-4 py-2 text-center text-xs font-semibold uppercase tracking-wide text-emerald-200">
+            {isCommitting ? "Guardando cambios en tu calendario..." : "Cambios guardados automáticamente"}
+          </p>
+          <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-end">
+            <button
+              type="button"
+              onClick={handleExportCSV}
+              disabled={orderedEntries.length === 0}
+              className="inline-flex items-center justify-center rounded-full border border-white/20 bg-white/5 px-4 py-2 text-sm font-semibold text-white/80 transition hover:bg-white/10 disabled:cursor-not-allowed disabled:opacity-40"
+            >
+              Exportar CSV
+            </button>
+            <button
+              type="button"
+              onClick={handleExportPdf}
+              disabled={orderedEntries.length === 0}
+              className="inline-flex items-center justify-center rounded-full border border-white/20 bg-white/5 px-4 py-2 text-sm font-semibold text-white/80 transition hover:bg-white/10 disabled:cursor-not-allowed disabled:opacity-40"
+            >
+              Exportar PDF
+            </button>
+            {errorMessage ? <p className="text-center text-sm text-rose-300">{errorMessage}</p> : null}
+          </div>
+        </div>
       </div>
 
       <div className="pointer-events-none absolute inset-x-0 top-4 z-50 flex justify-center px-4 sm:justify-end sm:px-6">

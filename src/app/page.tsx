@@ -8,7 +8,6 @@ import type { ShiftEvent, ShiftPluses, ShiftType } from "@/types/shifts"
 import EditShiftModal from "@/components/EditShiftModal"
 import type { ManualRotationDay } from "@/components/ManualRotationBuilder"
 import { DEFAULT_USER_PREFERENCES, type UserPreferences } from "@/components/dashboard/ConfigurationPanel"
-import DashboardSidebar from "@/components/dashboard/DashboardSidebar"
 // eslint-disable-next-line @typescript-eslint/no-unused-vars
 import DashboardHeader from "@/components/dashboard/DashboardHeader"
 import MobileNavigation, { type MobileTab } from "@/components/dashboard/MobileNavigation"
@@ -1962,25 +1961,23 @@ export default function Home() {
   }
 
   return (
-  <div className="min-h-screen bg-slate-950 text-white">
-    <div className="mx-auto flex min-h-screen w-full max-w-[120rem] flex-col gap-6 px-4 py-6 lg:flex-row lg:gap-10 lg:px-8 lg:py-10">
-      <DashboardSidebar />
-
-      <div className="flex w-full flex-col">
-        <OfflineStatusBanner
-          isOffline={isOffline}
-          pendingCount={pendingShiftMutations}
-          isSyncing={isSyncingPendingShifts}
-          lastError={lastSyncError}
-          onRetry={synchronizePendingShiftRequests}
-        />
-        <ResponsiveNav
-          items={navItems}
-          activeId={activeTab}
-          onNavigate={handleNavigateTab}
-        />
-        <div className="hidden lg:block">
-          <section
+    <div className="min-h-screen bg-slate-950 text-white">
+      <div className="mx-auto min-h-screen w-full max-w-[120rem] px-4 py-6 lg:px-8 lg:py-10">
+        <div className="flex min-h-full w-full flex-col gap-6">
+          <OfflineStatusBanner
+            isOffline={isOffline}
+            pendingCount={pendingShiftMutations}
+            isSyncing={isSyncingPendingShifts}
+            lastError={lastSyncError}
+            onRetry={synchronizePendingShiftRequests}
+          />
+          <ResponsiveNav
+            items={navItems}
+            activeId={activeTab}
+            onNavigate={handleNavigateTab}
+          />
+          <div className="hidden lg:block">
+            <section
             className="rounded-3xl border border-white/10 bg-slate-950/70 px-6 py-6 shadow-[0_45px_120px_-55px_rgba(37,99,235,0.65)]"
           >
             <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
@@ -2027,7 +2024,7 @@ export default function Home() {
         </div>
 
         <main className="flex-1 overflow-y-auto pb-[calc(6rem+env(safe-area-inset-bottom))] lg:pb-0">
-          <div className="mx-auto w-full max-w-7xl space-y-10 px-0 py-6 sm:px-2 lg:px-0">
+          <div className="mx-auto w-full max-w-[110rem] space-y-10 px-0 py-6 sm:px-2 lg:px-0">
             <div className="hidden lg:flex lg:flex-col lg:gap-8">
               {activeTab === "calendar" && (
                 <section className="rounded-3xl border border-white/10 bg-slate-950/70 p-6">

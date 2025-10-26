@@ -46,6 +46,12 @@ type CustomCycleBuilderProps = {
     snapshot: PreferencesSnapshot
     state: QuestionnaireState
   }) => void
+  /**
+   * Se ejecuta cuando se generan turnos en el calendario sin errores.
+   * Útil para redirigir al usuario a la vista principal del calendario
+   * u otras acciones posteriores al guardado.
+   */
+  onCalendarGenerated?: (payload: CalendarGeneratedPayload) => void
 }
 
 type ShiftOption = {
@@ -150,6 +156,13 @@ type SubmissionPayload = {
   start_date: string
   custom_labels: (string | null)[]
   preferences_snapshot?: PreferencesSnapshot
+}
+
+export type CalendarGeneratedPayload = {
+  calendarId?: number
+  patternLength: number
+  repetitions: number
+  startDate: string
 }
 
 export const GOAL_DESCRIPTIONS: Record<WorkGoal, string> = {
@@ -662,6 +675,7 @@ export function CustomCycleBuilder({
   initialQuestionnaire,
   showQuestionnaireOnMount,
   onQuestionnaireComplete,
+  onCalendarGenerated,
 }: CustomCycleBuilderProps) {
   const supabase = useMemo(() => getSupabaseBrowserClient(), [])
   const [preferences, setPreferences] = useState<QuestionnaireState>(
@@ -919,6 +933,12 @@ export function CustomCycleBuilder({
         type: "success",
         message: "Patrón guardado y calendario generado correctamente",
       })
+      onCalendarGenerated?.({
+        calendarId,
+        patternLength: normalizedPattern.length,
+        repetitions,
+        startDate,
+      })
     } catch (error) {
       console.error(error)
       setFeedback({
@@ -944,6 +964,7 @@ export function CustomCycleBuilder({
     templateName,
     userId,
     submissionPayload,
+    onCalendarGenerated,
   ])
 
   return (

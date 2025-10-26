@@ -557,10 +557,8 @@ export default function Home() {
   const navItems = useMemo(
     () => [
       { id: "calendar", label: "Calendario", description: "Planificación" },
-      { id: "stats", label: "Estadísticas", description: "Indicadores clave" },
-      { id: "hours", label: "Horas", description: "Totales diarios" },
+      { id: "insights", label: "Resumen", description: "Indicadores y registros" },
       { id: "team", label: "Equipo", description: "Disponibilidad" },
-      { id: "history", label: "Historial", description: "Cambios recientes" },
       { id: "settings", label: "Preferencias", description: "Perfil y cuenta" },
     ],
     [],
@@ -2066,48 +2064,66 @@ export default function Home() {
                 </section>
               )}
 
-              {activeTab === "stats" && (
-                <section className="rounded-3xl border border-white/10 bg-slate-950/70 p-6">
-                  <header className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
-                    <div>
-                      <h2 className="text-2xl font-semibold">Indicadores clave</h2>
-                      <p className="text-sm text-white/60">
-                        Analiza la salud de tu planificación y los turnos programados.
-                      </p>
+              {activeTab === "insights" && (
+                <>
+                  <section className="rounded-3xl border border-white/10 bg-slate-950/70 p-6">
+                    <header className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
+                      <div>
+                        <h2 className="text-2xl font-semibold">Indicadores clave</h2>
+                        <p className="text-sm text-white/60">
+                          Analiza la salud de tu planificación y los turnos programados.
+                        </p>
+                      </div>
+                    </header>
+
+                    <div className="mt-6">
+                      <StatsTab
+                        summaryCards={summaryCards}
+                        currentMonthShiftCount={currentMonthShifts.length}
+                        totalShiftCount={orderedShifts.length}
+                        activeShiftTypes={activeShiftTypes}
+                        typeCounts={typeCounts}
+                        shiftTypeLabels={SHIFT_TYPE_LABELS}
+                      />
                     </div>
-                  </header>
+                  </section>
 
-                  <div className="mt-6">
-                    <StatsTab
-                      summaryCards={summaryCards}
-                      currentMonthShiftCount={currentMonthShifts.length}
-                      totalShiftCount={orderedShifts.length}
-                      activeShiftTypes={activeShiftTypes}
-                      typeCounts={typeCounts}
-                      shiftTypeLabels={SHIFT_TYPE_LABELS}
-                    />
-                  </div>
-                </section>
-              )}
+                  <section className="rounded-3xl border border-white/10 bg-slate-950/70 p-6">
+                    <header className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
+                      <div>
+                        <h2 className="text-2xl font-semibold">Horas registradas</h2>
+                        <p className="text-sm text-white/60">
+                          Consulta el total de horas agrupadas por día y tipo de turno.
+                        </p>
+                      </div>
+                    </header>
 
-              {activeTab === "hours" && (
-                <section className="rounded-3xl border border-white/10 bg-slate-950/70 p-6">
-                  <header className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
-                    <div>
-                      <h2 className="text-2xl font-semibold">Horas registradas</h2>
-                      <p className="text-sm text-white/60">
-                        Consulta el total de horas agrupadas por día y tipo de turno.
-                      </p>
+                    <div className="mt-6">
+                      <HoursTab
+                        entries={dailyHoursSummary}
+                        shiftTypeLabels={SHIFT_TYPE_LABELS}
+                      />
                     </div>
-                  </header>
+                  </section>
 
-                  <div className="mt-6">
-                    <HoursTab
-                      entries={dailyHoursSummary}
-                      shiftTypeLabels={SHIFT_TYPE_LABELS}
-                    />
-                  </div>
-                </section>
+                  <section className="rounded-3xl border border-white/10 bg-slate-950/70 p-6">
+                    <header className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
+                      <div>
+                        <h2 className="text-2xl font-semibold">Historial de cambios</h2>
+                        <p className="text-sm text-white/60">
+                          Revisa las modificaciones recientes y mantén el control del registro.
+                        </p>
+                      </div>
+                    </header>
+
+                    <div className="mt-6">
+                      <HistoryTab
+                        entries={shiftHistory}
+                        shiftTypeLabels={SHIFT_TYPE_LABELS}
+                      />
+                    </div>
+                  </section>
+                </>
               )}
 
               {activeTab === "team" && (
@@ -2126,26 +2142,6 @@ export default function Home() {
                       upcomingShifts={upcomingShifts}
                       shiftTypeLabels={SHIFT_TYPE_LABELS}
                       currentUser={currentUser}
-                    />
-                  </div>
-                </section>
-              )}
-
-              {activeTab === "history" && (
-                <section className="rounded-3xl border border-white/10 bg-slate-950/70 p-6">
-                  <header className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
-                    <div>
-                      <h2 className="text-2xl font-semibold">Historial de cambios</h2>
-                      <p className="text-sm text-white/60">
-                        Revisa las modificaciones recientes y mantén el control del registro.
-                      </p>
-                    </div>
-                  </header>
-
-                  <div className="mt-6">
-                    <HistoryTab
-                      entries={shiftHistory}
-                      shiftTypeLabels={SHIFT_TYPE_LABELS}
                     />
                   </div>
                 </section>
@@ -2282,22 +2278,27 @@ export default function Home() {
                     />
                   )}
 
-                  {activeTab === "stats" && (
-                    <StatsTab
-                      summaryCards={summaryCards}
-                      currentMonthShiftCount={currentMonthShifts.length}
-                      totalShiftCount={orderedShifts.length}
-                      activeShiftTypes={activeShiftTypes}
-                      typeCounts={typeCounts}
-                      shiftTypeLabels={SHIFT_TYPE_LABELS}
-                    />
-                  )}
+                  {activeTab === "insights" && (
+                    <div className="space-y-6">
+                      <StatsTab
+                        summaryCards={summaryCards}
+                        currentMonthShiftCount={currentMonthShifts.length}
+                        totalShiftCount={orderedShifts.length}
+                        activeShiftTypes={activeShiftTypes}
+                        typeCounts={typeCounts}
+                        shiftTypeLabels={SHIFT_TYPE_LABELS}
+                      />
 
-                  {activeTab === "hours" && (
-                    <HoursTab
-                      entries={dailyHoursSummary}
-                      shiftTypeLabels={SHIFT_TYPE_LABELS}
-                    />
+                      <HoursTab
+                        entries={dailyHoursSummary}
+                        shiftTypeLabels={SHIFT_TYPE_LABELS}
+                      />
+
+                      <HistoryTab
+                        entries={shiftHistory}
+                        shiftTypeLabels={SHIFT_TYPE_LABELS}
+                      />
+                    </div>
                   )}
 
                   {activeTab === "team" && (
@@ -2305,13 +2306,6 @@ export default function Home() {
                       upcomingShifts={upcomingShifts}
                       shiftTypeLabels={SHIFT_TYPE_LABELS}
                       currentUser={currentUser}
-                    />
-                  )}
-
-                  {activeTab === "history" && (
-                    <HistoryTab
-                      entries={shiftHistory}
-                      shiftTypeLabels={SHIFT_TYPE_LABELS}
                     />
                   )}
 

@@ -49,11 +49,11 @@ const SHIFT_TYPES: { value: ShiftType; label: string; defaultColor: string }[] =
 ]
 
 const SHIFT_ABBREVIATIONS: Record<ShiftType, string> = {
-  WORK: "TRA",
-  REST: "DES",
-  NIGHT: "NOC",
-  VACATION: "VAC",
-  CUSTOM: "PER",
+  WORK: "Tra",
+  REST: "Des",
+  NIGHT: "Noc",
+  VACATION: "Vac",
+  CUSTOM: "Per",
 }
 
 const SHIFT_LABELS: Record<ShiftType, string> = {
@@ -849,28 +849,30 @@ export default function ShiftPlannerLab({
             </div>
           )}
 
-          <div className="flex flex-wrap items-center justify-between gap-2 rounded-2xl border border-white/10 bg-slate-950/50 p-3 text-xs font-semibold text-white/70 sm:p-4">
-            <div className="flex items-center gap-2">
+          <div className="flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-white/10 bg-slate-950/50 p-4 text-xs font-semibold text-white/70 sm:p-5">
+            <div className="flex items-center gap-3">
               <button
                 type="button"
                 onClick={handlePrevMonth}
-                className="rounded-full border border-white/20 bg-white/10 px-3 py-1 text-xs font-semibold uppercase tracking-wide text-white/70 transition hover:border-sky-400/60 hover:text-sky-200"
+                className="inline-flex items-center gap-1 rounded-full border border-white/20 bg-white/10 px-3 py-1 text-xs font-semibold text-white/70 transition duration-200 hover:border-sky-400/60 hover:text-sky-200"
               >
+                <span aria-hidden="true" className="text-base leading-none">‹</span>
                 Ant.
               </button>
               <button
                 type="button"
                 onClick={handleGoToday}
-                className="rounded-full border border-sky-500/70 bg-sky-500 px-3 py-1 text-xs font-semibold uppercase tracking-wide text-white shadow hover:bg-sky-400"
+                className="rounded-full border border-sky-500/70 bg-sky-500 px-3 py-1 text-xs font-semibold text-white shadow transition duration-200 hover:bg-sky-400"
               >
                 Hoy
               </button>
               <button
                 type="button"
                 onClick={handleNextMonth}
-                className="rounded-full border border-white/20 bg-white/10 px-3 py-1 text-xs font-semibold uppercase tracking-wide text-white/70 transition hover:border-sky-400/60 hover:text-sky-200"
+                className="inline-flex items-center gap-1 rounded-full border border-white/20 bg-white/10 px-3 py-1 text-xs font-semibold text-white/70 transition duration-200 hover:border-sky-400/60 hover:text-sky-200"
               >
                 Sig.
+                <span aria-hidden="true" className="text-base leading-none">›</span>
               </button>
             </div>
             <AnimatePresence mode="wait" initial={false}>
@@ -880,7 +882,7 @@ export default function ShiftPlannerLab({
                 animate={{ opacity: 1, y: 0 }}
                 exit={{ opacity: 0, y: -6 }}
                 transition={{ duration: 0.2, ease: "easeOut" }}
-                className="text-sm font-semibold text-white"
+                className="text-base font-semibold text-sky-200"
               >
                 {monthLabel}
               </motion.p>
@@ -888,7 +890,7 @@ export default function ShiftPlannerLab({
           </div>
 
           <div className="overflow-hidden rounded-3xl border border-white/10 bg-slate-950/50">
-            <div className="grid grid-cols-7 gap-2 border-b border-white/5 bg-slate-950/40 px-3 py-2 text-[10px] font-semibold uppercase tracking-wide text-white/60 sm:px-4 sm:text-[11px]">
+            <div className="grid grid-cols-7 gap-5 border-b border-white/5 bg-slate-950/40 px-4 py-3 text-[10px] font-semibold uppercase tracking-wide text-white/60 sm:px-6 sm:text-[11px]">
               {Array.from({ length: 7 }).map((_, index) => {
                 const reference = addDays(startOfWeek(new Date(), { weekStartsOn: 1 }), index)
                 return (
@@ -906,7 +908,7 @@ export default function ShiftPlannerLab({
                 animate={{ opacity: 1, y: 0 }}
                 exit={{ opacity: 0, y: -12 }}
                 transition={{ duration: 0.25, ease: "easeOut" }}
-                className="grid grid-cols-7 grid-rows-6 gap-2 bg-transparent px-3 pb-3 pt-2 sm:px-4 sm:pb-4"
+                className="grid grid-cols-7 grid-rows-6 gap-5 bg-transparent px-4 pb-4 pt-3 sm:px-6 sm:pb-6"
               >
                 {calendarDays.map((day) => {
                   const key = toIsoDate(day)
@@ -923,7 +925,7 @@ export default function ShiftPlannerLab({
                     : ""
                   const compactLabel = entry
                     ? (entry.label
-                        ? entry.label.slice(0, 3).toUpperCase()
+                        ? entry.label.slice(0, 3)
                         : SHIFT_ABBREVIATIONS[entry.type])
                     : ""
 
@@ -932,9 +934,19 @@ export default function ShiftPlannerLab({
                       key={key}
                       type="button"
                       onClick={() => openEditor(day)}
-                    className={`group relative flex min-h-[96px] flex-col gap-1 rounded-2xl border border-transparent p-2 text-left transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sky-400/70 sm:min-h-[120px] sm:gap-2 sm:p-3 ${isCurrent ? "text-white/90" : "text-white/40"} ${entry ? "bg-slate-950/80 hover:border-sky-400/40" : "bg-slate-950/40 hover:bg-slate-900/60"}`}
-                    >
-                      <span className={`flex h-6 w-6 items-center justify-center rounded-full text-xs font-semibold sm:h-7 sm:w-7 sm:text-sm ${isCurrentDay ? "bg-sky-500 text-white shadow shadow-sky-500/40" : "bg-white/5 text-white/80"}`}>
+                    className={`group relative flex min-h-[110px] flex-col gap-2 rounded-2xl border border-transparent p-3 text-left transition duration-200 ease-out focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sky-400/70 sm:min-h-[140px] sm:gap-3 sm:p-4 ${isCurrent ? "text-white/90" : "text-white/40"} ${
+                      entry
+                        ? "bg-slate-950/80 hover:-translate-y-0.5 hover:scale-[1.02] hover:border-sky-400/40 hover:ring-1 hover:ring-sky-400/30"
+                        : "bg-slate-950/40 hover:-translate-y-0.5 hover:scale-[1.02] hover:bg-slate-900/60 hover:ring-1 hover:ring-sky-400/20"
+                    }`}
+                  >
+                      <span
+                        className={`flex h-7 w-7 items-center justify-center rounded-full text-[11px] font-medium sm:h-8 sm:w-8 sm:text-sm ${
+                          isCurrentDay
+                            ? "bg-sky-500 text-white shadow shadow-sky-500/40"
+                            : "bg-white/10 text-white/60"
+                        }`}
+                      >
                         {format(day, "d")}
                       </span>
                       {entry ? (
@@ -942,7 +954,7 @@ export default function ShiftPlannerLab({
                           whileHover={{ scale: 1.05, boxShadow: `0 0 16px ${accentColor}55` }}
                           whileTap={{ scale: 0.97 }}
                           transition={{ type: "spring", stiffness: 320, damping: 20 }}
-                          className="mt-1 inline-flex min-h-[1.75rem] w-full items-center justify-center rounded-xl px-2 py-1 text-center text-[9px] font-semibold uppercase tracking-wide text-white leading-tight sm:text-[10px]"
+                          className="mt-2 inline-flex min-h-[1.75rem] w-full items-center justify-center rounded-xl border border-white/10 px-3 py-1 text-center text-[10px] font-semibold capitalize leading-tight text-white sm:text-xs"
                           style={{
                             backgroundColor: `${accentColor}22`,
                             color: accentColor,
@@ -950,7 +962,7 @@ export default function ShiftPlannerLab({
                             transformOrigin: "center",
                           }}
                         >
-                          <span className="whitespace-nowrap sm:hidden">{compactLabel}</span>
+                          <span className="whitespace-nowrap capitalize sm:hidden">{compactLabel}</span>
                           <span className="hidden whitespace-nowrap sm:inline">{fullLabel}</span>
                         </motion.span>
                       ) : (

@@ -1,11 +1,13 @@
 "use client"
 
-import { useEffect, useMemo, useState } from "react"
+import { useCallback, useEffect, useMemo, useState } from "react"
 import Link from "next/link"
+import { useRouter } from "next/navigation"
 import { motion } from "framer-motion"
 
 import CustomCycleBuilder, {
   DEFAULT_QUESTIONNAIRE,
+  type CalendarGeneratedPayload,
   type QuestionnaireState,
 } from "@/components/CustomCycleBuilder"
 import {
@@ -32,9 +34,30 @@ export default function OnboardingExperience({
   defaultTable,
   initialRepetitions,
 }: OnboardingExperienceProps) {
+  const router = useRouter()
   const [storedPreferences, setStoredPreferences] = useState<StoredPreferencesRecord | null>(null)
   const [initialQuestionnaire, setInitialQuestionnaire] = useState<QuestionnaireState | undefined>(
     undefined,
+  )
+
+  const handleCalendarGenerated = useCallback(
+    ({ calendarId: resultingCalendarId }: CalendarGeneratedPayload) => {
+      const params = new URLSearchParams()
+
+      const calendarToUse = resultingCalendarId ?? calendarId
+      if (calendarToUse) {
+        params.set("calendarId", String(calendarToUse))
+      }
+
+      if (userId) {
+        params.set("userId", userId)
+      }
+
+      const query = params.toString()
+
+      router.push(`/${query ? `?${query}` : ""}`)
+    },
+    [calendarId, router, userId],
   )
 
   useEffect(() => {
@@ -99,6 +122,7 @@ export default function OnboardingExperience({
             saveStoredPreferences(record)
             setStoredPreferences(record)
           }}
+          onCalendarGenerated={handleCalendarGenerated}
         />
       )}
 

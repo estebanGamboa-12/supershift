@@ -4,10 +4,8 @@ import type { FC } from "react"
 
 const NAV_ITEMS = [
   { value: "calendar", tab: "calendar", label: "Calendario", icon: "📅" },
-  { value: "stats", tab: "stats", label: "Estadísticas", icon: "📊" },
-  { value: "hours", tab: "hours", label: "Horas", icon: "⏱️" },
+  { value: "insights", tab: "insights", label: "Resumen", icon: "📈" },
   { value: "team", tab: "team", label: "Equipo", icon: "👥" },
-  { value: "history", tab: "history", label: "Historial", icon: "📜" },
   { value: "settings", tab: "settings", label: "Configuración", icon: "⚙️" },
 ] as const
 
@@ -22,7 +20,7 @@ const MobileNavigation: FC<MobileNavigationProps> = ({ active, onChange }) => {
   return (
     <nav className="pointer-events-none fixed inset-x-0 bottom-0 z-40 pb-[calc(1rem+env(safe-area-inset-bottom))] lg:hidden">
       <div className="mx-auto w-full max-w-3xl px-4">
-        <div className="pointer-events-auto grid grid-cols-3 gap-2 rounded-3xl border border-white/10 bg-slate-950/90 p-3 shadow-2xl shadow-blue-500/20 backdrop-blur">
+        <div className="pointer-events-auto grid grid-cols-4 gap-2 rounded-3xl border border-white/10 bg-slate-950/90 p-3 shadow-2xl shadow-blue-500/20 backdrop-blur">
           {NAV_ITEMS.map((item) => {
             const isActive = item.tab === active
             return (

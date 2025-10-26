@@ -888,11 +888,11 @@ export default function ShiftPlannerLab({
           </div>
 
           <div className="overflow-hidden rounded-3xl border border-white/10 bg-slate-950/50">
-            <div className="grid grid-cols-7 gap-px border-b border-white/10 bg-slate-900/60 text-[10px] font-semibold uppercase tracking-wide text-white/60 sm:text-[11px]">
+            <div className="grid grid-cols-7 gap-2 border-b border-white/5 bg-slate-950/40 px-3 py-2 text-[10px] font-semibold uppercase tracking-wide text-white/60 sm:px-4 sm:text-[11px]">
               {Array.from({ length: 7 }).map((_, index) => {
                 const reference = addDays(startOfWeek(new Date(), { weekStartsOn: 1 }), index)
                 return (
-                  <div key={index} className="bg-slate-950/40 py-2 text-center">
+                  <div key={index} className="rounded-lg bg-slate-950/70 py-1.5 text-center text-white/70">
                     {format(reference, "EEE", { locale: es })}
                   </div>
                 )
@@ -906,7 +906,7 @@ export default function ShiftPlannerLab({
                 animate={{ opacity: 1, y: 0 }}
                 exit={{ opacity: 0, y: -12 }}
                 transition={{ duration: 0.25, ease: "easeOut" }}
-                className="grid grid-cols-7 grid-rows-6 gap-px bg-slate-900/60"
+                className="grid grid-cols-7 grid-rows-6 gap-2 bg-transparent px-3 pb-3 pt-2 sm:px-4 sm:pb-4"
               >
                 {calendarDays.map((day) => {
                   const key = toIsoDate(day)

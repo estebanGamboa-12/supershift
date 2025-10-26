@@ -260,6 +260,8 @@ type RotationDay = {
   note?: string
   color?: string
   label?: string
+  startTime?: string | null
+  endTime?: string | null
 }
 
 type RotationSummary = {
@@ -283,6 +285,8 @@ type EditorState = {
   pluses: ShiftPluses
   color: string
   label: string
+  startTime: string | null
+  endTime: string | null
 }
 
 const INITIAL_PLUSES: ShiftPluses = {
@@ -376,6 +380,8 @@ export function ManualRotationBuilder({
       pluses: existing?.pluses ?? { ...INITIAL_PLUSES },
       color,
       label,
+      startTime: existing?.startTime ?? null,
+      endTime: existing?.endTime ?? null,
     })
   }
 
@@ -397,6 +403,8 @@ export function ManualRotationBuilder({
         pluses: { ...editor.pluses },
         color: sanitizedColor,
         label: resolvedLabel,
+        startTime: editor.startTime,
+        endTime: editor.endTime,
       })
       return next.sort((a, b) => a.date.localeCompare(b.date))
     })
@@ -529,6 +537,8 @@ export function ManualRotationBuilder({
                                 pluses: { ...day.pluses },
                                 color: day.color ?? SHIFT_TYPE_HEX_COLORS[day.type],
                                 label: day.label ?? SHIFT_TYPE_LABELS[day.type],
+                                startTime: day.startTime ?? null,
+                                endTime: day.endTime ?? null,
                               })
                             }
                             className="inline-flex items-center gap-2 rounded-full bg-white/10 px-3 py-1.5 text-xs font-semibold uppercase tracking-wide text-white transition hover:bg-white/20 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sky-400 focus-visible:ring-offset-2 focus-visible:ring-offset-slate-900"

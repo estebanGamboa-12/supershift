@@ -36,6 +36,8 @@ type PlannerEntry = {
   color: string
   label: string
   pluses: PlannerPluses
+  startTime: string | null
+  endTime: string | null
 }
 
 const SHIFT_TYPES: { value: ShiftType; label: string; defaultColor: string }[] = [
@@ -61,6 +63,9 @@ const SHIFT_LABELS: Record<ShiftType, string> = {
   VACATION: "Vacaciones",
   CUSTOM: "Personalizado",
 }
+
+const DEFAULT_PLANNER_START_TIME = "09:00"
+const DEFAULT_PLANNER_END_TIME = "17:00"
 
 const WORKLIKE_TYPES: ShiftType[] = ["WORK", "NIGHT", "CUSTOM"]
 const RESTLIKE_TYPES: ShiftType[] = ["REST", "VACATION"]
@@ -110,6 +115,41 @@ function ensureNumber(value: string): number {
   return Math.max(0, Math.min(3, parsed))
 }
 
+function parseTimeToMinutes(value?: string | null): number | null {
+  if (!value) {
+    return null
+  }
+
+  const [hoursPart, minutesPart] = value.split(":")
+  const hours = Number.parseInt(hoursPart ?? "", 10)
+  const minutes = Number.parseInt(minutesPart ?? "", 10)
+
+  if (Number.isNaN(hours) || Number.isNaN(minutes)) {
+    return null
+  }
+
+  return hours * 60 + minutes
+}
+
+function getShiftDuration(
+  startTime?: string | null,
+  endTime?: string | null,
+): { minutes: number; crossesMidnight: boolean } {
+  const startMinutes = parseTimeToMinutes(startTime)
+  const endMinutes = parseTimeToMinutes(endTime)
+
+  if (startMinutes === null || endMinutes === null) {
+    return { minutes: 0, crossesMidnight: false }
+  }
+
+  if (endMinutes >= startMinutes) {
+    return { minutes: endMinutes - startMinutes, crossesMidnight: false }
+  }
+
+  const minutesUntilMidnight = 24 * 60 - startMinutes
+  return { minutes: minutesUntilMidnight + endMinutes, crossesMidnight: true }
+}
+
 function sumPluses(pluses: PlannerPluses): number {
   return (
     pluses.night + pluses.holiday + pluses.availability + pluses.other
@@ -136,6 +176,8 @@ function toPlannerEntry(day: ManualRotationDay): PlannerEntry {
     color: day.color ?? "",
     label: day.label ?? SHIFT_LABELS[day.type],
     pluses: normalizePluses(day.pluses),
+    startTime: day.startTime ?? null,
+    endTime: day.endTime ?? null,
   }
 }
 
@@ -197,6 +239,8 @@ export default function ShiftPlannerLab({
         date: entry.date,
         type: entry.type,
         pluses: { ...entry.pluses },
+        startTime: entry.startTime ?? DEFAULT_PLANNER_START_TIME,
+        endTime: entry.endTime ?? DEFAULT_PLANNER_END_TIME,
         ...(entry.note ? { note: entry.note } : {}),
         ...(entry.color ? { color: entry.color } : {}),
         ...(entry.label ? { label: entry.label } : {}),
@@ -417,6 +461,7 @@ export default function ShiftPlannerLab({
         const diff = differenceInCalendarDays(pointer, parsedStart)
         const normalized = ((diff % cycleLength) + cycleLength) % cycleLength
         const shiftType: ShiftType = normalized < workLength ? "WORK" : "REST"
+        const existing = prev[iso]
         const palette =
           SHIFT_TYPES.find(({ value }) => value === shiftType)?.defaultColor ??
           (shiftType === "REST" ? "#64748b" : "#2563eb")
@@ -428,6 +473,8 @@ export default function ShiftPlannerLab({
           color: palette,
           label: SHIFT_LABELS[shiftType],
           pluses: { ...INITIAL_PLUSES },
+          startTime: existing?.startTime ?? DEFAULT_PLANNER_START_TIME,
+          endTime: existing?.endTime ?? DEFAULT_PLANNER_END_TIME,
         }
 
         pointer = addDays(pointer, 1)
@@ -613,6 +660,8 @@ export default function ShiftPlannerLab({
       color: palette,
       label: existing?.label ?? SHIFT_LABELS[baseType],
       pluses: existing?.pluses ? { ...existing.pluses } : { ...INITIAL_PLUSES },
+      startTime: existing?.startTime ?? DEFAULT_PLANNER_START_TIME,
+      endTime: existing?.endTime ?? DEFAULT_PLANNER_END_TIME,
     }
   }, [selectedDate, activeEntry])
   return (
@@ -1020,6 +1069,8 @@ export default function ShiftPlannerLab({
                     color: data.color,
                     label: data.label,
                     pluses: data.pluses,
+                    startTime: data.startTime,
+                    endTime: data.endTime,
                   })
                 }
               />
@@ -1041,6 +1092,8 @@ type EditorFormProps = {
     color: string
     label: string
     pluses: PlannerPluses
+    startTime: string | null
+    endTime: string | null
   }
   onSave: (entry: {
     type: ShiftType
@@ -1048,6 +1101,8 @@ type EditorFormProps = {
     color: string
     label: string
     pluses: PlannerPluses
+    startTime: string | null
+    endTime: string | null
   }) => void
   onRemove: () => void
 }
@@ -1057,6 +1112,8 @@ function EditorForm({ defaults, onSave, onRemove }: EditorFormProps) {
   const [note, setNote] = useState(defaults.note)
   const [color, setColor] = useState(defaults.color)
   const [label, setLabel] = useState(defaults.label)
+  const [startTime, setStartTime] = useState(defaults.startTime ?? "")
+  const [endTime, setEndTime] = useState(defaults.endTime ?? "")
   const [pluses, setPluses] = useState<PlannerPluses>({ ...defaults.pluses })
 
   useEffect(() => {
@@ -1064,22 +1121,46 @@ function EditorForm({ defaults, onSave, onRemove }: EditorFormProps) {
     setNote(defaults.note)
     setColor(defaults.color)
     setLabel(defaults.label)
+    setStartTime(defaults.startTime ?? "")
+    setEndTime(defaults.endTime ?? "")
     setPluses({ ...defaults.pluses })
   }, [defaults])
+
+  const trimmedStartTime = startTime.trim()
+  const trimmedEndTime = endTime.trim()
+  const hasStartTime = trimmedStartTime.length > 0
+  const hasEndTime = trimmedEndTime.length > 0
+  const hasCompleteRange = hasStartTime && hasEndTime
+  const effectiveStartTime = hasStartTime
+    ? trimmedStartTime
+    : DEFAULT_PLANNER_START_TIME
+  const effectiveEndTime = hasEndTime
+    ? trimmedEndTime
+    : DEFAULT_PLANNER_END_TIME
+  const { minutes: totalMinutes, crossesMidnight } = useMemo(
+    () => getShiftDuration(effectiveStartTime, effectiveEndTime),
+    [effectiveEndTime, effectiveStartTime],
+  )
+  const formattedDuration = `${Math.floor(totalMinutes / 60)}h ${String(
+    totalMinutes % 60,
+  ).padStart(2, "0")}m`
+  const usingFallbackTimes = !hasCompleteRange
 
   return (
     <form
       className="mt-6 space-y-6 pb-[calc(6.5rem+env(safe-area-inset-bottom))] sm:pb-6 lg:pb-0"
       onSubmit={(event) => {
         event.preventDefault()
-        onSave({
-          type,
-          note: note.trim(),
-          color,
-          label: label.trim().length > 0 ? label.trim() : SHIFT_LABELS[type],
-          pluses,
-        })
-      }}
+          onSave({
+            type,
+            note: note.trim(),
+            color,
+            label: label.trim().length > 0 ? label.trim() : SHIFT_LABELS[type],
+            pluses,
+          startTime: effectiveStartTime,
+          endTime: effectiveEndTime,
+          })
+        }}
     >
       <div className="space-y-4">
         <div>
@@ -1124,6 +1205,41 @@ function EditorForm({ defaults, onSave, onRemove }: EditorFormProps) {
             placeholder="Etiqueta que verás en el calendario"
           />
         </label>
+
+        <div className="grid gap-3 sm:grid-cols-2">
+          <label className="flex flex-col gap-2 text-xs text-white/70">
+            Hora de entrada
+            <input
+              type="time"
+              value={startTime}
+              onChange={(event) => setStartTime(event.target.value)}
+              className="w-full rounded-2xl border border-white/10 bg-white/5 px-3 py-2 text-sm text-white focus:border-sky-400 focus:outline-none focus:ring-2 focus:ring-sky-400/40"
+            />
+          </label>
+          <label className="flex flex-col gap-2 text-xs text-white/70">
+            Hora de salida
+            <input
+              type="time"
+              value={endTime}
+              onChange={(event) => setEndTime(event.target.value)}
+              className="w-full rounded-2xl border border-white/10 bg-white/5 px-3 py-2 text-sm text-white focus:border-sky-400 focus:outline-none focus:ring-2 focus:ring-sky-400/40"
+            />
+          </label>
+        </div>
+
+        <div className="rounded-2xl border border-white/10 bg-white/5 px-4 py-3">
+          <p className="text-[11px] uppercase tracking-[0.3em] text-white/40">Horas totales</p>
+          <p className="mt-2 text-xl font-semibold text-white sm:text-2xl">
+            {formattedDuration}
+          </p>
+          <p className="text-[11px] text-white/50 sm:text-xs">
+            {usingFallbackTimes
+              ? `Se aplicarán los valores predeterminados (${DEFAULT_PLANNER_START_TIME} - ${DEFAULT_PLANNER_END_TIME}).`
+              : crossesMidnight
+                ? "El turno finaliza al día siguiente."
+                : "El turno comienza y termina el mismo día."}
+          </p>
+        </div>
 
         <label className="flex flex-col gap-2 text-xs text-white/70">
           Color del turno
@@ -1193,6 +1309,8 @@ function EditorForm({ defaults, onSave, onRemove }: EditorFormProps) {
               setNote(defaults.note)
               setColor(defaults.color)
               setLabel(defaults.label)
+              setStartTime(defaults.startTime ?? "")
+              setEndTime(defaults.endTime ?? "")
               setPluses({ ...defaults.pluses })
             }}
             className="inline-flex items-center justify-center rounded-full border border-white/10 bg-white/5 px-4 py-2 text-xs font-semibold uppercase tracking-wide text-white/70 transition hover:bg-white/10"

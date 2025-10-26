@@ -1267,6 +1267,15 @@ export default function Home() {
         availability: pluses?.availability ?? 0,
         other: pluses?.other ?? 0,
       })
+      const normalizeTimeValue = (
+        value: string | null | undefined,
+        fallback: string,
+      ) => {
+        if (typeof value === "string" && value.trim().length >= 4) {
+          return value.trim().slice(0, 5)
+        }
+        return fallback
+      }
 
       const desiredByDate = new Map(days.map((day) => [day.date, day]))
       const existingByDate = new Map(shifts.map((shift) => [shift.date, shift]))
@@ -1283,13 +1292,33 @@ export default function Home() {
 
       for (const day of days) {
         const existing = existingByDate.get(day.date)
+        const desiredStartTime = normalizeTimeValue(
+          day.startTime,
+          DEFAULT_SHIFT_START_TIME,
+        )
+        const desiredEndTime = normalizeTimeValue(
+          day.endTime,
+          DEFAULT_SHIFT_END_TIME,
+        )
         if (!existing) {
-          additions.push(day)
+          additions.push({
+            ...day,
+            startTime: desiredStartTime,
+            endTime: desiredEndTime,
+          })
           continue
         }
 
         const existingPluses = ensurePluses(existing.pluses)
         const dayPluses = ensurePluses(day.pluses)
+        const existingStartTime = normalizeTimeValue(
+          existing.startTime,
+          DEFAULT_SHIFT_START_TIME,
+        )
+        const existingEndTime = normalizeTimeValue(
+          existing.endTime,
+          DEFAULT_SHIFT_END_TIME,
+        )
 
         const requiresUpdate =
           existing.type !== day.type ||
@@ -1299,10 +1328,19 @@ export default function Home() {
           existingPluses.night !== dayPluses.night ||
           existingPluses.holiday !== dayPluses.holiday ||
           existingPluses.availability !== dayPluses.availability ||
-          existingPluses.other !== dayPluses.other
+          existingPluses.other !== dayPluses.other ||
+          existingStartTime !== desiredStartTime ||
+          existingEndTime !== desiredEndTime
 
         if (requiresUpdate) {
-          updates.push({ day, shift: existing })
+          updates.push({
+            day: {
+              ...day,
+              startTime: desiredStartTime,
+              endTime: desiredEndTime,
+            },
+            shift: existing,
+          })
         }
       }
 
@@ -1328,8 +1366,8 @@ export default function Home() {
               label: day.label,
               color: day.color,
               pluses: day.pluses,
-              startTime: shift.startTime ?? DEFAULT_SHIFT_START_TIME,
-              endTime: shift.endTime ?? DEFAULT_SHIFT_END_TIME,
+              startTime: day.startTime ?? DEFAULT_SHIFT_START_TIME,
+              endTime: day.endTime ?? DEFAULT_SHIFT_END_TIME,
             })
           } catch (error) {
             if (error instanceof ApiError && error.status === 404) {
@@ -1344,8 +1382,8 @@ export default function Home() {
                 ...(day.label ? { label: day.label } : {}),
                 ...(day.color ? { color: day.color } : {}),
                 pluses: day.pluses,
-                startTime: DEFAULT_SHIFT_START_TIME,
-                endTime: DEFAULT_SHIFT_END_TIME,
+                startTime: day.startTime ?? DEFAULT_SHIFT_START_TIME,
+                endTime: day.endTime ?? DEFAULT_SHIFT_END_TIME,
               })
               continue
             }
@@ -1362,8 +1400,8 @@ export default function Home() {
             ...(entry.label ? { label: entry.label } : {}),
             ...(entry.color ? { color: entry.color } : {}),
             pluses: entry.pluses,
-            startTime: DEFAULT_SHIFT_START_TIME,
-            endTime: DEFAULT_SHIFT_END_TIME,
+            startTime: entry.startTime ?? DEFAULT_SHIFT_START_TIME,
+            endTime: entry.endTime ?? DEFAULT_SHIFT_END_TIME,
           })
         }
       } catch (error) {
@@ -1476,6 +1514,14 @@ export default function Home() {
           availability: shift.pluses?.availability ?? 0,
           other: shift.pluses?.other ?? 0,
         },
+        startTime:
+          typeof shift.startTime === "string" && shift.startTime.trim().length >= 4
+            ? shift.startTime.slice(0, 5)
+            : null,
+        endTime:
+          typeof shift.endTime === "string" && shift.endTime.trim().length >= 4
+            ? shift.endTime.slice(0, 5)
+            : null,
         ...(shift.note ? { note: shift.note } : {}),
         ...(shift.label ? { label: shift.label } : {}),
         ...(shift.color ? { color: shift.color } : {}),

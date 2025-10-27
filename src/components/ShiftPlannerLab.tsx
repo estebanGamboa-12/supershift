@@ -1,5 +1,6 @@
 "use client"
 
+import type { CSSProperties } from "react"
 import { useCallback, useEffect, useMemo, useRef, useState } from "react"
 import { AnimatePresence, motion } from "framer-motion"
 import { AlertTriangle, CalendarDays, Check, Sparkles, X } from "lucide-react"
@@ -10,6 +11,8 @@ import {
   eachDayOfInterval,
   endOfMonth,
   format,
+  getDay,
+  getDaysInMonth,
   isSameMonth,
   isToday,
   parseISO,
@@ -298,10 +301,17 @@ export default function ShiftPlannerLab({
     setIsConfirmingRotation(false)
   }, [rotationPattern, rotationStart])
 
-  const calendarDays = useMemo(() => {
+  const calendarConfig = useMemo(() => {
     const monthStart = startOfMonth(currentMonth)
-    const calendarStart = startOfWeek(monthStart, { weekStartsOn: 1 })
-    return Array.from({ length: 42 }, (_, index) => addDays(calendarStart, index))
+    const daysInMonth = getDaysInMonth(currentMonth)
+    const days = Array.from({ length: daysInMonth }, (_, index) => addDays(monthStart, index))
+    const weekday = getDay(monthStart)
+    const firstColumn = ((weekday + 6) % 7) + 1
+
+    return {
+      days,
+      firstColumn,
+    }
   }, [currentMonth])
 
   const monthDays = useMemo(
@@ -667,8 +677,8 @@ export default function ShiftPlannerLab({
   return (
     <div className="relative overflow-hidden rounded-3xl border border-white/10 bg-slate-950/70 text-white shadow-[0_40px_90px_-35px_rgba(15,23,42,0.95)]">
       <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_top,_rgba(59,130,246,0.18),transparent_60%),_radial-gradient(circle_at_bottom_right,_rgba(236,72,153,0.14),transparent_55%)]" />
-      <div className="relative flex flex-col gap-6 p-4 sm:p-6">
-        <section className="space-y-4 rounded-2xl border border-white/10 bg-white/5 p-4 sm:p-5 backdrop-blur-xl">
+      <div className="relative flex flex-col gap-6 p-0 sm:p-6">
+        <section className="space-y-4 rounded-2xl border border-white/10 bg-white/5 p-3 sm:p-5 backdrop-blur-xl">
           <header className="border-b border-white/10 pb-4">
             <div className="flex flex-col gap-1 sm:flex-row sm:items-end sm:justify-between">
               <AnimatePresence mode="wait" initial={false}>
@@ -687,7 +697,7 @@ export default function ShiftPlannerLab({
             </div>
           </header>
 
-          <div className="grid grid-cols-2 gap-3 rounded-2xl border border-white/10 bg-slate-950/60 p-3 text-xs sm:grid-cols-4 sm:p-4">
+          <div className="grid grid-cols-2 gap-3 rounded-2xl border border-white/10 bg-slate-950/60 p-2 text-xs sm:grid-cols-4 sm:p-4">
             <div>
               <p className="uppercase tracking-wide text-white/40">Días trabajados</p>
               <p className="text-2xl font-semibold text-emerald-300">{stats.worked}</p>
@@ -733,7 +743,7 @@ export default function ShiftPlannerLab({
           </div>
 
           {mode === "rotation" ? (
-            <div className="space-y-3 rounded-2xl border border-white/10 bg-slate-950/40 p-4 text-xs text-white/70">
+            <div className="space-y-3 rounded-2xl border border-white/10 bg-slate-950/40 p-3 text-xs text-white/70 sm:p-4">
               <p className="text-[11px] uppercase tracking-[0.3em] text-white/40">Patrón automático</p>
               <div className="flex flex-wrap items-center gap-3">
                 {ROTATION_PATTERNS.map((pattern) => (
@@ -808,7 +818,7 @@ export default function ShiftPlannerLab({
                         </div>
                       ) : null}
 
-                      <div className="flex flex-col gap-2 sm:flex-row sm:justify-end">
+                        <div className="flex flex-col gap-2 sm:flex-row sm:justify-end">
                         <button
                           type="button"
                           onClick={confirmApplyRotation}
@@ -842,14 +852,14 @@ export default function ShiftPlannerLab({
               <p className="text-[11px] text-white/50">Usa el patrón como base y edita manualmente los días que necesites.</p>
             </div>
           ) : (
-            <div className="rounded-2xl border border-white/10 bg-slate-950/40 p-4 text-sm text-white/70">
+            <div className="rounded-2xl border border-white/10 bg-slate-950/40 p-3 text-sm text-white/70 sm:p-4">
               <p>
                 Pulsa cualquier día del calendario para asignar turno, color, notas y pluses personalizados. Puedes copiar el patrón automático y luego afinar turno por turno.
               </p>
             </div>
           )}
 
-          <div className="flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-white/10 bg-slate-950/50 p-4 text-xs font-semibold text-white/70 sm:p-5">
+          <div className="flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-white/10 bg-slate-950/50 p-3 text-xs font-semibold text-white/70 sm:p-5">
             <div className="flex items-center gap-3">
               <button
                 type="button"
@@ -890,7 +900,7 @@ export default function ShiftPlannerLab({
           </div>
 
           <div className="overflow-hidden rounded-3xl border border-white/10 bg-slate-950/50">
-            <div className="grid grid-cols-7 gap-5 border-b border-white/5 bg-slate-950/40 px-4 py-3 text-[10px] font-semibold uppercase tracking-wide text-white/60 sm:px-6 sm:text-[11px]">
+            <div className="grid grid-cols-7 gap-4 border-b border-white/5 bg-slate-950/40 px-2 py-3 text-[10px] font-semibold uppercase tracking-wide text-white/60 sm:px-6 sm:text-[11px]">
               {Array.from({ length: 7 }).map((_, index) => {
                 const reference = addDays(startOfWeek(new Date(), { weekStartsOn: 1 }), index)
                 return (
@@ -908,9 +918,9 @@ export default function ShiftPlannerLab({
                 animate={{ opacity: 1, y: 0 }}
                 exit={{ opacity: 0, y: -12 }}
                 transition={{ duration: 0.25, ease: "easeOut" }}
-                className="grid grid-cols-7 grid-rows-6 gap-5 bg-transparent px-4 pb-4 pt-3 sm:px-6 sm:pb-6"
+                className="grid grid-cols-7 gap-4 bg-transparent px-2 pb-3 pt-3 sm:px-6 sm:pb-6"
               >
-                {calendarDays.map((day) => {
+                {calendarConfig.days.map((day, index) => {
                   const key = toIsoDate(day)
                   const entry = entries[key]
                   const isCurrent = isSameMonth(day, currentMonth)
@@ -929,12 +939,16 @@ export default function ShiftPlannerLab({
                         : SHIFT_ABBREVIATIONS[entry.type])
                     : ""
 
+                  const style: CSSProperties | undefined =
+                    index === 0 ? { gridColumnStart: calendarConfig.firstColumn } : undefined
+
                   return (
                     <button
                       key={key}
                       type="button"
                       onClick={() => openEditor(day)}
-                    className={`group relative flex min-h-[110px] flex-col gap-2 rounded-2xl border border-transparent p-3 text-left transition duration-200 ease-out focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sky-400/70 sm:min-h-[140px] sm:gap-3 sm:p-4 ${isCurrent ? "text-white/90" : "text-white/40"} ${
+                      style={style}
+                    className={`group relative flex min-h-[96px] flex-col gap-2 rounded-2xl border border-transparent p-3 text-left transition duration-200 ease-out focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sky-400/70 sm:min-h-[140px] sm:gap-3 sm:p-4 ${isCurrent ? "text-white/90" : "text-white/40"} ${
                       entry
                         ? "bg-slate-950/80 hover:-translate-y-0.5 hover:scale-[1.02] hover:border-sky-400/40 hover:ring-1 hover:ring-sky-400/30"
                         : "bg-slate-950/40 hover:-translate-y-0.5 hover:scale-[1.02] hover:bg-slate-900/60 hover:ring-1 hover:ring-sky-400/20"

@@ -9,28 +9,15 @@ import {
   useRef,
   useState,
 } from "react"
-import type { UserProfileHistoryEntry, UserSummary } from "@/types/users"
 import { POPULAR_TIMEZONES } from "@/data/timezones"
+import {
+  DEFAULT_USER_PREFERENCES,
+  type UserPreferences,
+} from "@/types/preferences"
+import type { UserProfileHistoryEntry, UserSummary } from "@/types/users"
 
-export type UserPreferences = {
-  startOfWeek: "monday" | "sunday"
-  theme: "system" | "light" | "dark"
-  notifications: {
-    email: boolean
-    push: boolean
-    reminders: boolean
-  }
-}
-
-export const DEFAULT_USER_PREFERENCES: UserPreferences = {
-  startOfWeek: "monday",
-  theme: "system",
-  notifications: {
-    email: true,
-    push: true,
-    reminders: false,
-  },
-}
+export { DEFAULT_USER_PREFERENCES }
+export type { UserPreferences }
 
 type ConfigurationPanelProps = {
   user: UserSummary | null

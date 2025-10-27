@@ -1,6 +1,6 @@
 "use client"
 
-import type { FC } from "react"
+import { useMemo, type FC } from "react"
 import { isAfter, startOfDay } from "date-fns"
 import ShiftPlannerLab from "@/components/ShiftPlannerLab"
 import type { ManualRotationDay } from "@/components/ManualRotationBuilder"
@@ -39,6 +39,21 @@ const CalendarTab: FC<CalendarTabProps> = ({
     })
     .slice(0, 5)
 
+  const totalMinutes = useMemo(
+    () =>
+      orderedShifts.reduce((accumulator, shift) => {
+        const minutes = Number.isFinite(shift.durationMinutes)
+          ? shift.durationMinutes
+          : 0
+        return accumulator + minutes
+      }, 0),
+    [orderedShifts],
+  )
+
+  const totalHours = Math.floor(totalMinutes / 60)
+  const remainingMinutes = totalMinutes % 60
+  const formattedTotalHours = `${totalHours}h ${String(remainingMinutes).padStart(2, "0")}m`
+
   return (
     <div className="flex flex-col gap-6">
       <ShiftPlannerLab
@@ -47,6 +62,20 @@ const CalendarTab: FC<CalendarTabProps> = ({
         isCommitting={isCommittingPlanner}
         errorMessage={plannerError}
       />
+
+      <section className="hidden rounded-3xl border border-white/10 bg-slate-950/70 p-5 text-white shadow-lg shadow-blue-500/10 lg:block">
+        <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
+          <div>
+            <p className="text-[11px] uppercase tracking-wide text-white/50">
+              Horas totales planificadas
+            </p>
+            <p className="mt-1 text-3xl font-semibold text-white">{formattedTotalHours}</p>
+          </div>
+          <p className="max-w-xs text-sm text-white/60">
+            Suma de la duración de todos los turnos registrados en tu calendario.
+          </p>
+        </div>
+      </section>
 
       <NextShiftCard
         nextShift={nextShift ?? undefined}

@@ -80,6 +80,13 @@ const INITIAL_PLUSES: PlannerPluses = {
   other: 0,
 }
 
+const PLUSES_LABELS: Record<keyof PlannerPluses, string> = {
+  night: "Nocturnidad",
+  holiday: "Festivo",
+  availability: "Disponibilidad",
+  other: "Otros",
+}
+
 const ROTATION_PATTERNS: { label: string; cycle: [number, number] }[] = [
   { label: "4x2", cycle: [4, 2] },
   { label: "5x3", cycle: [5, 3] },
@@ -157,6 +164,17 @@ function sumPluses(pluses: PlannerPluses): number {
   return (
     pluses.night + pluses.holiday + pluses.availability + pluses.other
   )
+}
+
+function formatMinutesLabel(minutes: number): string {
+  const hours = Math.floor(minutes / 60)
+  const remainingMinutes = minutes % 60
+
+  if (hours <= 0) {
+    return `${remainingMinutes} min`
+  }
+
+  return `${hours}h ${String(remainingMinutes).padStart(2, "0")}m`
 }
 
 function normalizePluses(pluses?: ManualRotationDay["pluses"]): PlannerPluses {
@@ -900,7 +918,7 @@ export default function ShiftPlannerLab({
           </div>
 
           <div className="overflow-hidden rounded-3xl border border-white/10 bg-slate-950/50">
-            <div className="grid grid-cols-7 gap-4 border-b border-white/5 bg-slate-950/40 px-2 py-3 text-[10px] font-semibold uppercase tracking-wide text-white/60 sm:px-6 sm:text-[11px]">
+            <div className="grid grid-cols-7 gap-2 border-b border-white/5 bg-slate-950/40 px-1.5 py-2.5 text-[10px] font-semibold uppercase tracking-wide text-white/60 sm:gap-4 sm:px-6 sm:py-3 sm:text-[11px]">
               {Array.from({ length: 7 }).map((_, index) => {
                 const reference = addDays(startOfWeek(new Date(), { weekStartsOn: 1 }), index)
                 return (
@@ -918,7 +936,7 @@ export default function ShiftPlannerLab({
                 animate={{ opacity: 1, y: 0 }}
                 exit={{ opacity: 0, y: -12 }}
                 transition={{ duration: 0.25, ease: "easeOut" }}
-                className="grid grid-cols-7 gap-4 bg-transparent px-2 pb-3 pt-3 sm:px-6 sm:pb-6"
+                className="grid grid-cols-7 gap-2 bg-transparent px-1.5 pb-2.5 pt-2.5 sm:gap-4 sm:px-6 sm:pb-6"
               >
                 {calendarConfig.days.map((day, index) => {
                   const key = toIsoDate(day)
@@ -938,6 +956,10 @@ export default function ShiftPlannerLab({
                         ? entry.label.slice(0, 3)
                         : SHIFT_ABBREVIATIONS[entry.type])
                     : ""
+                  const { minutes: entryMinutes } = getShiftDuration(
+                    entry?.startTime,
+                    entry?.endTime,
+                  )
 
                   const style: CSSProperties | undefined =
                     index === 0 ? { gridColumnStart: calendarConfig.firstColumn } : undefined
@@ -948,7 +970,7 @@ export default function ShiftPlannerLab({
                       type="button"
                       onClick={() => openEditor(day)}
                       style={style}
-                    className={`group relative flex min-h-[96px] flex-col gap-2 rounded-2xl border border-transparent p-3 text-left transition duration-200 ease-out focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sky-400/70 sm:min-h-[140px] sm:gap-3 sm:p-4 ${isCurrent ? "text-white/90" : "text-white/40"} ${
+                    className={`group relative flex min-h-[72px] flex-col gap-1.5 rounded-2xl border border-transparent p-2.5 text-left transition duration-200 ease-out focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sky-400/70 sm:min-h-[140px] sm:gap-3 sm:p-4 ${isCurrent ? "text-white/90" : "text-white/40"} ${
                       entry
                         ? "bg-slate-950/80 hover:-translate-y-0.5 hover:scale-[1.02] hover:border-sky-400/40 hover:ring-1 hover:ring-sky-400/30"
                         : "bg-slate-950/40 hover:-translate-y-0.5 hover:scale-[1.02] hover:bg-slate-900/60 hover:ring-1 hover:ring-sky-400/20"
@@ -968,7 +990,7 @@ export default function ShiftPlannerLab({
                           whileHover={{ scale: 1.05, boxShadow: `0 0 16px ${accentColor}55` }}
                           whileTap={{ scale: 0.97 }}
                           transition={{ type: "spring", stiffness: 320, damping: 20 }}
-                          className="mt-2 inline-flex min-h-[1.75rem] w-full items-center justify-center rounded-xl border border-white/10 px-3 py-1 text-center text-[10px] font-semibold capitalize leading-tight text-white sm:text-xs"
+                          className="mt-1.5 inline-flex min-h-[1.5rem] w-full items-center justify-center rounded-xl border border-white/10 px-2.5 py-1 text-center text-[10px] font-semibold capitalize leading-tight text-white sm:mt-2 sm:min-h-[1.75rem] sm:px-3 sm:text-xs"
                           style={{
                             backgroundColor: `${accentColor}22`,
                             color: accentColor,
@@ -992,6 +1014,44 @@ export default function ShiftPlannerLab({
                       ) : null}
                       {entry && sumPluses(entry.pluses) > 0 ? (
                         <span className="text-[9px] font-medium text-emerald-200 sm:text-[10px]">{sumPluses(entry.pluses)} niveles</span>
+                      ) : null}
+                      {entry ? (
+                        <div className="pointer-events-none absolute left-1/2 top-full z-40 hidden w-64 -translate-x-1/2 translate-y-2 rounded-2xl border border-white/10 bg-slate-950/95 p-3 text-left text-xs text-white/70 opacity-0 shadow-[0_24px_60px_rgba(15,23,42,0.65)] transition duration-200 group-hover:translate-y-3 group-hover:opacity-100 group-focus-visible:translate-y-3 group-focus-visible:opacity-100 lg:block">
+                          <p className="text-[11px] uppercase tracking-wide text-white/40">
+                            {format(day, "EEEE d 'de' MMMM", { locale: es })}
+                          </p>
+                          <p className="mt-1 text-sm font-semibold text-white">{fullLabel}</p>
+                          {entry.startTime || entry.endTime ? (
+                            <p className="mt-1 text-white/70">
+                              {entry.startTime && entry.endTime
+                                ? `${entry.startTime} – ${entry.endTime}`
+                                : entry.startTime
+                                  ? `Desde ${entry.startTime}`
+                                  : entry.endTime
+                                    ? `Hasta ${entry.endTime}`
+                                    : "Horario no especificado"}
+                              {entryMinutes > 0 ? ` · ${formatMinutesLabel(entryMinutes)}` : ""}
+                            </p>
+                          ) : null}
+                          {entry.note ? (
+                            <p className="mt-2 text-white/60">{entry.note}</p>
+                          ) : null}
+                          {sumPluses(entry.pluses) > 0 ? (
+                            <ul className="mt-2 space-y-1 text-[11px] text-white/60">
+                              {(Object.entries(entry.pluses) as Array<[
+                                keyof PlannerPluses,
+                                number
+                              ]>)
+                                .filter(([, value]) => value > 0)
+                                .map(([key, value]) => (
+                                  <li key={key} className="flex items-center justify-between">
+                                    <span>{PLUSES_LABELS[key]}</span>
+                                    <span className="font-semibold text-emerald-200">+{value}</span>
+                                  </li>
+                                ))}
+                            </ul>
+                          ) : null}
+                        </div>
                       ) : null}
                     </button>
                   )

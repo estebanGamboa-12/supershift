@@ -404,6 +404,38 @@ export default function Home() {
     }
   }, [])
 
+  useEffect(() => {
+    if (typeof window === "undefined") {
+      return
+    }
+
+    const { search, hash } = window.location
+
+    if (!hash) {
+      return
+    }
+
+    const normalizedSource = `${search}${hash}`.toLowerCase()
+    const patterns = [
+      "access_token=",
+      "refresh_token=",
+      "type=recovery",
+      "type=signup",
+      "type=email_change",
+      "code=",
+    ]
+
+    const shouldRedirect = patterns.some((pattern) =>
+      normalizedSource.includes(pattern),
+    )
+
+    if (!shouldRedirect) {
+      return
+    }
+
+    router.replace(`/auth/callback${search}${hash}`)
+  }, [router])
+
   const mapApiShift = useCallback((shift: ApiShift): ShiftEvent => {
     const plusNight = shift.plusNight ?? 0
     const plusHoliday = shift.plusHoliday ?? 0

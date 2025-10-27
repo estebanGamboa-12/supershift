@@ -1,6 +1,7 @@
 "use client"
 
 import { useMemo, useState, type FC } from "react"
+import { motion } from "framer-motion"
 import { formatCompactDate } from "@/lib/formatDate"
 import type { ShiftType } from "@/types/shifts"
 
@@ -125,14 +126,16 @@ const DailyHoursSummary: FC<DailyHoursSummaryProps> = ({ entries, shiftTypeLabel
                     <span aria-hidden>⏳</span>
                     {totalLabel}
                   </span>
-                  <button
+                  <motion.button
                     type="button"
                     onClick={() => toggleMonth(group.monthKey)}
-                    className="inline-flex items-center gap-2 rounded-full border border-white/15 px-3 py-1 text-xs font-semibold uppercase tracking-wide text-white/70 transition hover:border-blue-400/40 hover:text-white"
+                    whileTap={{ scale: 0.97 }}
+                    transition={{ type: "spring", stiffness: 500, damping: 30 }}
+                    className="inline-flex items-center gap-2 rounded-full border border-white/15 px-3 py-1 text-xs font-semibold uppercase tracking-wide text-white/70 transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-blue-400/70 focus-visible:outline-offset-2 hover:border-blue-400/40 hover:text-white active:border-blue-400/40 active:bg-blue-500/10 active:text-white"
                   >
                     {isExpanded ? "Ocultar detalles" : "Ver detalles"}
                     <span aria-hidden>{isExpanded ? "▴" : "▾"}</span>
-                  </button>
+                  </motion.button>
                 </div>
               </header>
 
@@ -192,14 +195,16 @@ const DailyHoursSummary: FC<DailyHoursSummaryProps> = ({ entries, shiftTypeLabel
 
               {!isExpanded && group.items.length > 3 && (
                 <div className="flex justify-center">
-                  <button
+                  <motion.button
                     type="button"
                     onClick={() => toggleMonth(group.monthKey)}
-                    className="inline-flex items-center gap-2 rounded-full border border-white/15 px-4 py-2 text-xs font-semibold uppercase tracking-wide text-white/70 transition hover:border-blue-400/40 hover:text-white"
+                    whileTap={{ scale: 0.97 }}
+                    transition={{ type: "spring", stiffness: 500, damping: 30 }}
+                    className="inline-flex items-center gap-2 rounded-full border border-white/15 px-4 py-2 text-xs font-semibold uppercase tracking-wide text-white/70 transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-blue-400/70 focus-visible:outline-offset-2 hover:border-blue-400/40 hover:text-white active:border-blue-400/40 active:bg-blue-500/10 active:text-white"
                   >
                     Ver {group.items.length - 3} {group.items.length - 3 === 1 ? "día adicional" : "días adicionales"}
                     <span aria-hidden>▾</span>
-                  </button>
+                  </motion.button>
                 </div>
               )}
             </article>

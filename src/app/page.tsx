@@ -2324,7 +2324,7 @@ export default function Home() {
                   {activeTab === "insights" && (
                     <div className="space-y-6">
                       <StatsTab
-                        summaryCards={summaryCards}
+                        summaryCards={[]}
                         currentMonthShiftCount={currentMonthShifts.length}
                         totalShiftCount={orderedShifts.length}
                         activeShiftTypes={activeShiftTypes}

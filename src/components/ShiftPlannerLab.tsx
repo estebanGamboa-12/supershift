@@ -947,7 +947,7 @@ export default function ShiftPlannerLab({
                 animate={{ opacity: 1, y: 0 }}
                 exit={{ opacity: 0, y: -12 }}
                 transition={{ duration: 0.25, ease: "easeOut" }}
-                className="grid grid-cols-7 gap-px bg-slate-900/60 p-px pb-3 pt-3 [grid-auto-rows:minmax(110px,1fr)] sm:pb-6 sm:[grid-auto-rows:minmax(150px,1fr)]"
+                className="grid grid-cols-7 gap-[clamp(3px,0.8vw,12px)] bg-slate-950/70 p-[clamp(3px,0.8vw,12px)] pb-6 pt-4 [grid-auto-rows:clamp(96px,14vw,150px)] sm:pb-8 sm:[grid-auto-rows:clamp(120px,11vw,190px)]"
               >
                 {calendarConfig.days.map((day, index) => {
                   const key = toIsoDate(day)
@@ -995,101 +995,100 @@ export default function ShiftPlannerLab({
                     : []
 
                   return (
-                    <button
+                    <motion.button
                       key={key}
                       type="button"
                       onClick={() => openEditor(day)}
                       style={style}
-                      className={`group relative flex h-full flex-col gap-3 rounded-2xl border border-white/5 bg-slate-950/70 p-3 text-left transition duration-200 ease-out focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sky-400/70 sm:gap-4 sm:p-4 ${
-                        isCurrent ? "text-white/90" : "text-white/40"
+                      whileHover={{ translateY: -4, scale: 1.01 }}
+                      whileTap={{ scale: 0.99 }}
+                      transition={{ type: "spring", stiffness: 340, damping: 24 }}
+                      className={`group relative flex h-full flex-col overflow-visible rounded-3xl border border-white/10 bg-slate-950/80 p-3 text-left shadow-[0_0_0_1px_rgba(15,23,42,0.6)] transition duration-300 ease-out focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sky-300/70 sm:p-4 ${
+                        isCurrent ? "text-white/90" : "text-white/45"
                       } ${
                         entry
-                          ? "hover:-translate-y-0.5 hover:scale-[1.01] hover:border-sky-400/40 hover:shadow-lg hover:shadow-sky-400/10"
-                          : "hover:-translate-y-0.5 hover:scale-[1.01] hover:border-sky-400/30 hover:bg-slate-900/70"
+                          ? "hover:border-white/20 hover:bg-slate-900/90 hover:shadow-[0_20px_45px_-24px_rgba(56,189,248,0.35)]"
+                          : "hover:border-sky-400/40 hover:bg-slate-900/70"
                       }`}
                     >
+                      <span
+                        aria-hidden="true"
+                        className="pointer-events-none absolute inset-px rounded-[1.35rem] bg-[radial-gradient(120%_120%_at_0%_0%,rgba(125,211,252,0.12),transparent_55%)] opacity-0 transition duration-300 group-hover:opacity-100"
+                      />
                       <div className="flex items-start justify-between">
                         <span
-                          className={`flex h-7 w-7 items-center justify-center rounded-full text-[11px] font-medium sm:h-8 sm:w-8 sm:text-sm ${
+                          className={`flex h-7 w-7 items-center justify-center rounded-full text-[11px] font-semibold transition sm:h-8 sm:w-8 sm:text-sm ${
                             isCurrentDay
-                              ? "bg-sky-500 text-white shadow shadow-sky-500/40"
+                              ? "bg-sky-500 text-white shadow-lg shadow-sky-500/40"
                               : "bg-white/10 text-white/60"
                           }`}
                         >
                           {format(day, "d")}
                         </span>
                         {entry ? (
-                          <span
-                            className="rounded-full border border-white/10 bg-white/5 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-white/60"
-                          >
+                          <span className="rounded-full border border-white/10 bg-white/10 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-[0.22em] text-white/60">
                             {SHIFT_ABBREVIATIONS[entry.type]}
                           </span>
                         ) : (
                           <span className="sr-only">Añadir turno</span>
                         )}
                       </div>
+                      <div className="relative mt-3 flex flex-col gap-2">
+                        {entry ? (
+                          <div
+                            className="inline-flex min-h-[1.75rem] items-center justify-between gap-2 rounded-2xl border border-white/10 px-3 py-1 text-[11px] font-semibold uppercase tracking-wide text-white/90 shadow-inner shadow-slate-900/60 sm:text-xs"
+                            style={{
+                              color: accentColor,
+                              backgroundColor: `${accentColor}1a`,
+                            }}
+                          >
+                            <span className="max-w-[70%] truncate capitalize">
+                              <span className="sm:hidden">{compactLabel}</span>
+                              <span className="hidden sm:inline">{fullLabel}</span>
+                            </span>
+                            {durationLabel ? (
+                              <span className="rounded-full border border-current/30 px-2 py-0.5 text-[10px] font-semibold leading-none text-current">
+                                {durationLabel}
+                              </span>
+                            ) : null}
+                          </div>
+                        ) : (
+                          <div className="mt-3 flex items-center justify-center rounded-2xl border border-dashed border-white/15 bg-white/5 px-3 py-6 text-xs font-semibold uppercase tracking-[0.3em] text-white/30">
+                            Toca para añadir
+                          </div>
+                        )}
+                        {entry?.note ? (
+                          <p className="line-clamp-2 text-[10px] leading-relaxed text-white/55 sm:text-[11px]">
+                            {entry.note}
+                          </p>
+                        ) : null}
+                        {entry && totalPluses > 0 ? (
+                          <p className="text-[10px] font-medium text-emerald-200 sm:text-xs">
+                            {totalPluses} niveles extra
+                          </p>
+                        ) : null}
+                      </div>
                       {entry ? (
-                        <motion.span
-                          whileHover={{ scale: 1.05, boxShadow: `0 0 16px ${accentColor}55` }}
-                          whileTap={{ scale: 0.97 }}
-                          transition={{ type: "spring", stiffness: 320, damping: 20 }}
-                          className="mt-2 inline-flex min-h-[1.75rem] w-full items-center justify-center rounded-xl border border-white/10 px-3 py-1 text-center text-[10px] font-semibold capitalize leading-tight text-white sm:text-xs"
-                          style={{
-                            backgroundColor: `${accentColor}22`,
-                            color: accentColor,
-                            boxShadow: `0 0 0 0 ${accentColor}00`,
-                            transformOrigin: "center",
-                          }}
-                        >
-                          <span className="whitespace-nowrap capitalize sm:hidden">{compactLabel}</span>
-                          <span className="hidden whitespace-nowrap sm:inline">{fullLabel}</span>
-                        </motion.span>
-                      ) : (
-                        <span className="pointer-events-none absolute right-3 top-3 inline-flex h-6 w-6 items-center justify-center rounded-full border border-dashed border-white/10 bg-white/5 text-xs font-semibold text-white/30 transition group-hover:border-sky-400/40 group-hover:text-sky-200">
-                          +
-                        </span>
-                      )}
-                      {durationLabel ? (
-                        <span className="text-[10px] font-medium text-emerald-200 sm:text-xs">
-                          {durationLabel}
-                        </span>
-                      ) : null}
-                      {entry?.note ? (
-                        <span className="line-clamp-2 text-[9px] text-white/50 sm:text-[10px]">{entry.note}</span>
-                      ) : null}
-                      {entry && totalPluses > 0 ? (
-                        <span className="text-[9px] font-medium text-emerald-200 sm:text-[10px]">
-                          {totalPluses} niveles
-                        </span>
-                      ) : null}
-                      {entry ? (
-                        <div
-                          className="pointer-events-none absolute left-1/2 top-[calc(100%+0.75rem)] z-40 hidden w-64 -translate-x-1/2 rounded-2xl border border-white/10 bg-slate-950/95 p-3 text-left text-[11px] shadow-2xl ring-1 ring-sky-400/20 transition duration-200 ease-out group-hover:block group-active:block group-focus-visible:block"
-                        >
+                        <div className="pointer-events-none absolute inset-x-3 -bottom-[calc(100%-0.5rem)] z-40 origin-top scale-95 transform rounded-2xl border border-white/10 bg-slate-950/95 p-3 text-left text-[11px] opacity-0 shadow-[0_30px_80px_-40px_rgba(56,189,248,0.45)] ring-1 ring-sky-400/20 transition duration-200 ease-out group-hover:translate-y-4 group-hover:scale-100 group-hover:opacity-100 group-focus-visible:translate-y-4 group-focus-visible:scale-100 group-focus-visible:opacity-100">
                           <div className="flex items-center justify-between gap-2">
                             <p className="font-semibold text-white">{fullLabel}</p>
-                            <span
-                              className="inline-flex items-center justify-center rounded-full border border-white/10 bg-white/5 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-white/60"
-                            >
+                            <span className="inline-flex items-center justify-center rounded-full border border-white/10 bg-white/5 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-[0.3em] text-white/60">
                               {SHIFT_ABBREVIATIONS[entry.type]}
                             </span>
                           </div>
-                          <p className="mt-2 text-[11px] text-white/60">{timeRange}</p>
+                          <p className="mt-2 text-[11px] text-white/65">{timeRange}</p>
                           <p className="mt-1 text-[11px] font-semibold text-emerald-200">{durationDescription}</p>
                           {entry.note ? (
-                            <p className="mt-2 rounded-xl border border-white/5 bg-white/5 p-2 text-[11px] text-white/70">
+                            <p className="mt-2 rounded-xl border border-white/5 bg-white/5 p-2 text-[11px] text-white/75">
                               {entry.note}
                             </p>
                           ) : null}
                           {plusDetails.length > 0 ? (
                             <div className="mt-2 space-y-1">
-                              <p className="text-[10px] uppercase tracking-wide text-white/40">Pluses</p>
+                              <p className="text-[10px] uppercase tracking-[0.3em] text-white/40">Pluses</p>
                               <ul className="space-y-0.5">
                                 {plusDetails.map(([plusKey, value]) => (
-                                  <li
-                                    key={plusKey}
-                                    className="flex items-center justify-between text-[11px] text-white/70"
-                                  >
+                                  <li key={plusKey} className="flex items-center justify-between text-[11px] text-white/70">
                                     <span>{PLUS_LABELS[plusKey]}</span>
                                     <span className="font-semibold text-emerald-200">+{value}</span>
                                   </li>
@@ -1099,7 +1098,7 @@ export default function ShiftPlannerLab({
                           ) : null}
                         </div>
                       ) : null}
-                    </button>
+                    </motion.button>
                   )
                 })}
               </motion.div>

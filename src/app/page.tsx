@@ -7,7 +7,7 @@ import { es } from "date-fns/locale"
 import type { ShiftEvent, ShiftPluses, ShiftType } from "@/types/shifts"
 import EditShiftModal from "@/components/EditShiftModal"
 import type { ManualRotationDay } from "@/components/ManualRotationBuilder"
-import { DEFAULT_USER_PREFERENCES, type UserPreferences } from "@/components/dashboard/ConfigurationPanel"
+import { DEFAULT_USER_PREFERENCES, type UserPreferences } from "@/types/preferences"
 // eslint-disable-next-line @typescript-eslint/no-unused-vars
 import DashboardHeader from "@/components/dashboard/DashboardHeader"
 import MobileNavigation, { type MobileTab } from "@/components/dashboard/MobileNavigation"
@@ -20,6 +20,12 @@ import type { Session } from "@supabase/supabase-js"
 import { getSupabaseBrowserClient } from "@/lib/supabase"
 import { exchangeAccessToken } from "@/lib/auth-client"
 import { loadStoredPreferences } from "@/lib/preferences-storage"
+import {
+  applyThemePreference,
+  loadUserPreferences as loadProfilePreferences,
+  onUserPreferencesStorageChange,
+  saveUserPreferences as persistUserPreferences,
+} from "@/lib/user-preferences"
 import {
   CalendarTab,
   HistoryTab,
@@ -403,6 +409,79 @@ export default function Home() {
       return null
     }
   }, [])
+
+  const {
+    email: notificationEmailEnabled,
+    push: notificationPushEnabled,
+    reminders: notificationRemindersEnabled,
+  } = userPreferences.notifications
+
+  useEffect(() => {
+    const record = loadProfilePreferences()
+    if (record) {
+      setUserPreferences(record.preferences)
+      setPreferencesSavedAt(record.savedAt)
+    }
+  }, [])
+
+  useEffect(() => {
+    const unsubscribe = onUserPreferencesStorageChange((payload) => {
+      if (!payload) {
+        setUserPreferences(DEFAULT_USER_PREFERENCES)
+        setPreferencesSavedAt(null)
+        return
+      }
+
+      setUserPreferences(payload.preferences)
+      setPreferencesSavedAt(payload.savedAt)
+    })
+
+    return unsubscribe
+  }, [])
+
+  useEffect(() => {
+    return applyThemePreference(userPreferences.theme)
+  }, [userPreferences.theme])
+
+  useEffect(() => {
+    if (typeof window === "undefined") {
+      return
+    }
+
+    if (!notificationPushEnabled) {
+      return
+    }
+
+    if (!("Notification" in window)) {
+      return
+    }
+
+    if (Notification.permission === "default") {
+      Notification.requestPermission().catch((error) => {
+        console.warn("No se pudo solicitar permiso de notificaciones push", error)
+      })
+    }
+  }, [notificationPushEnabled])
+
+  useEffect(() => {
+    if (typeof window === "undefined") {
+      return
+    }
+
+    window.dispatchEvent(
+      new CustomEvent("supershift:notification-preferences-changed", {
+        detail: {
+          email: notificationEmailEnabled,
+          push: notificationPushEnabled,
+          reminders: notificationRemindersEnabled,
+        },
+      }),
+    )
+  }, [
+    notificationEmailEnabled,
+    notificationPushEnabled,
+    notificationRemindersEnabled,
+  ])
 
   useEffect(() => {
     if (typeof window === "undefined") {
@@ -1449,16 +1528,20 @@ export default function Home() {
     [currentUser, handleAddShift, handleDeleteShift, handleUpdateShift, shifts],
   )
 
-  const handleSavePreferences = useCallback(async (preferences: UserPreferences) => {
-    setIsSavingPreferences(true)
-    try {
-      await new Promise((resolve) => setTimeout(resolve, 600))
-      setUserPreferences(preferences)
-      setPreferencesSavedAt(new Date())
-    } finally {
-      setIsSavingPreferences(false)
-    }
-  }, [])
+  const handleSavePreferences = useCallback(
+    async (preferences: UserPreferences) => {
+      setIsSavingPreferences(true)
+      try {
+        await new Promise((resolve) => setTimeout(resolve, 600))
+        const { savedAt } = persistUserPreferences(preferences)
+        setUserPreferences(preferences)
+        setPreferencesSavedAt(savedAt)
+      } finally {
+        setIsSavingPreferences(false)
+      }
+    },
+    [],
+  )
 
   const handleUpdateProfile = useCallback(
     async ({

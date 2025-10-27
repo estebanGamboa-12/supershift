@@ -1,7 +1,6 @@
 import type { FC } from "react"
-import ConfigurationPanel, {
-  type UserPreferences,
-} from "@/components/dashboard/ConfigurationPanel"
+import ConfigurationPanel from "@/components/dashboard/ConfigurationPanel"
+import type { UserPreferences } from "@/types/preferences"
 import type { UserSummary } from "@/types/users"
 
 type SettingsTabProps = {

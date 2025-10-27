@@ -6,7 +6,8 @@ export function getSiteUrl(): string {
     process.env.SITE_URL ??
     process.env.APP_URL ??
     process.env.NEXT_PUBLIC_SUPABASE_REDIRECT_URL ??
-    process.env.NEXT_PUBLIC_SUPABASE_URL
+    process.env.NEXT_PUBLIC_SUPABASE_URL ??
+    "https://www.planloop.app"
 
   if (!siteUrl) {
     throw new Error(

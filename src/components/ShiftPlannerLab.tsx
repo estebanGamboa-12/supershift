@@ -925,15 +925,12 @@ export default function ShiftPlannerLab({
             </AnimatePresence>
           </div>
 
-          <div className="relative rounded-3xl border border-white/10 bg-slate-950/50 shadow-inner shadow-slate-900/40">
-            <div className="grid grid-cols-7 divide-x divide-white/5 border-b border-white/5 bg-slate-950/60 px-1 py-3 text-[10px] font-semibold uppercase tracking-wide text-white/60 sm:px-3 sm:text-[11px]">
+          <div className="overflow-hidden rounded-3xl border border-white/10 bg-slate-950/50">
+            <div className="grid grid-cols-7 gap-4 border-b border-white/5 bg-slate-950/40 px-2 py-3 text-[10px] font-semibold uppercase tracking-wide text-white/60 sm:px-6 sm:text-[11px]">
               {Array.from({ length: 7 }).map((_, index) => {
                 const reference = addDays(startOfWeek(new Date(), { weekStartsOn: 1 }), index)
                 return (
-                  <div
-                    key={index}
-                    className="flex items-center justify-center py-1.5 text-center text-white/70"
-                  >
+                  <div key={index} className="rounded-lg bg-slate-950/70 py-1.5 text-center text-white/70">
                     {format(reference, "EEE", { locale: es })}
                   </div>
                 )
@@ -947,7 +944,7 @@ export default function ShiftPlannerLab({
                 animate={{ opacity: 1, y: 0 }}
                 exit={{ opacity: 0, y: -12 }}
                 transition={{ duration: 0.25, ease: "easeOut" }}
-                className="grid grid-cols-7 gap-[clamp(3px,0.8vw,12px)] bg-slate-950/70 p-[clamp(3px,0.8vw,12px)] pb-6 pt-4 [grid-auto-rows:clamp(96px,14vw,150px)] sm:pb-8 sm:[grid-auto-rows:clamp(120px,11vw,190px)]"
+                className="grid grid-cols-7 gap-4 bg-transparent px-2 pb-3 pt-3 sm:px-6 sm:pb-6"
               >
                 {calendarConfig.days.map((day, index) => {
                   const key = toIsoDate(day)
@@ -970,6 +967,7 @@ export default function ShiftPlannerLab({
 
                   const style: CSSProperties | undefined =
                     index === 0 ? { gridColumnStart: calendarConfig.firstColumn } : undefined
+
                   const { minutes: durationMinutes, crossesMidnight } = getShiftDuration(
                     entry?.startTime,
                     entry?.endTime,
@@ -995,110 +993,99 @@ export default function ShiftPlannerLab({
                     : []
 
                   return (
-                    <motion.button
+                    <button
                       key={key}
                       type="button"
                       onClick={() => openEditor(day)}
                       style={style}
-                      whileHover={{ translateY: -4, scale: 1.01 }}
-                      whileTap={{ scale: 0.99 }}
-                      transition={{ type: "spring", stiffness: 340, damping: 24 }}
-                      className={`group relative flex h-full flex-col overflow-visible rounded-3xl border border-white/10 bg-slate-950/80 p-3 text-left shadow-[0_0_0_1px_rgba(15,23,42,0.6)] transition duration-300 ease-out focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sky-300/70 sm:p-4 ${
-                        isCurrent ? "text-white/90" : "text-white/45"
+                      className={`group relative flex min-h-[96px] flex-col gap-2 rounded-2xl border border-transparent p-3 text-left transition duration-200 ease-out focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sky-400/70 sm:min-h-[140px] sm:gap-3 sm:p-4 ${
+                        isCurrent ? "text-white/90" : "text-white/40"
                       } ${
                         entry
-                          ? "hover:border-white/20 hover:bg-slate-900/90 hover:shadow-[0_20px_45px_-24px_rgba(56,189,248,0.35)]"
-                          : "hover:border-sky-400/40 hover:bg-slate-900/70"
+                          ? "bg-slate-950/80 hover:-translate-y-0.5 hover:scale-[1.02] hover:border-sky-400/40 hover:ring-1 hover:ring-sky-400/30"
+                          : "bg-slate-950/40 hover:-translate-y-0.5 hover:scale-[1.02] hover:bg-slate-900/60 hover:ring-1 hover:ring-sky-400/20"
                       }`}
                     >
                       <span
-                        aria-hidden="true"
-                        className="pointer-events-none absolute inset-px rounded-[1.35rem] bg-[radial-gradient(120%_120%_at_0%_0%,rgba(125,211,252,0.12),transparent_55%)] opacity-0 transition duration-300 group-hover:opacity-100"
-                      />
-                      <div className="flex items-start justify-between">
-                        <span
-                          className={`flex h-7 w-7 items-center justify-center rounded-full text-[11px] font-semibold transition sm:h-8 sm:w-8 sm:text-sm ${
-                            isCurrentDay
-                              ? "bg-sky-500 text-white shadow-lg shadow-sky-500/40"
-                              : "bg-white/10 text-white/60"
-                          }`}
-                        >
-                          {format(day, "d")}
-                        </span>
-                        {entry ? (
-                          <span className="rounded-full border border-white/10 bg-white/10 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-[0.22em] text-white/60">
-                            {SHIFT_ABBREVIATIONS[entry.type]}
-                          </span>
-                        ) : (
-                          <span className="sr-only">Añadir turno</span>
-                        )}
-                      </div>
-                      <div className="relative mt-3 flex flex-col gap-2">
-                        {entry ? (
-                          <div
-                            className="inline-flex min-h-[1.75rem] items-center justify-between gap-2 rounded-2xl border border-white/10 px-3 py-1 text-[11px] font-semibold uppercase tracking-wide text-white/90 shadow-inner shadow-slate-900/60 sm:text-xs"
+                        className={`flex h-7 w-7 items-center justify-center rounded-full text-[11px] font-medium sm:h-8 sm:w-8 sm:text-sm ${
+                          isCurrentDay
+                            ? "bg-sky-500 text-white shadow shadow-sky-500/40"
+                            : "bg-white/10 text-white/60"
+                        }`}
+                      >
+                        {format(day, "d")}
+                      </span>
+                      {entry ? (
+                        <>
+                          <motion.div
+                            whileHover={{ scale: 1.03, boxShadow: `0 0 22px ${accentColor}55` }}
+                            whileTap={{ scale: 0.98 }}
+                            transition={{ type: "spring", stiffness: 320, damping: 22 }}
+                            className="mt-2 inline-flex min-h-[1.75rem] w-full items-center justify-between gap-2 rounded-xl border border-white/10 px-3 py-1 text-[10px] font-semibold uppercase tracking-wide text-white sm:text-xs"
                             style={{
+                              backgroundColor: `${accentColor}22`,
                               color: accentColor,
-                              backgroundColor: `${accentColor}1a`,
+                              boxShadow: `0 0 0 0 ${accentColor}00`,
+                              transformOrigin: "center",
                             }}
                           >
-                            <span className="max-w-[70%] truncate capitalize">
-                              <span className="sm:hidden">{compactLabel}</span>
-                              <span className="hidden sm:inline">{fullLabel}</span>
+                            <span className="truncate">
+                              <span className="capitalize sm:hidden">{compactLabel}</span>
+                              <span className="hidden capitalize sm:inline">{fullLabel}</span>
                             </span>
                             {durationLabel ? (
-                              <span className="rounded-full border border-current/30 px-2 py-0.5 text-[10px] font-semibold leading-none text-current">
+                              <span className="rounded-full border border-current/40 px-2 py-0.5 text-[9px] font-semibold leading-none text-current">
                                 {durationLabel}
                               </span>
                             ) : null}
+                          </motion.div>
+                          {entry.note ? (
+                            <span className="line-clamp-2 text-[9px] text-white/50 sm:text-[10px]">{entry.note}</span>
+                          ) : null}
+                          {totalPluses > 0 ? (
+                            <span className="text-[9px] font-medium text-emerald-200 sm:text-[10px]">{totalPluses} niveles extra</span>
+                          ) : null}
+                          <div className="pointer-events-none absolute left-1/2 top-full z-40 mt-3 w-[min(240px,calc(100vw-3rem))] -translate-x-1/2 rounded-2xl border border-white/15 bg-slate-950/95 p-3 text-left text-[11px] text-white/80 opacity-0 shadow-[0_25px_70px_-35px_rgba(56,189,248,0.55)] ring-1 ring-sky-400/30 transition duration-200 ease-out group-hover:translate-y-1 group-hover:opacity-100 group-focus-visible:translate-y-1 group-focus-visible:opacity-100">
+                            <div className="flex items-center justify-between gap-2">
+                              <p className="font-semibold text-white">{fullLabel}</p>
+                              <span className="inline-flex items-center justify-center rounded-full border border-white/15 bg-white/10 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-[0.3em] text-white/70">
+                                {SHIFT_ABBREVIATIONS[entry.type]}
+                              </span>
+                            </div>
+                            <p className="mt-2 text-[11px] text-sky-200">{timeRange}</p>
+                            <p className="mt-1 text-[11px] font-semibold text-emerald-200">{durationDescription}</p>
+                            {entry.note ? (
+                              <p className="mt-2 rounded-xl border border-white/10 bg-white/5 p-2 text-[11px] text-white/80">
+                                {entry.note}
+                              </p>
+                            ) : null}
+                            {plusDetails.length > 0 ? (
+                              <div className="mt-2 space-y-1">
+                                <p className="text-[10px] uppercase tracking-[0.3em] text-white/50">Pluses</p>
+                                <ul className="space-y-0.5">
+                                  {plusDetails.map(([plusKey, value]) => (
+                                    <li key={plusKey} className="flex items-center justify-between text-[11px] text-white/80">
+                                      <span>{PLUS_LABELS[plusKey]}</span>
+                                      <span className="font-semibold text-emerald-200">+{value}</span>
+                                    </li>
+                                  ))}
+                                </ul>
+                              </div>
+                            ) : null}
                           </div>
-                        ) : (
-                          <div className="mt-3 flex items-center justify-center rounded-2xl border border-dashed border-white/15 bg-white/5 px-3 py-6 text-xs font-semibold uppercase tracking-[0.3em] text-white/30">
+                        </>
+                      ) : (
+                        <>
+                          <span className="sr-only">Añadir turno</span>
+                          <span className="pointer-events-none absolute right-2 top-2 inline-flex h-6 w-6 items-center justify-center rounded-full border border-dashed border-white/15 bg-white/5 text-xs font-semibold text-white/40 opacity-0 transition group-hover:border-sky-400/40 group-hover:opacity-100 group-hover:text-sky-200 group-focus-visible:opacity-100 sm:right-3 sm:top-3">
+                            +
+                          </span>
+                          <div className="mt-3 flex flex-1 items-center justify-center rounded-2xl border border-dashed border-white/15 bg-white/5 px-3 py-6 text-xs font-semibold uppercase tracking-[0.3em] text-white/30">
                             Toca para añadir
                           </div>
-                        )}
-                        {entry?.note ? (
-                          <p className="line-clamp-2 text-[10px] leading-relaxed text-white/55 sm:text-[11px]">
-                            {entry.note}
-                          </p>
-                        ) : null}
-                        {entry && totalPluses > 0 ? (
-                          <p className="text-[10px] font-medium text-emerald-200 sm:text-xs">
-                            {totalPluses} niveles extra
-                          </p>
-                        ) : null}
-                      </div>
-                      {entry ? (
-                        <div className="pointer-events-none absolute inset-x-3 -bottom-[calc(100%-0.5rem)] z-40 origin-top scale-95 transform rounded-2xl border border-white/10 bg-slate-950/95 p-3 text-left text-[11px] opacity-0 shadow-[0_30px_80px_-40px_rgba(56,189,248,0.45)] ring-1 ring-sky-400/20 transition duration-200 ease-out group-hover:translate-y-4 group-hover:scale-100 group-hover:opacity-100 group-focus-visible:translate-y-4 group-focus-visible:scale-100 group-focus-visible:opacity-100">
-                          <div className="flex items-center justify-between gap-2">
-                            <p className="font-semibold text-white">{fullLabel}</p>
-                            <span className="inline-flex items-center justify-center rounded-full border border-white/10 bg-white/5 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-[0.3em] text-white/60">
-                              {SHIFT_ABBREVIATIONS[entry.type]}
-                            </span>
-                          </div>
-                          <p className="mt-2 text-[11px] text-white/65">{timeRange}</p>
-                          <p className="mt-1 text-[11px] font-semibold text-emerald-200">{durationDescription}</p>
-                          {entry.note ? (
-                            <p className="mt-2 rounded-xl border border-white/5 bg-white/5 p-2 text-[11px] text-white/75">
-                              {entry.note}
-                            </p>
-                          ) : null}
-                          {plusDetails.length > 0 ? (
-                            <div className="mt-2 space-y-1">
-                              <p className="text-[10px] uppercase tracking-[0.3em] text-white/40">Pluses</p>
-                              <ul className="space-y-0.5">
-                                {plusDetails.map(([plusKey, value]) => (
-                                  <li key={plusKey} className="flex items-center justify-between text-[11px] text-white/70">
-                                    <span>{PLUS_LABELS[plusKey]}</span>
-                                    <span className="font-semibold text-emerald-200">+{value}</span>
-                                  </li>
-                                ))}
-                              </ul>
-                            </div>
-                          ) : null}
-                        </div>
-                      ) : null}
-                    </motion.button>
+                        </>
+                      )}
+                    </button>
                   )
                 })}
               </motion.div>

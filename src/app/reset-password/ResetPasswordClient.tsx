@@ -16,7 +16,9 @@ function collectAuthParams(searchParams: ReturnType<typeof useSearchParams>): Ma
 
   if (typeof window !== "undefined") {
     const currentUrl = new URL(window.location.href)
-    const hashParams = new URLSearchParams(currentUrl.hash.startsWith("#") ? currentUrl.hash.slice(1) : currentUrl.hash)
+    const hashParams = new URLSearchParams(
+      currentUrl.hash.startsWith("#") ? currentUrl.hash.slice(1) : currentUrl.hash,
+    )
     hashParams.forEach((value, key) => {
       entries.set(key, value)
     })
@@ -116,7 +118,7 @@ type ViewState =
       details?: string
     }
 
-export default function UpdatePasswordClient() {
+export default function ResetPasswordClient() {
   const router = useRouter()
   const searchParams = useSearchParams()
   const [password, setPassword] = useState("")
@@ -138,7 +140,7 @@ export default function UpdatePasswordClient() {
     try {
       return getSupabaseBrowserClient()
     } catch (error) {
-      console.error("No se pudo inicializar el cliente de Supabase en update-password", error)
+      console.error("No se pudo inicializar el cliente de Supabase en reset-password", error)
       return null
     }
   }, [])
@@ -169,9 +171,7 @@ export default function UpdatePasswordClient() {
       const otpToken = readParam(params, ["token", "otp", "recovery_token", "recoveryToken"])
       const otpEmail = readParam(params, ["email"])
       const type = readParam(params, ["type"])
-      const redirect = sanitizeRedirectTarget(
-        readParam(params, ["redirect", "redirectTo", "next"]),
-      )
+      const redirect = sanitizeRedirectTarget(readParam(params, ["redirect", "redirectTo", "next"]))
 
       removeAuthParamsFromUrl([
         "access_token",
@@ -200,9 +200,7 @@ export default function UpdatePasswordClient() {
       if (!accessToken || !refreshToken) {
         try {
           if (exchangeCode) {
-            const { data, error } = await supabase.auth.exchangeCodeForSession(
-              exchangeCode,
-            )
+            const { data, error } = await supabase.auth.exchangeCodeForSession(exchangeCode)
             if (error) {
               throw error
             }
@@ -253,8 +251,7 @@ export default function UpdatePasswordClient() {
         setState({
           status: "error",
           title: "Faltan datos en el enlace",
-          message:
-            "No encontramos los tokens necesarios para restablecer tu contraseña. Solicita un nuevo correo de recuperación.",
+          message: "No encontramos los tokens necesarios para restablecer tu contraseña. Solicita un nuevo correo de recuperación.",
         })
         return
       }
@@ -298,8 +295,7 @@ export default function UpdatePasswordClient() {
         setState({
           status: "error",
           title: "No se pudo validar el enlace",
-          message:
-            "Ocurrió un problema al activar tu sesión temporal. Solicita un nuevo correo de recuperación.",
+          message: "Ocurrió un problema al activar tu sesión temporal. Solicita un nuevo correo de recuperación.",
           details: error instanceof Error ? error.message : undefined,
         })
       }
@@ -317,9 +313,7 @@ export default function UpdatePasswordClient() {
     setFormError("")
 
     if (!supabase) {
-      setFormError(
-        "Supabase no está configurado correctamente. Revisa las variables de entorno.",
-      )
+      setFormError("Supabase no está configurado correctamente. Revisa las variables de entorno.")
       return
     }
 
@@ -362,9 +356,7 @@ export default function UpdatePasswordClient() {
       const refreshToken = session?.refresh_token ?? tokens.refreshToken
 
       if (!accessToken || !refreshToken) {
-        throw new Error(
-          "Supabase no devolvió una sesión válida tras actualizar la contraseña.",
-        )
+        throw new Error("Supabase no devolvió una sesión válida tras actualizar la contraseña.")
       }
 
       const redirectParams = new URLSearchParams({ type: "recovery" })
@@ -383,9 +375,7 @@ export default function UpdatePasswordClient() {
         message: "Introduce una nueva contraseña para tu cuenta de Planloop.",
       })
       setFormError(
-        error instanceof Error
-          ? error.message
-          : "No se pudo actualizar la contraseña. Vuelve a intentarlo.",
+        error instanceof Error ? error.message : "No se pudo actualizar la contraseña. Vuelve a intentarlo.",
       )
     }
   }
@@ -439,9 +429,7 @@ export default function UpdatePasswordClient() {
               />
             </div>
 
-            {formError && (
-              <p className="text-sm text-red-300/90">{formError}</p>
-            )}
+            {formError && <p className="text-sm text-red-300/90">{formError}</p>}
 
             <button
               type="submit"
@@ -456,9 +444,7 @@ export default function UpdatePasswordClient() {
           <div className="mt-8 space-y-4 text-center">
             <div className="rounded-2xl border border-red-500/30 bg-red-500/10 p-4 text-sm text-red-200">
               <p>{state.message}</p>
-              {state.details && (
-                <p className="mt-2 text-xs text-red-200/70">Detalles: {state.details}</p>
-              )}
+              {state.details && <p className="mt-2 text-xs text-red-200/70">Detalles: {state.details}</p>}
             </div>
             <Link
               href="/"

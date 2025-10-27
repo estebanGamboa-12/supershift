@@ -422,13 +422,19 @@ const TeamSpotlight: FC<TeamSpotlightProps> = ({
                   <li key={member.id}>
                     <button
                       type="button"
-                      onClick={() => setSelectedMemberId(member.id)}
+                      onClick={() =>
+                        setSelectedMemberId((current) =>
+                          current === member.id ? null : member.id,
+                        )
+                      }
                       className={`flex w-full items-center justify-between rounded-2xl border px-4 py-3 text-left transition focus:outline-none focus:ring-2 focus:ring-blue-500/70 ${
                         isSelected
                           ? "border-blue-400/50 bg-blue-500/10"
                           : "border-white/10 bg-slate-900/70 hover:border-blue-300/30 hover:bg-slate-900/80"
                       }`}
                       aria-pressed={isSelected}
+                      aria-expanded={isSelected}
+                      aria-controls="team-member-details"
                     >
                       <div className="flex items-center gap-3">
                         {member.avatarUrl ? (
@@ -461,7 +467,7 @@ const TeamSpotlight: FC<TeamSpotlightProps> = ({
                             isSelected ? "text-blue-100" : "text-blue-200/80"
                           }`}
                         >
-                          {isSelected ? "Perfil abierto" : "Ver perfil"}
+                          {isSelected ? "Ocultar perfil" : "Ver perfil"}
                         </span>
                       </div>
                     </button>
@@ -471,7 +477,10 @@ const TeamSpotlight: FC<TeamSpotlightProps> = ({
             </ul>
 
             {memberList.length > 0 && (
-              <div className="space-y-3 rounded-2xl border border-white/10 bg-slate-900/60 p-4">
+              <div
+                id="team-member-details"
+                className="space-y-3 rounded-2xl border border-white/10 bg-slate-900/60 p-4"
+              >
                 {selectedMember ? (
                   <div className="space-y-4">
                     <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">

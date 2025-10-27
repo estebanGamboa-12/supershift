@@ -153,10 +153,36 @@ function getShiftDuration(
   return { minutes: minutesUntilMidnight + endMinutes, crossesMidnight: true }
 }
 
+function formatDurationFromMinutes(minutes: number): string {
+  if (minutes <= 0) {
+    return "Sin horas registradas"
+  }
+
+  const hours = Math.floor(minutes / 60)
+  const remainingMinutes = minutes % 60
+
+  if (hours > 0 && remainingMinutes > 0) {
+    return `${hours}h ${remainingMinutes}m`
+  }
+
+  if (hours > 0) {
+    return `${hours}h`
+  }
+
+  return `${remainingMinutes}m`
+}
+
 function sumPluses(pluses: PlannerPluses): number {
   return (
     pluses.night + pluses.holiday + pluses.availability + pluses.other
   )
+}
+
+const PLUS_LABELS: Record<keyof PlannerPluses, string> = {
+  night: "Nocturnidad",
+  holiday: "Festivo",
+  availability: "Disponibilidad",
+  other: "Otros",
 }
 
 function normalizePluses(pluses?: ManualRotationDay["pluses"]): PlannerPluses {
@@ -899,12 +925,15 @@ export default function ShiftPlannerLab({
             </AnimatePresence>
           </div>
 
-          <div className="overflow-hidden rounded-3xl border border-white/10 bg-slate-950/50">
-            <div className="grid grid-cols-7 gap-4 border-b border-white/5 bg-slate-950/40 px-2 py-3 text-[10px] font-semibold uppercase tracking-wide text-white/60 sm:px-6 sm:text-[11px]">
+          <div className="relative rounded-3xl border border-white/10 bg-slate-950/50 shadow-inner shadow-slate-900/40">
+            <div className="grid grid-cols-7 divide-x divide-white/5 border-b border-white/5 bg-slate-950/60 px-1 py-3 text-[10px] font-semibold uppercase tracking-wide text-white/60 sm:px-3 sm:text-[11px]">
               {Array.from({ length: 7 }).map((_, index) => {
                 const reference = addDays(startOfWeek(new Date(), { weekStartsOn: 1 }), index)
                 return (
-                  <div key={index} className="rounded-lg bg-slate-950/70 py-1.5 text-center text-white/70">
+                  <div
+                    key={index}
+                    className="flex items-center justify-center py-1.5 text-center text-white/70"
+                  >
                     {format(reference, "EEE", { locale: es })}
                   </div>
                 )
@@ -918,7 +947,7 @@ export default function ShiftPlannerLab({
                 animate={{ opacity: 1, y: 0 }}
                 exit={{ opacity: 0, y: -12 }}
                 transition={{ duration: 0.25, ease: "easeOut" }}
-                className="grid grid-cols-7 gap-4 bg-transparent px-2 pb-3 pt-3 sm:px-6 sm:pb-6"
+                className="grid grid-cols-7 gap-px bg-slate-900/60 p-px pb-3 pt-3 [grid-auto-rows:minmax(110px,1fr)] sm:pb-6 sm:[grid-auto-rows:minmax(150px,1fr)]"
               >
                 {calendarConfig.days.map((day, index) => {
                   const key = toIsoDate(day)
@@ -941,6 +970,29 @@ export default function ShiftPlannerLab({
 
                   const style: CSSProperties | undefined =
                     index === 0 ? { gridColumnStart: calendarConfig.firstColumn } : undefined
+                  const { minutes: durationMinutes, crossesMidnight } = getShiftDuration(
+                    entry?.startTime,
+                    entry?.endTime,
+                  )
+                  const hasDuration = durationMinutes > 0
+                  const durationDescription = formatDurationFromMinutes(durationMinutes)
+                  const durationLabel = hasDuration ? durationDescription : null
+                  const timeRange = entry
+                    ? entry.startTime && entry.endTime
+                      ? `${entry.startTime} – ${entry.endTime}${crossesMidnight ? " (+1 día)" : ""}`
+                      : entry.startTime
+                      ? `Desde ${entry.startTime}`
+                      : entry.endTime
+                      ? `Hasta ${entry.endTime}`
+                      : "Horario no asignado"
+                    : "Horario no asignado"
+                  const totalPluses = entry ? sumPluses(entry.pluses) : 0
+                  const plusDetails = entry
+                    ? (Object.entries(entry.pluses).filter(([, value]) => value > 0) as [
+                        keyof PlannerPluses,
+                        number,
+                      ][])
+                    : []
 
                   return (
                     <button
@@ -948,21 +1000,34 @@ export default function ShiftPlannerLab({
                       type="button"
                       onClick={() => openEditor(day)}
                       style={style}
-                    className={`group relative flex min-h-[96px] flex-col gap-2 rounded-2xl border border-transparent p-3 text-left transition duration-200 ease-out focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sky-400/70 sm:min-h-[140px] sm:gap-3 sm:p-4 ${isCurrent ? "text-white/90" : "text-white/40"} ${
-                      entry
-                        ? "bg-slate-950/80 hover:-translate-y-0.5 hover:scale-[1.02] hover:border-sky-400/40 hover:ring-1 hover:ring-sky-400/30"
-                        : "bg-slate-950/40 hover:-translate-y-0.5 hover:scale-[1.02] hover:bg-slate-900/60 hover:ring-1 hover:ring-sky-400/20"
-                    }`}
-                  >
-                      <span
-                        className={`flex h-7 w-7 items-center justify-center rounded-full text-[11px] font-medium sm:h-8 sm:w-8 sm:text-sm ${
-                          isCurrentDay
-                            ? "bg-sky-500 text-white shadow shadow-sky-500/40"
-                            : "bg-white/10 text-white/60"
-                        }`}
-                      >
-                        {format(day, "d")}
-                      </span>
+                      className={`group relative flex h-full flex-col gap-3 rounded-2xl border border-white/5 bg-slate-950/70 p-3 text-left transition duration-200 ease-out focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sky-400/70 sm:gap-4 sm:p-4 ${
+                        isCurrent ? "text-white/90" : "text-white/40"
+                      } ${
+                        entry
+                          ? "hover:-translate-y-0.5 hover:scale-[1.01] hover:border-sky-400/40 hover:shadow-lg hover:shadow-sky-400/10"
+                          : "hover:-translate-y-0.5 hover:scale-[1.01] hover:border-sky-400/30 hover:bg-slate-900/70"
+                      }`}
+                    >
+                      <div className="flex items-start justify-between">
+                        <span
+                          className={`flex h-7 w-7 items-center justify-center rounded-full text-[11px] font-medium sm:h-8 sm:w-8 sm:text-sm ${
+                            isCurrentDay
+                              ? "bg-sky-500 text-white shadow shadow-sky-500/40"
+                              : "bg-white/10 text-white/60"
+                          }`}
+                        >
+                          {format(day, "d")}
+                        </span>
+                        {entry ? (
+                          <span
+                            className="rounded-full border border-white/10 bg-white/5 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-white/60"
+                          >
+                            {SHIFT_ABBREVIATIONS[entry.type]}
+                          </span>
+                        ) : (
+                          <span className="sr-only">Añadir turno</span>
+                        )}
+                      </div>
                       {entry ? (
                         <motion.span
                           whileHover={{ scale: 1.05, boxShadow: `0 0 16px ${accentColor}55` }}
@@ -980,18 +1045,59 @@ export default function ShiftPlannerLab({
                           <span className="hidden whitespace-nowrap sm:inline">{fullLabel}</span>
                         </motion.span>
                       ) : (
-                        <>
-                          <span className="sr-only">Añadir turno</span>
-                          <span className="pointer-events-none absolute right-2 top-2 inline-flex h-6 w-6 items-center justify-center rounded-full border border-dashed border-white/15 bg-white/5 text-xs font-semibold text-white/40 opacity-0 transition group-hover:border-sky-400/40 group-hover:opacity-100 group-hover:text-sky-200 group-focus-visible:opacity-100 sm:right-3 sm:top-3">
-                            +
-                          </span>
-                        </>
+                        <span className="pointer-events-none absolute right-3 top-3 inline-flex h-6 w-6 items-center justify-center rounded-full border border-dashed border-white/10 bg-white/5 text-xs font-semibold text-white/30 transition group-hover:border-sky-400/40 group-hover:text-sky-200">
+                          +
+                        </span>
                       )}
+                      {durationLabel ? (
+                        <span className="text-[10px] font-medium text-emerald-200 sm:text-xs">
+                          {durationLabel}
+                        </span>
+                      ) : null}
                       {entry?.note ? (
                         <span className="line-clamp-2 text-[9px] text-white/50 sm:text-[10px]">{entry.note}</span>
                       ) : null}
-                      {entry && sumPluses(entry.pluses) > 0 ? (
-                        <span className="text-[9px] font-medium text-emerald-200 sm:text-[10px]">{sumPluses(entry.pluses)} niveles</span>
+                      {entry && totalPluses > 0 ? (
+                        <span className="text-[9px] font-medium text-emerald-200 sm:text-[10px]">
+                          {totalPluses} niveles
+                        </span>
+                      ) : null}
+                      {entry ? (
+                        <div
+                          className="pointer-events-none absolute left-1/2 top-[calc(100%+0.75rem)] z-40 hidden w-64 -translate-x-1/2 rounded-2xl border border-white/10 bg-slate-950/95 p-3 text-left text-[11px] shadow-2xl ring-1 ring-sky-400/20 transition duration-200 ease-out group-hover:block group-active:block group-focus-visible:block"
+                        >
+                          <div className="flex items-center justify-between gap-2">
+                            <p className="font-semibold text-white">{fullLabel}</p>
+                            <span
+                              className="inline-flex items-center justify-center rounded-full border border-white/10 bg-white/5 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-white/60"
+                            >
+                              {SHIFT_ABBREVIATIONS[entry.type]}
+                            </span>
+                          </div>
+                          <p className="mt-2 text-[11px] text-white/60">{timeRange}</p>
+                          <p className="mt-1 text-[11px] font-semibold text-emerald-200">{durationDescription}</p>
+                          {entry.note ? (
+                            <p className="mt-2 rounded-xl border border-white/5 bg-white/5 p-2 text-[11px] text-white/70">
+                              {entry.note}
+                            </p>
+                          ) : null}
+                          {plusDetails.length > 0 ? (
+                            <div className="mt-2 space-y-1">
+                              <p className="text-[10px] uppercase tracking-wide text-white/40">Pluses</p>
+                              <ul className="space-y-0.5">
+                                {plusDetails.map(([plusKey, value]) => (
+                                  <li
+                                    key={plusKey}
+                                    className="flex items-center justify-between text-[11px] text-white/70"
+                                  >
+                                    <span>{PLUS_LABELS[plusKey]}</span>
+                                    <span className="font-semibold text-emerald-200">+{value}</span>
+                                  </li>
+                                ))}
+                              </ul>
+                            </div>
+                          ) : null}
+                        </div>
                       ) : null}
                     </button>
                   )

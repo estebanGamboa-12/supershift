@@ -78,6 +78,31 @@ function removeAuthParamsFromUrl(keys: string[]) {
   window.history.replaceState({}, "", newUrl)
 }
 
+function appendParamsToPath(path: string, paramsToAdd: URLSearchParams): string {
+  if (paramsToAdd.size === 0) {
+    return path
+  }
+
+  if (typeof window === "undefined") {
+    return path
+  }
+
+  try {
+    const url = new URL(path, window.location.origin)
+    paramsToAdd.forEach((value, key) => {
+      if (!value) {
+        return
+      }
+      url.searchParams.set(key, value)
+    })
+
+    const query = url.searchParams.toString()
+    return `${url.pathname}${query ? `?${query}` : ""}${url.hash ?? ""}`
+  } catch {
+    return path
+  }
+}
+
 type AuthState =
   | {
       status: "processing"
@@ -137,6 +162,9 @@ export default function AuthCallbackClient() {
       let accessToken = readParam(params, ["access_token", "accessToken"])
       let refreshToken = readParam(params, ["refresh_token", "refreshToken"])
       const exchangeCode = readParam(params, ["code"])
+      const tokenHash = readParam(params, ["token_hash", "tokenHash"])
+      const otpToken = readParam(params, ["token", "otp", "recovery_token", "recoveryToken"])
+      const otpEmail = readParam(params, ["email"])
       const errorDescription = readParam(params, [
         "error_description",
         "error", // Supabase usa "error" para el código en algunas respuestas
@@ -146,30 +174,12 @@ export default function AuthCallbackClient() {
         readParam(params, ["redirectTo", "redirect_to", "redirect", "next"]),
       )
       const authType = readParam(params, ["type"]) ?? ""
-
-      removeAuthParamsFromUrl([
-        "access_token",
-        "accessToken",
-        "refresh_token",
-        "refreshToken",
-        "expires_in",
-        "expiresIn",
-        "token_type",
-        "tokenType",
-        "type",
-        "code",
-        "error",
-        "error_code",
-        "error_description",
-        "message",
-        "provider_token",
-        "provider_refresh_token",
-        "scope",
-        "redirect",
-        "redirectTo",
-        "redirect_to",
-        "next",
-      ])
+      const isRecoveryFlow = authType === "recovery"
+      const hasRecoveryOtpData = Boolean(
+        exchangeCode ||
+          tokenHash ||
+          (otpToken && otpToken.length > 0 && otpEmail && otpEmail.length > 0),
+      )
 
       if ((!accessToken || !refreshToken) && supabase && exchangeCode) {
         try {
@@ -186,6 +196,65 @@ export default function AuthCallbackClient() {
         }
       }
 
+      const recoveryParams = new URLSearchParams()
+      if (isRecoveryFlow) {
+        recoveryParams.set("type", "recovery")
+        if (accessToken) {
+          recoveryParams.set("access_token", accessToken)
+        }
+        if (refreshToken) {
+          recoveryParams.set("refresh_token", refreshToken)
+        }
+        if (exchangeCode) {
+          recoveryParams.set("code", exchangeCode)
+        }
+        if (tokenHash) {
+          recoveryParams.set("token_hash", tokenHash)
+        }
+        if (otpToken) {
+          recoveryParams.set("token", otpToken)
+        }
+        if (otpEmail) {
+          recoveryParams.set("email", otpEmail)
+        }
+      }
+
+      const finalRedirectTarget =
+        isRecoveryFlow && redirectTarget
+          ? appendParamsToPath(redirectTarget, recoveryParams)
+          : redirectTarget
+
+      removeAuthParamsFromUrl([
+        "access_token",
+        "accessToken",
+        "refresh_token",
+        "refreshToken",
+        "expires_in",
+        "expiresIn",
+        "token_type",
+        "tokenType",
+        "type",
+        "code",
+        "token_hash",
+        "tokenHash",
+        "token",
+        "otp",
+        "recovery_token",
+        "recoveryToken",
+        "email",
+        "error",
+        "error_code",
+        "error_description",
+        "message",
+        "provider_token",
+        "provider_refresh_token",
+        "scope",
+        "redirect",
+        "redirectTo",
+        "redirect_to",
+        "next",
+      ])
+
       if (errorDescription) {
         setState({
           status: "error",
@@ -195,6 +264,22 @@ export default function AuthCallbackClient() {
           details: errorDescription,
         })
         return
+      }
+
+      if (!accessToken || !refreshToken) {
+        if (isRecoveryFlow && hasRecoveryOtpData) {
+          setState({
+            status: "processing",
+            title: "Preparando restablecimiento",
+            message:
+              "Estamos validando tu enlace de recuperación y en unos segundos te llevaremos al formulario para actualizar tu contraseña.",
+          })
+
+          redirectTimer = window.setTimeout(() => {
+            router.replace(finalRedirectTarget)
+          }, 600)
+          return
+        }
       }
 
       if (!accessToken) {
@@ -269,7 +354,7 @@ export default function AuthCallbackClient() {
         })
 
         redirectTimer = window.setTimeout(() => {
-          router.replace(redirectTarget)
+          router.replace(finalRedirectTarget)
         }, 2500)
       } catch (error) {
         if (!isActive) {

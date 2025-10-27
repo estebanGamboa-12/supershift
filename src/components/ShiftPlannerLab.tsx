@@ -900,11 +900,11 @@ export default function ShiftPlannerLab({
           </div>
 
           <div className="overflow-hidden rounded-3xl border border-white/10 bg-slate-950/50">
-            <div className="grid grid-cols-7 gap-4 border-b border-white/5 bg-slate-950/40 px-2 py-3 text-[10px] font-semibold uppercase tracking-wide text-white/60 sm:px-6 sm:text-[11px]">
+            <div className="grid grid-cols-7 gap-2 border-b border-white/5 bg-slate-950/40 px-2 py-2 text-[10px] font-semibold uppercase tracking-wide text-white/60 sm:gap-3 sm:px-6 sm:py-3 sm:text-[11px]">
               {Array.from({ length: 7 }).map((_, index) => {
                 const reference = addDays(startOfWeek(new Date(), { weekStartsOn: 1 }), index)
                 return (
-                  <div key={index} className="rounded-lg bg-slate-950/70 py-1.5 text-center text-white/70">
+                  <div key={index} className="rounded-md bg-slate-950/70 py-1 text-center text-white/70 sm:py-1.5">
                     {format(reference, "EEE", { locale: es })}
                   </div>
                 )
@@ -918,7 +918,7 @@ export default function ShiftPlannerLab({
                 animate={{ opacity: 1, y: 0 }}
                 exit={{ opacity: 0, y: -12 }}
                 transition={{ duration: 0.25, ease: "easeOut" }}
-                className="grid grid-cols-7 gap-4 bg-transparent px-2 pb-3 pt-3 sm:px-6 sm:pb-6"
+                className="grid grid-cols-7 gap-2 bg-transparent px-2 pb-2 pt-2 sm:gap-3 sm:px-6 sm:pb-5 sm:pt-3"
               >
                 {calendarConfig.days.map((day, index) => {
                   const key = toIsoDate(day)
@@ -948,27 +948,29 @@ export default function ShiftPlannerLab({
                       type="button"
                       onClick={() => openEditor(day)}
                       style={style}
-                    className={`group relative flex min-h-[96px] flex-col gap-2 rounded-2xl border border-transparent p-3 text-left transition duration-200 ease-out focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sky-400/70 sm:min-h-[140px] sm:gap-3 sm:p-4 ${isCurrent ? "text-white/90" : "text-white/40"} ${
-                      entry
-                        ? "bg-slate-950/80 hover:-translate-y-0.5 hover:scale-[1.02] hover:border-sky-400/40 hover:ring-1 hover:ring-sky-400/30"
-                        : "bg-slate-950/40 hover:-translate-y-0.5 hover:scale-[1.02] hover:bg-slate-900/60 hover:ring-1 hover:ring-sky-400/20"
-                    }`}
-                  >
+                      className={`group relative flex min-h-[86px] flex-col gap-1.5 rounded-xl border border-transparent p-2 text-left transition duration-200 ease-out focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sky-400/70 sm:min-h-[120px] sm:gap-2.5 sm:p-3 ${
+                        isCurrent ? "text-white/90" : "text-white/40"
+                      } ${
+                        entry
+                          ? "bg-slate-950/80 hover:-translate-y-0.5 hover:scale-[1.01] hover:border-sky-400/40 hover:ring-1 hover:ring-sky-400/30 active:-translate-y-0.5 active:scale-[0.99] active:border-sky-400/50"
+                          : "bg-slate-950/40 hover:-translate-y-0.5 hover:scale-[1.01] hover:bg-slate-900/60 hover:ring-1 hover:ring-sky-400/20 active:-translate-y-0.5 active:scale-[0.99] active:bg-slate-900/70"
+                      }`}
+                    >
                       <span
-                        className={`flex h-7 w-7 items-center justify-center rounded-full text-[11px] font-medium sm:h-8 sm:w-8 sm:text-sm ${
+                        className={`flex h-7 w-7 items-center justify-center rounded-full text-[11px] font-medium transition-colors sm:h-8 sm:w-8 sm:text-sm ${
                           isCurrentDay
                             ? "bg-sky-500 text-white shadow shadow-sky-500/40"
                             : "bg-white/10 text-white/60"
-                        }`}
+                        } group-active:bg-sky-500/80 group-active:text-white`}
                       >
                         {format(day, "d")}
                       </span>
                       {entry ? (
                         <motion.span
                           whileHover={{ scale: 1.05, boxShadow: `0 0 16px ${accentColor}55` }}
-                          whileTap={{ scale: 0.97 }}
+                          whileTap={{ scale: 0.98, boxShadow: `0 0 16px ${accentColor}55` }}
                           transition={{ type: "spring", stiffness: 320, damping: 20 }}
-                          className="mt-2 inline-flex min-h-[1.75rem] w-full items-center justify-center rounded-xl border border-white/10 px-3 py-1 text-center text-[10px] font-semibold capitalize leading-tight text-white sm:text-xs"
+                          className="mt-1.5 inline-flex min-h-[1.5rem] w-full items-center justify-center rounded-lg border border-white/10 px-2.5 py-1 text-center text-[10px] font-semibold capitalize leading-tight text-white transition-colors sm:mt-2 sm:text-xs"
                           style={{
                             backgroundColor: `${accentColor}22`,
                             color: accentColor,
@@ -982,16 +984,16 @@ export default function ShiftPlannerLab({
                       ) : (
                         <>
                           <span className="sr-only">Añadir turno</span>
-                          <span className="pointer-events-none absolute right-2 top-2 inline-flex h-6 w-6 items-center justify-center rounded-full border border-dashed border-white/15 bg-white/5 text-xs font-semibold text-white/40 opacity-0 transition group-hover:border-sky-400/40 group-hover:opacity-100 group-hover:text-sky-200 group-focus-visible:opacity-100 sm:right-3 sm:top-3">
+                          <span className="pointer-events-none absolute right-2 top-2 inline-flex h-6 w-6 items-center justify-center rounded-full border border-dashed border-white/15 bg-white/5 text-xs font-semibold text-white/40 opacity-0 transition group-hover:border-sky-400/40 group-hover:opacity-100 group-hover:text-sky-200 group-active:opacity-100 group-active:text-sky-200 group-focus-visible:opacity-100 sm:right-3 sm:top-3">
                             +
                           </span>
                         </>
                       )}
                       {entry?.note ? (
-                        <span className="line-clamp-2 text-[9px] text-white/50 sm:text-[10px]">{entry.note}</span>
+                        <span className="mt-1 line-clamp-2 text-[9px] text-white/50 sm:mt-1.5 sm:text-[10px]">{entry.note}</span>
                       ) : null}
                       {entry && sumPluses(entry.pluses) > 0 ? (
-                        <span className="text-[9px] font-medium text-emerald-200 sm:text-[10px]">{sumPluses(entry.pluses)} niveles</span>
+                        <span className="mt-0.5 text-[9px] font-medium text-emerald-200 sm:mt-1 sm:text-[10px]">{sumPluses(entry.pluses)} niveles</span>
                       ) : null}
                     </button>
                   )

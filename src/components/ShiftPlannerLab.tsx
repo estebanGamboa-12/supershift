@@ -918,7 +918,7 @@ export default function ShiftPlannerLab({
           </div>
 
           <div className="overflow-hidden rounded-3xl border border-white/10 bg-slate-950/50">
-            <div className="grid grid-cols-7 gap-2 border-b border-white/5 bg-slate-950/40 px-1.5 py-2.5 text-[10px] font-semibold uppercase tracking-wide text-white/60 sm:gap-4 sm:px-6 sm:py-3 sm:text-[11px]">
+            <div className="grid grid-cols-7 gap-1.5 border-b border-white/5 bg-slate-950/40 px-1 py-2 text-[10px] font-semibold uppercase tracking-wide text-white/60 sm:gap-4 sm:px-6 sm:py-3 sm:text-[11px]">
               {Array.from({ length: 7 }).map((_, index) => {
                 const reference = addDays(startOfWeek(new Date(), { weekStartsOn: 1 }), index)
                 return (
@@ -936,7 +936,7 @@ export default function ShiftPlannerLab({
                 animate={{ opacity: 1, y: 0 }}
                 exit={{ opacity: 0, y: -12 }}
                 transition={{ duration: 0.25, ease: "easeOut" }}
-                className="grid grid-cols-7 gap-2 bg-transparent px-1.5 pb-2.5 pt-2.5 sm:gap-4 sm:px-6 sm:pb-6"
+                className="grid grid-cols-7 gap-1.5 bg-transparent px-1 pb-2 pt-2 sm:gap-4 sm:px-6 sm:pb-6"
               >
                 {calendarConfig.days.map((day, index) => {
                   const key = toIsoDate(day)
@@ -970,14 +970,14 @@ export default function ShiftPlannerLab({
                       type="button"
                       onClick={() => openEditor(day)}
                       style={style}
-                    className={`group relative flex min-h-[72px] flex-col gap-1.5 rounded-2xl border border-transparent p-2.5 text-left transition duration-200 ease-out focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sky-400/70 sm:min-h-[140px] sm:gap-3 sm:p-4 ${isCurrent ? "text-white/90" : "text-white/40"} ${
-                      entry
-                        ? "bg-slate-950/80 hover:-translate-y-0.5 hover:scale-[1.02] hover:border-sky-400/40 hover:ring-1 hover:ring-sky-400/30"
-                        : "bg-slate-950/40 hover:-translate-y-0.5 hover:scale-[1.02] hover:bg-slate-900/60 hover:ring-1 hover:ring-sky-400/20"
+                      className={`group relative flex aspect-square w-full flex-col gap-1.5 rounded-2xl border border-transparent p-2 text-left transition duration-200 ease-out focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sky-400/70 sm:aspect-auto sm:min-h-[128px] sm:gap-3 sm:p-4 ${isCurrent ? "text-white/90" : "text-white/40"} ${
+                        entry
+                          ? "bg-slate-950/80 hover:-translate-y-0.5 hover:scale-[1.02] hover:border-sky-400/40 hover:ring-1 hover:ring-sky-400/30"
+                          : "bg-slate-950/40 hover:-translate-y-0.5 hover:scale-[1.02] hover:bg-slate-900/60 hover:ring-1 hover:ring-sky-400/20"
                     }`}
                   >
                       <span
-                        className={`flex h-7 w-7 items-center justify-center rounded-full text-[11px] font-medium sm:h-8 sm:w-8 sm:text-sm ${
+                        className={`flex h-6 w-6 items-center justify-center rounded-full text-[10px] font-medium sm:h-8 sm:w-8 sm:text-sm ${
                           isCurrentDay
                             ? "bg-sky-500 text-white shadow shadow-sky-500/40"
                             : "bg-white/10 text-white/60"
@@ -990,7 +990,7 @@ export default function ShiftPlannerLab({
                           whileHover={{ scale: 1.05, boxShadow: `0 0 16px ${accentColor}55` }}
                           whileTap={{ scale: 0.97 }}
                           transition={{ type: "spring", stiffness: 320, damping: 20 }}
-                          className="mt-1.5 inline-flex min-h-[1.5rem] w-full items-center justify-center rounded-xl border border-white/10 px-2.5 py-1 text-center text-[10px] font-semibold capitalize leading-tight text-white sm:mt-2 sm:min-h-[1.75rem] sm:px-3 sm:text-xs"
+                          className="mt-1 inline-flex min-h-[1.5rem] w-full items-center justify-center rounded-xl border border-white/10 px-2 py-1 text-center text-[10px] font-semibold capitalize leading-tight text-white sm:mt-2 sm:min-h-[1.75rem] sm:px-3 sm:text-xs"
                           style={{
                             backgroundColor: `${accentColor}22`,
                             color: accentColor,
@@ -1010,10 +1010,10 @@ export default function ShiftPlannerLab({
                         </>
                       )}
                       {entry?.note ? (
-                        <span className="line-clamp-2 text-[9px] text-white/50 sm:text-[10px]">{entry.note}</span>
+                        <span className="hidden line-clamp-2 text-[9px] text-white/50 sm:block sm:text-[10px]">{entry.note}</span>
                       ) : null}
                       {entry && sumPluses(entry.pluses) > 0 ? (
-                        <span className="text-[9px] font-medium text-emerald-200 sm:text-[10px]">{sumPluses(entry.pluses)} niveles</span>
+                        <span className="hidden text-[9px] font-medium text-emerald-200 sm:block sm:text-[10px]">{sumPluses(entry.pluses)} niveles</span>
                       ) : null}
                       {entry ? (
                         <div className="pointer-events-none absolute left-1/2 top-full z-40 hidden w-64 -translate-x-1/2 translate-y-2 rounded-2xl border border-white/10 bg-slate-950/95 p-3 text-left text-xs text-white/70 opacity-0 shadow-[0_24px_60px_rgba(15,23,42,0.65)] transition duration-200 group-hover:translate-y-3 group-hover:opacity-100 group-focus-visible:translate-y-3 group-focus-visible:opacity-100 lg:block">

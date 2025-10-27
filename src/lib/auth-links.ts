@@ -50,7 +50,7 @@ export function buildUpdatePasswordUrl(options?: { redirect?: string | null }): 
   const siteUrl = getSiteUrl()
   const redirect = sanitizeRedirectPath(options?.redirect)
   const query = buildRedirectQuery(redirect)
-  return `${siteUrl}/auth/update-password${query}`
+  return `${siteUrl}/reset-password${query}`
 }
 
 export function buildRecoveryCallbackUrl(options?: {
@@ -65,8 +65,8 @@ export function buildRecoveryCallbackUrl(options?: {
 
   const updatePasswordPath =
     params.toString().length > 0
-      ? `/auth/update-password?${params.toString()}`
-      : "/auth/update-password"
+      ? `/reset-password?${params.toString()}`
+      : "/reset-password"
 
   return buildAuthCallbackUrl({ redirect: updatePasswordPath })
 }

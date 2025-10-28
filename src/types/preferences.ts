@@ -7,10 +7,17 @@ export type NotificationPreferences = {
   reminders: boolean
 }
 
+export type IntegrationPreferences = {
+  googleCalendar: boolean
+  teamApi: boolean
+  monthlyReport: boolean
+}
+
 export type UserPreferences = {
   startOfWeek: StartOfWeekPreference
   theme: ThemePreference
   notifications: NotificationPreferences
+  integrations: IntegrationPreferences
 }
 
 export const DEFAULT_USER_PREFERENCES: UserPreferences = {
@@ -20,5 +27,10 @@ export const DEFAULT_USER_PREFERENCES: UserPreferences = {
     email: true,
     push: true,
     reminders: false,
+  },
+  integrations: {
+    googleCalendar: true,
+    teamApi: true,
+    monthlyReport: true,
   },
 }

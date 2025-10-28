@@ -1,4 +1,8 @@
-import { DEFAULT_USER_PREFERENCES, type ThemePreference, type UserPreferences } from "@/types/preferences"
+import {
+  DEFAULT_USER_PREFERENCES,
+  type ThemePreference,
+  type UserPreferences,
+} from "@/types/preferences"
 
 const STORAGE_KEY = "supershift::user-preferences"
 const STORAGE_VERSION = 1
@@ -38,17 +42,39 @@ function normalizePreferences(raw: unknown): UserPreferences {
   }
 
   const candidate = raw as Partial<UserPreferences>
-  const notifications = candidate.notifications ?? DEFAULT_USER_PREFERENCES.notifications
+  const notifications =
+    candidate.notifications ?? DEFAULT_USER_PREFERENCES.notifications
+  const integrations = candidate.integrations ?? DEFAULT_USER_PREFERENCES.integrations
 
   return {
     startOfWeek: normalizeStartOfWeek(candidate.startOfWeek),
     theme: normalizeTheme(candidate.theme),
     notifications: {
-      email: normalizeBoolean(notifications.email, DEFAULT_USER_PREFERENCES.notifications.email),
-      push: normalizeBoolean(notifications.push, DEFAULT_USER_PREFERENCES.notifications.push),
+      email: normalizeBoolean(
+        notifications.email,
+        DEFAULT_USER_PREFERENCES.notifications.email,
+      ),
+      push: normalizeBoolean(
+        notifications.push,
+        DEFAULT_USER_PREFERENCES.notifications.push,
+      ),
       reminders: normalizeBoolean(
         notifications.reminders,
         DEFAULT_USER_PREFERENCES.notifications.reminders,
+      ),
+    },
+    integrations: {
+      googleCalendar: normalizeBoolean(
+        integrations.googleCalendar,
+        DEFAULT_USER_PREFERENCES.integrations.googleCalendar,
+      ),
+      teamApi: normalizeBoolean(
+        integrations.teamApi,
+        DEFAULT_USER_PREFERENCES.integrations.teamApi,
+      ),
+      monthlyReport: normalizeBoolean(
+        integrations.monthlyReport,
+        DEFAULT_USER_PREFERENCES.integrations.monthlyReport,
       ),
     },
   }

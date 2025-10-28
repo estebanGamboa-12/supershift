@@ -131,12 +131,26 @@ const ConfigurationPanel: FC<ConfigurationPanelProps> = ({
   const savedAtLabel = useMemo(() => formatSavedAt(lastSavedAt), [lastSavedAt])
   const canEditProfile = Boolean(user && onUpdateProfile)
 
-  function handleToggle(field: keyof UserPreferences["notifications"]) {
+  function handleNotificationToggle(
+    field: keyof UserPreferences["notifications"],
+  ) {
     setPreferences((current) => ({
       ...current,
       notifications: {
         ...current.notifications,
         [field]: !current.notifications[field],
+      },
+    }))
+  }
+
+  function handleIntegrationToggle(
+    field: keyof UserPreferences["integrations"],
+  ) {
+    setPreferences((current) => ({
+      ...current,
+      integrations: {
+        ...current.integrations,
+        [field]: !current.integrations[field],
       },
     }))
   }
@@ -638,7 +652,7 @@ const ConfigurationPanel: FC<ConfigurationPanelProps> = ({
                   <input
                     type="checkbox"
                     checked={preferences.notifications.email}
-                    onChange={() => handleToggle("email")}
+                    onChange={() => handleNotificationToggle("email")}
                     className="h-6 w-11 cursor-pointer rounded-full border border-white/20 bg-slate-900/60 transition-all checked:bg-sky-500"
                   />
                 </label>
@@ -651,7 +665,7 @@ const ConfigurationPanel: FC<ConfigurationPanelProps> = ({
                   <input
                     type="checkbox"
                     checked={preferences.notifications.push}
-                    onChange={() => handleToggle("push")}
+                    onChange={() => handleNotificationToggle("push")}
                     className="h-6 w-11 cursor-pointer rounded-full border border-white/20 bg-slate-900/60 transition-all checked:bg-sky-500"
                   />
                 </label>
@@ -664,7 +678,7 @@ const ConfigurationPanel: FC<ConfigurationPanelProps> = ({
                   <input
                     type="checkbox"
                     checked={preferences.notifications.reminders}
-                    onChange={() => handleToggle("reminders")}
+                    onChange={() => handleNotificationToggle("reminders")}
                     className="h-6 w-11 cursor-pointer rounded-full border border-white/20 bg-slate-900/60 transition-all checked:bg-sky-500"
                   />
                 </label>
@@ -681,27 +695,48 @@ const ConfigurationPanel: FC<ConfigurationPanelProps> = ({
                 </h3>
               </header>
               <div className="space-y-3 text-sm text-white/70">
-                <button
-                  type="button"
-                  className="flex w-full items-center justify-between rounded-2xl border border-white/10 bg-white/5 px-4 py-3 font-semibold uppercase tracking-wide transition hover:border-sky-400/40 hover:text-sky-200"
-                >
-                  Sincronizar con Google Calendar
-                  <span aria-hidden>→</span>
-                </button>
-                <button
-                  type="button"
-                  className="flex w-full items-center justify-between rounded-2xl border border-white/10 bg-white/5 px-4 py-3 font-semibold uppercase tracking-wide transition hover:border-sky-400/40 hover:text-sky-200"
-                >
-                  Activar API para tu equipo
-                  <span aria-hidden>→</span>
-                </button>
-                <button
-                  type="button"
-                  className="flex w-full items-center justify-between rounded-2xl border border-white/10 bg-white/5 px-4 py-3 font-semibold uppercase tracking-wide transition hover:border-sky-400/40 hover:text-sky-200"
-                >
-                  Exportar informe mensual (PDF)
-                  <span aria-hidden>→</span>
-                </button>
+                <label className="flex items-center justify-between gap-4 rounded-2xl border border-white/10 bg-white/5 px-4 py-3">
+                  <div>
+                    <p className="font-semibold text-white">Sincronizar con Google Calendar</p>
+                    <p className="text-xs text-white/50">
+                      Mantén tus turnos actualizados automáticamente en tu calendario.
+                    </p>
+                  </div>
+                  <input
+                    type="checkbox"
+                    checked={preferences.integrations.googleCalendar}
+                    onChange={() => handleIntegrationToggle("googleCalendar")}
+                    className="h-6 w-11 cursor-pointer rounded-full border border-white/20 bg-slate-900/60 transition-all checked:bg-sky-500"
+                  />
+                </label>
+                <label className="flex items-center justify-between gap-4 rounded-2xl border border-white/10 bg-white/5 px-4 py-3">
+                  <div>
+                    <p className="font-semibold text-white">Activar API para tu equipo</p>
+                    <p className="text-xs text-white/50">
+                      Permite que tus integraciones personalizadas accedan a los datos en tiempo real.
+                    </p>
+                  </div>
+                  <input
+                    type="checkbox"
+                    checked={preferences.integrations.teamApi}
+                    onChange={() => handleIntegrationToggle("teamApi")}
+                    className="h-6 w-11 cursor-pointer rounded-full border border-white/20 bg-slate-900/60 transition-all checked:bg-sky-500"
+                  />
+                </label>
+                <label className="flex items-center justify-between gap-4 rounded-2xl border border-white/10 bg-white/5 px-4 py-3">
+                  <div>
+                    <p className="font-semibold text-white">Exportar informe mensual (PDF)</p>
+                    <p className="text-xs text-white/50">
+                      Genera automáticamente un resumen mensual con métricas clave.
+                    </p>
+                  </div>
+                  <input
+                    type="checkbox"
+                    checked={preferences.integrations.monthlyReport}
+                    onChange={() => handleIntegrationToggle("monthlyReport")}
+                    className="h-6 w-11 cursor-pointer rounded-full border border-white/20 bg-slate-900/60 transition-all checked:bg-sky-500"
+                  />
+                </label>
               </div>
             </section>
 

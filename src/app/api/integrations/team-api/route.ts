@@ -4,7 +4,18 @@ import { getSupabaseClient } from "@/lib/supabase"
 
 export const runtime = "nodejs"
 
-function normalizeUserId(value: unknown): number | null {
+function normalizeUserId(value: unknown): string | null {
+  if (typeof value === "string") {
+    const trimmed = value.trim()
+    return trimmed.length > 0 ? trimmed : null
+  }
+  if (typeof value === "number" && Number.isFinite(value)) {
+    return String(Math.max(1, Math.trunc(value)))
+  }
+  return null
+}
+
+function normalizeKeyId(value: unknown): number | null {
   if (typeof value === "number" && Number.isFinite(value)) {
     return Math.max(1, Math.trunc(value))
   }
@@ -134,7 +145,7 @@ export async function DELETE(request: NextRequest) {
   try {
     const payload = await request.json().catch(() => ({}))
     const userId = normalizeUserId(payload.userId)
-    const keyId = normalizeUserId(payload.keyId)
+    const keyId = normalizeKeyId(payload.keyId)
     if (!userId || !keyId) {
       return NextResponse.json(
         { error: "Debes indicar el usuario y la clave a revocar" },

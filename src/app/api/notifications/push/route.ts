@@ -30,20 +30,13 @@ function normalizeSubscription(value: unknown): PushSubscriptionPayload | null {
   }
 }
 
-function normalizeUserId(value: unknown): number | null {
-  if (typeof value === "number" && Number.isFinite(value)) {
-    return Math.max(1, Math.trunc(value))
-  }
+function normalizeUserId(value: unknown): string | null {
   if (typeof value === "string") {
     const trimmed = value.trim()
-    if (!trimmed) {
-      return null
-    }
-    const parsed = Number.parseInt(trimmed, 10)
-    if (Number.isNaN(parsed)) {
-      return null
-    }
-    return Math.max(1, parsed)
+    return trimmed.length > 0 ? trimmed : null
+  }
+  if (typeof value === "number" && Number.isFinite(value)) {
+    return String(Math.max(1, Math.trunc(value)))
   }
   return null
 }

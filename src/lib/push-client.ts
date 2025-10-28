@@ -11,7 +11,7 @@ function getVapidKey(): string | null {
   return null
 }
 
-function urlBase64ToUint8Array(base64String: string): Uint8Array {
+function urlBase64ToArrayBuffer(base64String: string): ArrayBuffer {
   const padding = "=".repeat((4 - (base64String.length % 4)) % 4)
   const base64 = (base64String + padding).replace(/-/g, "+").replace(/_/g, "/")
 
@@ -22,7 +22,9 @@ function urlBase64ToUint8Array(base64String: string): Uint8Array {
     outputArray[i] = rawData.charCodeAt(i)
   }
 
-  return outputArray
+  const safeBuffer = new ArrayBuffer(outputArray.byteLength)
+  new Uint8Array(safeBuffer).set(outputArray)
+  return safeBuffer
 }
 
 export type PushToggleResult = {
@@ -85,7 +87,7 @@ export async function enablePushNotifications({
     if (!subscription) {
       const options: PushSubscriptionOptionsInit = { userVisibleOnly: true }
       if (vapidPublicKey) {
-        options.applicationServerKey = urlBase64ToUint8Array(vapidPublicKey)
+        options.applicationServerKey = urlBase64ToArrayBuffer(vapidPublicKey)
       }
       subscription = await registration.pushManager.subscribe(options)
     }

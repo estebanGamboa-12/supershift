@@ -18,9 +18,9 @@ type MobileNavigationProps = {
 
 const MobileNavigation: FC<MobileNavigationProps> = ({ active, onChange }) => {
   return (
-    <nav className="sticky bottom-0 z-40 border-t border-white/10 bg-slate-950/95 pb-[calc(0.75rem+env(safe-area-inset-bottom))] backdrop-blur lg:hidden">
+    <nav className="sticky bottom-0 z-40 border-t border-white/5 bg-slate-950/90 pb-[calc(0.55rem+env(safe-area-inset-bottom))] pt-2.5 backdrop-blur-lg lg:hidden">
       <div className="mx-auto w-full max-w-3xl px-4">
-        <div className="grid grid-cols-4 gap-3 py-3">
+        <div className="grid grid-cols-4 gap-2.5 py-1.5">
           {NAV_ITEMS.map((item) => {
             const isActive = item.tab === active
             return (
@@ -28,10 +28,10 @@ const MobileNavigation: FC<MobileNavigationProps> = ({ active, onChange }) => {
                 key={item.value}
                 type="button"
                 onClick={() => onChange(item.tab)}
-                className={`flex w-full flex-col items-center gap-1 rounded-2xl px-4 py-2.5 text-[11px] font-semibold uppercase tracking-wide transition-all duration-200 ${
+                className={`flex w-full flex-col items-center gap-1 rounded-2xl px-3.5 py-2.5 text-[11px] font-semibold uppercase tracking-wide transition-all duration-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sky-400/60 ${
                   isActive
-                    ? "bg-gradient-to-br from-blue-500/40 to-indigo-500/40 text-white shadow-inner shadow-blue-500/30"
-                    : "text-white/60 hover:text-white"
+                    ? "bg-gradient-to-br from-sky-500/45 via-blue-600/45 to-indigo-500/45 text-white shadow-inner shadow-sky-500/35"
+                    : "text-white/65 hover:text-white"
                 }`}
                 aria-current={isActive ? "page" : undefined}
               >

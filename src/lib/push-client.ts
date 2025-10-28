@@ -85,7 +85,7 @@ export async function enablePushNotifications({
     if (!subscription) {
       const options: PushSubscriptionOptionsInit = { userVisibleOnly: true }
       if (vapidPublicKey) {
-        options.applicationServerKey = urlBase64ToUint8Array(vapidPublicKey)
+        options.applicationServerKey = urlBase64ToUint8Array(vapidPublicKey).buffer
       }
       subscription = await registration.pushManager.subscribe(options)
     }

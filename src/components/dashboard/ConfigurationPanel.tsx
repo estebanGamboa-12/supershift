@@ -214,6 +214,18 @@ const ConfigurationPanel: FC<ConfigurationPanelProps> = ({
     return bytes
   }
 
+  function createBlobFromUint8Array(bytes: Uint8Array, mimeType: string): Blob {
+    const { buffer, byteOffset, byteLength } = bytes
+
+    if (buffer instanceof ArrayBuffer) {
+      const arrayBuffer = buffer.slice(byteOffset, byteOffset + byteLength)
+      return new Blob([arrayBuffer], { type: mimeType })
+    }
+
+    const copy = Uint8Array.from(bytes)
+    return new Blob([copy.buffer], { type: mimeType })
+  }
+
   function decodeBase64ToString(base64: string): string {
     if (typeof window === "undefined" || typeof window.atob !== "function") {
       throw new Error("La decodificación base64 solo está disponible en el navegador")
@@ -375,7 +387,7 @@ const ConfigurationPanel: FC<ConfigurationPanelProps> = ({
           : "supershift-turnos.ics"
 
       const bytes = decodeBase64ToUint8Array(payload.ics)
-      const blob = new Blob([bytes], { type: "text/calendar;charset=utf-8" })
+      const blob = createBlobFromUint8Array(bytes, "text/calendar;charset=utf-8")
       triggerDownload(fileName, blob)
 
       setIntegrationStatus({
@@ -518,7 +530,7 @@ const ConfigurationPanel: FC<ConfigurationPanelProps> = ({
           : `informe-supershift-${month}.html`
 
       const bytes = decodeBase64ToUint8Array(payload.html)
-      const blob = new Blob([bytes], { type: "text/html;charset=utf-8" })
+      const blob = createBlobFromUint8Array(bytes, "text/html;charset=utf-8")
       triggerDownload(fileName, blob)
 
       try {

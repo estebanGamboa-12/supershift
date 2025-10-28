@@ -379,7 +379,8 @@ const ConfigurationPanel: FC<ConfigurationPanelProps> = ({
         bytes.byteOffset,
         bytes.byteOffset + bytes.byteLength,
       )
-      const blob = new Blob([arrayBuffer], { type: "text/calendar;charset=utf-8" })
+      const safeBytes = new Uint8Array(arrayBuffer)
+      const blob = new Blob([safeBytes], { type: "text/calendar;charset=utf-8" })
       triggerDownload(fileName, blob)
 
       setIntegrationStatus({
@@ -526,7 +527,8 @@ const ConfigurationPanel: FC<ConfigurationPanelProps> = ({
         bytes.byteOffset,
         bytes.byteOffset + bytes.byteLength,
       )
-      const blob = new Blob([arrayBuffer], { type: "text/html;charset=utf-8" })
+      const safeBytes = new Uint8Array(arrayBuffer)
+      const blob = new Blob([safeBytes], { type: "text/html;charset=utf-8" })
       triggerDownload(fileName, blob)
 
       try {

@@ -5,10 +5,16 @@
 body {
   font-family: system-ui, sans-serif;
   background-color: rgb(2 6 23); /* slate-950 */
-  background-image: radial-gradient(circle at 20% 20%, rgba(30, 64, 175, 0.35), transparent 55%),
-    radial-gradient(circle at 80% 0%, rgba(14, 165, 233, 0.2), transparent 55%),
-    linear-gradient(180deg, rgba(15, 23, 42, 0.95), rgba(2, 6, 23, 1));
+  background-image: radial-gradient(circle at 15% 20%, rgba(125, 211, 252, 0.22), transparent 55%),
+    radial-gradient(circle at 85% 0%, rgba(99, 102, 241, 0.22), transparent 55%),
+    radial-gradient(circle at 50% 100%, rgba(59, 130, 246, 0.18), transparent 60%),
+    linear-gradient(180deg, rgba(15, 23, 42, 0.94), rgba(2, 6, 23, 1));
   color: rgb(226 232 240); /* slate-200 */
+}
+
+:focus-visible {
+  outline: 2px solid rgba(56, 189, 248, 0.85);
+  outline-offset: 3px;
 }
 
 ::selection {

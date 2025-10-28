@@ -96,8 +96,8 @@ const DashboardHeader: FC<DashboardHeaderProps> = ({
   const showResults = searchQuery.trim().length > 0
 
   return (
-    <header className="border-b border-white/10 bg-slate-950/80 backdrop-blur-xl">
-      <div className="mx-auto flex w-full max-w-7xl flex-col gap-8 px-4 py-8 sm:px-6 lg:px-10 xl:px-12">
+    <header className="border-b border-white/5 bg-gradient-to-b from-slate-950/95 via-slate-950/70 to-slate-950/40 backdrop-blur-2xl">
+      <div className="mx-auto flex w-full max-w-7xl flex-col gap-6 px-4 py-6 sm:gap-8 sm:px-6 sm:py-8 lg:px-10 xl:px-12">
         {/* Top section */}
         <div className="flex flex-col gap-6 md:flex-row md:items-center md:justify-between">
           <div className="flex items-start gap-4">
@@ -108,20 +108,20 @@ const DashboardHeader: FC<DashboardHeaderProps> = ({
               </div>
             </div>
             <div className="space-y-2">
-              <div className="inline-flex items-center gap-3 rounded-full border border-emerald-400/30 bg-emerald-500/10 px-4 py-1 text-xs font-semibold uppercase tracking-wide text-emerald-200">
+              <div className="inline-flex items-center gap-3 rounded-full border border-emerald-400/40 bg-emerald-500/15 px-4 py-1 text-[11px] font-semibold uppercase tracking-[0.28em] text-emerald-100">
                 <span className="inline-flex h-1.5 w-1.5 rounded-full bg-emerald-400" aria-hidden />
                 Hoy es {formatCompactDate(new Date())}
               </div>
               <div>
-                <p className="text-sm text-blue-200/70">Panel de rendimiento</p>
+                <p className="text-sm font-medium text-sky-200/80">Panel de rendimiento</p>
                 <div className="flex items-center gap-3">
                   <div className="relative md:hidden">
                     <span className="pointer-events-none absolute inset-0 -translate-y-1 scale-110 rounded-full bg-cyan-400/20 blur" aria-hidden />
-                    <div className="relative grid h-10 w-10 place-items-center overflow-hidden rounded-xl border border-white/10 bg-slate-900/80 shadow-lg shadow-blue-500/20">
+                    <div className="relative grid h-10 w-10 place-items-center overflow-hidden rounded-xl border border-white/10 bg-slate-900/90 shadow-lg shadow-sky-500/30">
                       <Image src="/planloop-logo.svg" alt="Logotipo de Planloop" width={36} height={36} className="h-9 w-9" />
                     </div>
                   </div>
-                  <h2 className="text-3xl font-bold tracking-tight text-white md:text-4xl">Planloop HQ</h2>
+                  <h2 className="text-3xl font-bold tracking-tight text-white drop-shadow-sm md:text-4xl">Planloop HQ</h2>
                 </div>
               </div>
             </div>
@@ -140,8 +140,8 @@ const DashboardHeader: FC<DashboardHeaderProps> = ({
                   className="pointer-events-none absolute -inset-[1px] rounded-2xl bg-gradient-to-r from-blue-500/60 via-indigo-500/60 to-sky-500/60 opacity-60 blur-sm transition duration-300 group-hover:opacity-90 group-focus-within:opacity-100"
                   aria-hidden
                 />
-                <div className="relative flex items-center gap-3 rounded-2xl border border-white/10 bg-slate-900/80 px-4 py-2.5 shadow-lg shadow-blue-500/20 backdrop-blur">
-                  <span className="inline-flex h-9 w-9 items-center justify-center rounded-xl bg-white/10 text-lg">🔍</span>
+                <div className="relative flex items-center gap-3 rounded-2xl border border-white/10 bg-slate-900/85 px-4 py-2.5 shadow-lg shadow-sky-500/30 backdrop-blur">
+                  <span className="inline-flex h-9 w-9 items-center justify-center rounded-xl bg-white/10 text-lg text-white">🔍</span>
                   <input
                     ref={inputRef}
                     type="search"
@@ -163,7 +163,7 @@ const DashboardHeader: FC<DashboardHeaderProps> = ({
               </form>
 
               {showResults && (
-                <div className="absolute left-0 right-0 top-[calc(100%+0.75rem)] z-30 rounded-2xl border border-white/10 bg-slate-950/95 p-3 shadow-2xl shadow-blue-500/20 backdrop-blur">
+                <div className="absolute left-0 right-0 top-[calc(100%+0.75rem)] z-30 rounded-2xl border border-white/10 bg-slate-950/95 p-3 shadow-2xl shadow-sky-500/25 backdrop-blur">
                   {searchResults.length > 0 ? (
                     <ul className="space-y-2">
                       {searchResults.map(({ shift, dateLabel, note, typeLabel }) => (
@@ -171,7 +171,7 @@ const DashboardHeader: FC<DashboardHeaderProps> = ({
                           <button
                             type="button"
                             onClick={() => handleResultClick(shift)}
-                            className="w-full rounded-xl border border-white/5 bg-white/5 px-4 py-3 text-left text-sm text-white transition hover:border-blue-400/40 hover:bg-blue-500/10 focus:outline-none focus:ring-2 focus:ring-blue-400/50"
+                            className="w-full rounded-xl border border-white/5 bg-white/5 px-4 py-3 text-left text-sm text-white transition hover:border-sky-400/40 hover:bg-sky-500/15 focus:outline-none focus:ring-2 focus:ring-sky-400/50"
                           >
                             <div className="flex items-start justify-between gap-3">
                               <div className="flex-1">
@@ -201,7 +201,7 @@ const DashboardHeader: FC<DashboardHeaderProps> = ({
             <button
               type="button"
               onClick={onQuickAdd}
-              className="inline-flex items-center gap-2 rounded-full border border-blue-400/40 bg-gradient-to-r from-blue-500/30 to-indigo-500/30 px-5 py-2 text-sm font-semibold text-white shadow-md shadow-blue-500/20 transition hover:from-blue-400/40 hover:to-indigo-400/40"
+              className="inline-flex items-center gap-2 rounded-full border border-sky-400/50 bg-gradient-to-r from-sky-500/40 via-blue-600/40 to-indigo-500/40 px-5 py-2.5 text-sm font-semibold text-white shadow-md shadow-sky-500/25 transition hover:from-sky-400/50 hover:via-blue-500/45 hover:to-indigo-500/45 focus-visible:ring-2 focus-visible:ring-sky-400/60"
             >
               ➕ Nuevo turno rápido
             </button>

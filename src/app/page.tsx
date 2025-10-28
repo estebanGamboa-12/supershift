@@ -15,6 +15,9 @@ import MobileAddShiftSheet from "@/components/dashboard/MobileAddShiftSheet"
 import ResponsiveNav from "@/components/dashboard/ResponsiveNav"
 import UserAuthPanel from "@/components/auth/UserAuthPanel"
 import FloatingParticlesLoader from "@/components/FloatingParticlesLoader"
+import ActionFeedback, {
+  type ActionFeedbackState,
+} from "@/components/dashboard/ActionFeedback"
 import type { UserSummary } from "@/types/users"
 import type { Session } from "@supabase/supabase-js"
 import { getSupabaseBrowserClient } from "@/lib/supabase"
@@ -377,6 +380,10 @@ export default function Home() {
   const [pendingShiftMutations, setPendingShiftMutations] = useState(0)
   const [lastSyncError, setLastSyncError] = useState<string | null>(null)
   const isSyncingRef = useRef(false)
+  const [actionFeedback, setActionFeedback] =
+    useState<ActionFeedbackState | null>(null)
+  const actionFeedbackTimeoutRef =
+    useRef<ReturnType<typeof setTimeout> | null>(null)
   const [shiftHistory, setShiftHistory] = useState<ShiftHistoryEntry[]>(() => {
     if (typeof window === "undefined") {
       return []
@@ -792,6 +799,55 @@ export default function Home() {
     }
   }, [])
 
+  const dismissActionFeedback = useCallback(() => {
+    if (actionFeedbackTimeoutRef.current) {
+      clearTimeout(actionFeedbackTimeoutRef.current)
+      actionFeedbackTimeoutRef.current = null
+    }
+    setActionFeedback(null)
+  }, [])
+
+  const showActionFeedback = useCallback(
+    (type: ActionFeedbackState["type"], options?: { offline?: boolean }) => {
+      const offline = options?.offline ?? false
+      const baseMessages: Record<ActionFeedbackState["type"], string> = {
+        create: "Turno guardado correctamente",
+        update: "Cambios guardados",
+        delete: "Turno eliminado",
+      }
+      const offlineMessages: Record<ActionFeedbackState["type"], string> = {
+        create: "Turno guardado sin conexión",
+        update: "Cambios listos para sincronizar",
+        delete: "Turno eliminado (pendiente de sincronizar)",
+      }
+
+      if (actionFeedbackTimeoutRef.current) {
+        clearTimeout(actionFeedbackTimeoutRef.current)
+      }
+
+      setActionFeedback({
+        type,
+        offline,
+        message: offline ? offlineMessages[type] : baseMessages[type],
+      })
+
+      actionFeedbackTimeoutRef.current = setTimeout(() => {
+        setActionFeedback(null)
+        actionFeedbackTimeoutRef.current = null
+      }, offline ? 5000 : 3400)
+    },
+    [],
+  )
+
+  useEffect(() => {
+    return () => {
+      if (actionFeedbackTimeoutRef.current) {
+        clearTimeout(actionFeedbackTimeoutRef.current)
+        actionFeedbackTimeoutRef.current = null
+      }
+    }
+  }, [])
+
   const synchronizePendingShiftRequests = useCallback(async () => {
     if (!currentUser) {
       return
@@ -1054,6 +1110,7 @@ export default function Home() {
         })
         setIsOffline(false)
         setLastSyncError(null)
+        showActionFeedback("create")
       } catch (error) {
         if (isLikelyOfflineError(error)) {
           const optimisticId = generateTemporaryShiftId()
@@ -1096,6 +1153,7 @@ export default function Home() {
           await refreshPendingMutations(userId)
           void requestBackgroundSync()
           setIsOffline(true)
+          showActionFeedback("create", { offline: true })
           return
         }
 
@@ -1113,6 +1171,7 @@ export default function Home() {
       refreshPendingMutations,
       requestBackgroundSync,
       sortByDate,
+      showActionFeedback,
     ],
   )
 
@@ -1184,6 +1243,7 @@ export default function Home() {
         })
         setIsOffline(false)
         setLastSyncError(null)
+        showActionFeedback("update")
       } catch (error) {
         if (isLikelyOfflineError(error)) {
           const optimisticShift = mapApiShift({
@@ -1236,6 +1296,7 @@ export default function Home() {
           await refreshPendingMutations(userId)
           void requestBackgroundSync()
           setIsOffline(true)
+          showActionFeedback("update", { offline: true })
           return
         }
 
@@ -1271,6 +1332,7 @@ export default function Home() {
       refreshPendingMutations,
       requestBackgroundSync,
       sortByDate,
+      showActionFeedback,
     ],
   )
   const handleDeleteShift = useCallback(
@@ -1312,6 +1374,7 @@ export default function Home() {
         })
         setIsOffline(false)
         setLastSyncError(null)
+        showActionFeedback("delete")
       } catch (error) {
         if (isLikelyOfflineError(error)) {
           setShifts((current) => {
@@ -1342,6 +1405,7 @@ export default function Home() {
           await refreshPendingMutations(userId)
           void requestBackgroundSync()
           setIsOffline(true)
+          showActionFeedback("delete", { offline: true })
           return
         }
 
@@ -1357,6 +1421,7 @@ export default function Home() {
       refreshPendingMutations,
       requestBackgroundSync,
       sortByDate,
+      showActionFeedback,
     ],
   )
 
@@ -2093,7 +2158,7 @@ export default function Home() {
     return (
       <div className="min-h-screen bg-slate-950 text-white">
         <main className="mx-auto flex min-h-screen w-full max-w-5xl items-center justify-center px-4 py-16">
-          <div className="w-full space-y-6">
+          <div className="w-full space-y-5 sm:space-y-6">
             <OfflineStatusBanner
               isOffline={isOffline}
               pendingCount={pendingShiftMutations}
@@ -2188,7 +2253,7 @@ export default function Home() {
           <div className="mx-auto w-full max-w-[110rem] space-y-10 px-0 py-6 sm:px-2 lg:px-0">
             <div className="hidden lg:flex lg:flex-col lg:gap-8">
               {activeTab === "calendar" && (
-                <section className="rounded-3xl border border-white/10 bg-slate-950/70 p-6">
+                <section className="rounded-3xl border border-white/10 bg-slate-950/70 p-5 sm:p-6">
                   <header className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
                     <div>
                       <h2 className="text-2xl font-semibold">Calendario</h2>
@@ -2224,7 +2289,7 @@ export default function Home() {
 
               {activeTab === "insights" && (
                 <>
-                  <section className="rounded-3xl border border-white/10 bg-slate-950/70 p-6">
+                  <section className="rounded-3xl border border-white/10 bg-slate-950/70 p-5 sm:p-6">
                     <header className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
                       <div>
                         <h2 className="text-2xl font-semibold">Indicadores clave</h2>
@@ -2246,7 +2311,7 @@ export default function Home() {
                     </div>
                   </section>
 
-                  <section className="rounded-3xl border border-white/10 bg-slate-950/70 p-6">
+                  <section className="rounded-3xl border border-white/10 bg-slate-950/70 p-5 sm:p-6">
                     <header className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
                       <div>
                         <h2 className="text-2xl font-semibold">Horas registradas</h2>
@@ -2264,7 +2329,7 @@ export default function Home() {
                     </div>
                   </section>
 
-                  <section className="rounded-3xl border border-white/10 bg-slate-950/70 p-6">
+                  <section className="rounded-3xl border border-white/10 bg-slate-950/70 p-5 sm:p-6">
                     <header className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
                       <div>
                         <h2 className="text-2xl font-semibold">Historial de cambios</h2>
@@ -2285,7 +2350,7 @@ export default function Home() {
               )}
 
               {activeTab === "team" && (
-                <section className="rounded-3xl border border-white/10 bg-slate-950/70 p-6">
+                <section className="rounded-3xl border border-white/10 bg-slate-950/70 p-5 sm:p-6">
                   <header className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
                     <div>
                       <h2 className="text-2xl font-semibold">Equipo conectado</h2>
@@ -2306,7 +2371,7 @@ export default function Home() {
               )}
 
               {activeTab === "settings" && (
-                <section className="rounded-3xl border border-white/10 bg-slate-950/70 p-6">
+                <section className="rounded-3xl border border-white/10 bg-slate-950/70 p-5 sm:p-6">
                   <header className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
                     <div>
                       <h2 className="text-2xl font-semibold">Configuración</h2>
@@ -2337,7 +2402,7 @@ export default function Home() {
                     className="pointer-events-none absolute inset-x-4 top-0 h-full rounded-3xl bg-[radial-gradient(circle_at_top,_rgba(59,130,246,0.22),_transparent_65%)] blur-3xl"
                     aria-hidden
                   />
-                  <div className="relative mx-auto max-w-3xl overflow-hidden rounded-3xl border border-white/10 bg-slate-950/80 px-5 py-6 shadow-2xl shadow-blue-500/20 backdrop-blur">
+                  <div className="relative mx-auto max-w-3xl overflow-hidden rounded-3xl border border-white/10 bg-slate-950/80 px-5 py-5 shadow-2xl shadow-blue-500/20 backdrop-blur">
                     <div className="flex items-center justify-between gap-4">
                       <div>
                         <p className="text-xs font-semibold uppercase tracking-wide text-blue-200/80">
@@ -2347,7 +2412,7 @@ export default function Home() {
                           Hola, {mobileGreeting}
                         </h2>
                       </div>
-                      <div className="flex flex-col items-end gap-2 sm:flex-row">
+                      <div className="flex flex-col items-end gap-2.5 sm:flex-row sm:items-center">
                         <button
                           type="button"
                           onClick={handleOpenMobileAdd}
@@ -2370,7 +2435,7 @@ export default function Home() {
                     <p className="mt-4 text-sm text-white/70">
                       Mantén el control de tus turnos con la misma experiencia premium que en escritorio.
                     </p>
-                    <div className="mt-5 grid grid-cols-2 gap-3 text-xs text-white/70">
+                    <div className="mt-4 grid grid-cols-2 gap-2.5 text-xs text-white/70">
                       <div className="rounded-2xl border border-white/5 bg-white/5 px-3 py-3 shadow-inner shadow-blue-500/10">
                         <p className="text-[11px] uppercase tracking-wide text-white/60">
                           Este mes
@@ -2421,7 +2486,7 @@ export default function Home() {
                   </div>
                 </section>
 
-                <div className="mx-auto mt-6 flex w-full max-w-3xl flex-col gap-6 pb-32">
+                <div className="mx-auto mt-4 flex w-full max-w-3xl flex-col gap-5 pb-[calc(5.5rem+env(safe-area-inset-bottom))] sm:mt-6 sm:gap-6 sm:pb-32">
                   {activeTab === "calendar" && (
                     <CalendarTab
                       nextShift={nextShift ?? null}
@@ -2437,7 +2502,7 @@ export default function Home() {
                   )}
 
                   {activeTab === "insights" && (
-                    <div className="space-y-6">
+                    <div className="space-y-5 sm:space-y-6">
                       <StatsTab
                         summaryCards={[]}
                         currentMonthShiftCount={currentMonthShifts.length}
@@ -2509,6 +2574,11 @@ export default function Home() {
           onClose={() => setSelectedShift(null)}
         />
       )}
+
+      <ActionFeedback
+        feedback={actionFeedback}
+        onDismiss={dismissActionFeedback}
+      />
     </div>
   )
 }

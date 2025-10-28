@@ -200,6 +200,20 @@ const ConfigurationPanel: FC<ConfigurationPanelProps> = ({
   const savedAtLabel = useMemo(() => formatSavedAt(lastSavedAt), [lastSavedAt])
   const canEditProfile = Boolean(user && onUpdateProfile)
 
+  function decodeBase64ToUint8Array(base64: string): Uint8Array {
+    if (typeof window === "undefined" || typeof window.atob !== "function") {
+      throw new Error("La decodificación base64 solo está disponible en el navegador")
+    }
+
+    const binary = window.atob(base64)
+    const length = binary.length
+    const bytes = new Uint8Array(length)
+    for (let index = 0; index < length; index += 1) {
+      bytes[index] = binary.charCodeAt(index)
+    }
+    return bytes
+  }
+
   function decodeBase64ToString(base64: string): string {
     if (typeof window === "undefined" || typeof window.atob !== "function") {
       throw new Error("La decodificación base64 solo está disponible en el navegador")
@@ -360,8 +374,8 @@ const ConfigurationPanel: FC<ConfigurationPanelProps> = ({
           ? payload.fileName.trim()
           : "supershift-turnos.ics"
 
-      const calendarContent = decodeBase64ToString(payload.ics)
-      const blob = new Blob([calendarContent], { type: "text/calendar;charset=utf-8" })
+      const bytes = decodeBase64ToUint8Array(payload.ics)
+      const blob = new Blob([bytes], { type: "text/calendar;charset=utf-8" })
       triggerDownload(fileName, blob)
 
       setIntegrationStatus({
@@ -503,12 +517,13 @@ const ConfigurationPanel: FC<ConfigurationPanelProps> = ({
           ? payload.fileName.trim()
           : `informe-supershift-${month}.html`
 
-      const htmlContent = decodeBase64ToString(payload.html)
-      const blob = new Blob([htmlContent], { type: "text/html;charset=utf-8" })
+      const bytes = decodeBase64ToUint8Array(payload.html)
+      const blob = new Blob([bytes], { type: "text/html;charset=utf-8" })
       triggerDownload(fileName, blob)
 
       try {
-        openHtmlPreview(htmlContent)
+        const htmlPreview = decodeBase64ToString(payload.html)
+        openHtmlPreview(htmlPreview)
       } catch (previewError) {
         console.warn("No se pudo abrir la vista previa del informe", previewError)
       }

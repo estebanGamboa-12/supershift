@@ -8,6 +8,8 @@ BEGIN;
 CREATE EXTENSION IF NOT EXISTS "pgcrypto";
 
 -- Limpiar estado previo ----------------------------------------------------
+DROP TABLE IF EXISTS push_subscriptions CASCADE;
+DROP TABLE IF EXISTS user_api_keys CASCADE;
 DROP TABLE IF EXISTS shift_notes CASCADE;
 DROP TABLE IF EXISTS shifts CASCADE;
 DROP TABLE IF EXISTS rotation_runs CASCADE;
@@ -55,6 +57,17 @@ CREATE TABLE users (
   updated_at      timestamptz NOT NULL DEFAULT now()
 );
 
+CREATE TABLE user_api_keys (
+  id              bigint GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
+  user_id         uuid NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  token           char(64) NOT NULL UNIQUE,
+  label           varchar(190),
+  is_active       boolean NOT NULL DEFAULT true,
+  created_at      timestamptz NOT NULL DEFAULT now(),
+  last_used_at    timestamptz
+);
+CREATE INDEX idx_user_api_keys_user ON user_api_keys (user_id);
+
 CREATE TABLE user_profile_history (
   id                   bigint GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
   user_id              uuid NOT NULL REFERENCES users(id) ON DELETE CASCADE,
@@ -100,6 +113,18 @@ CREATE TABLE team_members (
   PRIMARY KEY (team_id, user_id)
 );
 CREATE INDEX idx_tm_user ON team_members (user_id);
+
+CREATE TABLE push_subscriptions (
+  id                bigint GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
+  user_id           uuid REFERENCES users(id) ON DELETE SET NULL,
+  endpoint          text NOT NULL UNIQUE,
+  expiration_time   timestamptz,
+  p256dh            text,
+  auth              text,
+  created_at        timestamptz NOT NULL DEFAULT now(),
+  updated_at        timestamptz NOT NULL DEFAULT now()
+);
+CREATE INDEX idx_push_user ON push_subscriptions (user_id);
 
 CREATE TABLE team_invites (
   id                bigint GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
@@ -200,6 +225,10 @@ FOR EACH ROW EXECUTE FUNCTION set_updated_at();
 
 CREATE TRIGGER trg_shifts_updated_at
 BEFORE UPDATE ON shifts
+FOR EACH ROW EXECUTE FUNCTION set_updated_at();
+
+CREATE TRIGGER trg_push_subscriptions_updated_at
+BEFORE UPDATE ON push_subscriptions
 FOR EACH ROW EXECUTE FUNCTION set_updated_at();
 
 -- Datos de referencia ------------------------------------------------------

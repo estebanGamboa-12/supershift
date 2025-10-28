@@ -45,6 +45,9 @@ function normalizeUserId(value: unknown): string | null {
 export async function GET(request: NextRequest) {
   try {
     const userId = normalizeUserId(request.nextUrl.searchParams.get("userId"))
+    const limitParam = request.nextUrl.searchParams.get("limit")
+    const limit = limitParam ? Number.parseInt(limitParam, 10) : null
+
     const calendarId = userId
       ? await getOrCreateCalendarForUser(userId)
       : getCalendarId()
@@ -61,11 +64,17 @@ export async function GET(request: NextRequest) {
     }
 
     const supabase = getSupabaseClient()
-    const { data, error } = await supabase
+    const query = supabase
       .from("shifts")
       .select(SHIFT_SELECT_COLUMNS)
       .eq("calendar_id", calendarId)
       .order("start_at", { ascending: true })
+
+    if (limit && Number.isFinite(limit) && limit > 0) {
+      query.limit(Math.min(limit, 500))
+    }
+
+    const { data, error } = await query
 
     if (error) {
       throw error

@@ -15,6 +15,14 @@ import {
   type UserPreferences,
 } from "@/types/preferences"
 import type { UserProfileHistoryEntry, UserSummary } from "@/types/users"
+import {
+  enablePushNotifications,
+  disablePushNotifications,
+} from "@/lib/push-client"
+import {
+  enableShiftReminders,
+  disableShiftReminders,
+} from "@/lib/reminders-client"
 
 export { DEFAULT_USER_PREFERENCES }
 export type { UserPreferences }
@@ -112,6 +120,21 @@ const ConfigurationPanel: FC<ConfigurationPanelProps> = ({
 
   const fileInputRef = useRef<HTMLInputElement>(null)
 
+  const [integrationStatus, setIntegrationStatus] = useState<
+    | {
+        tone: "success" | "error"
+        message: string
+      }
+    | null
+  >(null)
+  const [latestApiKey, setLatestApiKey] = useState<string | null>(null)
+  const [isSyncingCalendar, setIsSyncingCalendar] = useState(false)
+  const [isActivatingApiKey, setIsActivatingApiKey] = useState(false)
+  const [isExportingMonthlyReport, setIsExportingMonthlyReport] = useState(false)
+  const [apiClipboardStatus, setApiClipboardStatus] = useState<
+    "idle" | "copied" | "error"
+  >("idle")
+
   useEffect(() => {
     setPreferences(defaultPreferences)
   }, [defaultPreferences])
@@ -128,8 +151,116 @@ const ConfigurationPanel: FC<ConfigurationPanelProps> = ({
     setProfileError(null)
   }, [user])
 
+  useEffect(() => {
+    let cancelled = false
+
+    async function loadActiveApiKey() {
+      if (!user?.id) {
+        setLatestApiKey(null)
+        setApiClipboardStatus("idle")
+        return
+      }
+
+      try {
+        const response = await fetch(
+          `/api/integrations/team-api?userId=${encodeURIComponent(user.id)}`,
+          { cache: "no-store" },
+        )
+
+        if (!response.ok) {
+          return
+        }
+
+        const payload = (await response.json().catch(() => null)) as
+          | { keys?: Array<{ token?: string | null; is_active?: boolean | null }> }
+          | null
+
+        const activeKey = (payload?.keys ?? []).find((candidate) => candidate?.is_active)
+
+        if (!cancelled) {
+          if (activeKey?.token && typeof activeKey.token === "string") {
+            setLatestApiKey(activeKey.token)
+          } else {
+            setLatestApiKey(null)
+          }
+          setApiClipboardStatus("idle")
+        }
+      } catch (error) {
+        console.warn("No se pudo cargar la clave API activa", error)
+      }
+    }
+
+    loadActiveApiKey()
+
+    return () => {
+      cancelled = true
+    }
+  }, [user?.id])
+
   const savedAtLabel = useMemo(() => formatSavedAt(lastSavedAt), [lastSavedAt])
   const canEditProfile = Boolean(user && onUpdateProfile)
+
+  function decodeBase64ToString(base64: string): string {
+    if (typeof window === "undefined" || typeof window.atob !== "function") {
+      throw new Error("La decodificación base64 solo está disponible en el navegador")
+    }
+    return window.atob(base64)
+  }
+
+  function triggerDownload(fileName: string, blob: Blob) {
+    if (typeof window === "undefined") {
+      return
+    }
+
+    const url = window.URL.createObjectURL(blob)
+    const anchor = document.createElement("a")
+    anchor.href = url
+    anchor.download = fileName
+    document.body.appendChild(anchor)
+    anchor.click()
+    document.body.removeChild(anchor)
+    window.URL.revokeObjectURL(url)
+  }
+
+  function openHtmlPreview(htmlContent: string) {
+    if (typeof window === "undefined") {
+      return
+    }
+
+    const previewWindow = window.open("", "_blank")
+    if (!previewWindow) {
+      return
+    }
+
+    previewWindow.document.write(htmlContent)
+    previewWindow.document.close()
+  }
+
+  async function handleNotificationIntegration(
+    field: keyof UserPreferences["notifications"],
+    enabled: boolean,
+  ) {
+    if (field === "push") {
+      const result = enabled
+        ? await enablePushNotifications({ userId: user?.id ?? null })
+        : await disablePushNotifications()
+      setIntegrationStatus({
+        tone: result.ok ? "success" : "error",
+        message: result.message,
+      })
+      return
+    }
+
+    if (field === "reminders") {
+      const result = enabled
+        ? await enableShiftReminders({ userId: user?.id ?? null })
+        : disableShiftReminders()
+      setIntegrationStatus({
+        tone: result.ok ? "success" : "error",
+        message: result.message,
+      })
+    }
+  }
 
   function handleToggle(field: keyof UserPreferences["notifications"]) {
     setPreferences((current) => ({
@@ -139,6 +270,13 @@ const ConfigurationPanel: FC<ConfigurationPanelProps> = ({
         [field]: !current.notifications[field],
       },
     }))
+
+    if (field === "push" || field === "reminders") {
+      const nextValue = !preferences.notifications[field]
+      queueMicrotask(() => {
+        void handleNotificationIntegration(field, nextValue)
+      })
+    }
   }
 
   function handleThemeChange(theme: UserPreferences["theme"]) {
@@ -174,6 +312,267 @@ const ConfigurationPanel: FC<ConfigurationPanelProps> = ({
           : "No se pudieron guardar las preferencias. Inténtalo más tarde."
       setErrorMessage(message)
       setStatus("error")
+    }
+  }
+
+  async function handleSyncGoogleCalendar() {
+    if (isSyncingCalendar) {
+      return
+    }
+
+    setIntegrationStatus(null)
+    setIsSyncingCalendar(true)
+
+    try {
+      const response = await fetch("/api/integrations/google-calendar", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          userId: user?.id ?? null,
+          timezone: profileForm.timezone ?? user?.timezone ?? DEFAULT_TIMEZONE,
+          calendarName: user?.name ? `Turnos de ${user.name}` : undefined,
+        }),
+      })
+
+      const payload = await response.json()
+
+      if (!response.ok) {
+        throw new Error(
+          typeof payload.error === "string"
+            ? payload.error
+            : "No se pudo generar el archivo de sincronización con Google Calendar.",
+        )
+      }
+
+      if (!payload.ics) {
+        setIntegrationStatus({
+          tone: "error",
+          message:
+            typeof payload.message === "string"
+              ? payload.message
+              : "No se encontraron turnos para exportar al calendario.",
+        })
+        return
+      }
+
+      const fileName =
+        typeof payload.fileName === "string" && payload.fileName.trim().length > 0
+          ? payload.fileName.trim()
+          : "supershift-turnos.ics"
+
+      const calendarContent = decodeBase64ToString(payload.ics)
+      const blob = new Blob([calendarContent], { type: "text/calendar;charset=utf-8" })
+      triggerDownload(fileName, blob)
+
+      setIntegrationStatus({
+        tone: "success",
+        message:
+          typeof payload.message === "string"
+            ? payload.message
+            : "Descarga completada. Importa el archivo .ics en Google Calendar para finalizar la sincronización.",
+      })
+    } catch (error) {
+      setIntegrationStatus({
+        tone: "error",
+        message:
+          error instanceof Error
+            ? error.message
+            : "No se pudo exportar el calendario a Google Calendar.",
+      })
+    } finally {
+      setIsSyncingCalendar(false)
+    }
+  }
+
+  async function handleActivateApiAccess() {
+    if (isActivatingApiKey) {
+      return
+    }
+
+    setIntegrationStatus(null)
+    setApiClipboardStatus("idle")
+    setIsActivatingApiKey(true)
+
+    try {
+      const response = await fetch("/api/integrations/team-api", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          userId: user?.id ?? null,
+          label: `Token generado ${new Date().toISOString()}`,
+        }),
+      })
+
+      const payload = await response.json()
+
+      if (!response.ok) {
+        throw new Error(
+          typeof payload.error === "string"
+            ? payload.error
+            : "No se pudo activar la API para tu equipo.",
+        )
+      }
+
+      const keyToken =
+        payload?.key?.token && typeof payload.key.token === "string"
+          ? payload.key.token.trim()
+          : ""
+
+      if (keyToken.length > 0) {
+        setLatestApiKey(keyToken)
+
+        if (typeof navigator !== "undefined" && navigator.clipboard?.writeText) {
+          try {
+            await navigator.clipboard.writeText(keyToken)
+            setApiClipboardStatus("copied")
+          } catch (clipboardError) {
+            console.warn("No se pudo copiar la clave API al portapapeles", clipboardError)
+            setApiClipboardStatus("error")
+          }
+        } else {
+          setApiClipboardStatus("error")
+        }
+      }
+
+      setIntegrationStatus({
+        tone: "success",
+        message:
+          typeof payload.message === "string"
+            ? payload.message
+            : "Generamos una nueva clave API. Copia y guarda el token en un lugar seguro.",
+      })
+    } catch (error) {
+      setIntegrationStatus({
+        tone: "error",
+        message:
+          error instanceof Error
+            ? error.message
+            : "No se pudo activar la API para tu equipo.",
+      })
+    } finally {
+      setIsActivatingApiKey(false)
+    }
+  }
+
+  async function handleExportMonthlyReport() {
+    if (isExportingMonthlyReport) {
+      return
+    }
+
+    setIntegrationStatus(null)
+    setIsExportingMonthlyReport(true)
+
+    try {
+      const now = new Date()
+      const month = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}`
+
+      const response = await fetch("/api/reports/monthly", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          userId: user?.id ?? null,
+          email:
+            preferences.notifications.email && user?.email
+              ? user.email
+              : null,
+          userName: user?.name ?? null,
+          month,
+        }),
+      })
+
+      const payload = await response.json()
+
+      if (!response.ok) {
+        throw new Error(
+          typeof payload.error === "string"
+            ? payload.error
+            : "No se pudo generar el informe mensual.",
+        )
+      }
+
+      if (typeof payload.html !== "string" || payload.html.length === 0) {
+        setIntegrationStatus({
+          tone: "error",
+          message: "El informe mensual no devolvió datos para descargar.",
+        })
+        return
+      }
+
+      const fileName =
+        typeof payload.fileName === "string" && payload.fileName.trim().length > 0
+          ? payload.fileName.trim()
+          : `informe-supershift-${month}.html`
+
+      const htmlContent = decodeBase64ToString(payload.html)
+      const blob = new Blob([htmlContent], { type: "text/html;charset=utf-8" })
+      triggerDownload(fileName, blob)
+
+      try {
+        openHtmlPreview(htmlContent)
+      } catch (previewError) {
+        console.warn("No se pudo abrir la vista previa del informe", previewError)
+      }
+
+      const emailError = typeof payload.emailError === "string" ? payload.emailError : null
+      const emailSent = Boolean(payload.emailSent)
+
+      let message = emailSent
+        ? "Te enviamos el informe por correo y lo descargamos en este dispositivo."
+        : "Descargamos el informe mensual en este dispositivo."
+
+      if (emailError) {
+        message = `${message} No se pudo enviar el correo automático: ${emailError}`
+      }
+
+      setIntegrationStatus({
+        tone: emailError ? "error" : "success",
+        message,
+      })
+    } catch (error) {
+      setIntegrationStatus({
+        tone: "error",
+        message:
+          error instanceof Error
+            ? error.message
+            : "No se pudo generar el informe mensual.",
+      })
+    } finally {
+      setIsExportingMonthlyReport(false)
+    }
+  }
+
+  async function handleCopyApiKey() {
+    if (!latestApiKey) {
+      return
+    }
+
+    if (typeof navigator === "undefined" || !navigator.clipboard?.writeText) {
+      setApiClipboardStatus("error")
+      setIntegrationStatus({
+        tone: "error",
+        message:
+          "Tu navegador no permite copiar automáticamente la clave API. Selecciónala manualmente y cópiala.",
+      })
+      return
+    }
+
+    try {
+      await navigator.clipboard.writeText(latestApiKey)
+      setApiClipboardStatus("copied")
+      setIntegrationStatus({
+        tone: "success",
+        message: "La clave API se copió al portapapeles.",
+      })
+    } catch (error) {
+      console.error("No se pudo copiar la clave API", error)
+      setApiClipboardStatus("error")
+      setIntegrationStatus({
+        tone: "error",
+        message:
+          error instanceof Error
+            ? error.message
+            : "No se pudo copiar la clave API. Selecciónala manualmente.",
+      })
     }
   }
 
@@ -683,26 +1082,70 @@ const ConfigurationPanel: FC<ConfigurationPanelProps> = ({
               <div className="space-y-3 text-sm text-white/70">
                 <button
                   type="button"
-                  className="flex w-full items-center justify-between rounded-2xl border border-white/10 bg-white/5 px-4 py-3 font-semibold uppercase tracking-wide transition hover:border-sky-400/40 hover:text-sky-200"
+                  onClick={handleSyncGoogleCalendar}
+                  disabled={isSyncingCalendar}
+                  aria-busy={isSyncingCalendar}
+                  className={`flex w-full items-center justify-between rounded-2xl border border-white/10 bg-white/5 px-4 py-3 font-semibold uppercase tracking-wide transition hover:border-sky-400/40 hover:text-sky-200 disabled:cursor-not-allowed disabled:opacity-60 ${isSyncingCalendar ? "pointer-events-none" : ""}`}
                 >
-                  Sincronizar con Google Calendar
+                  {isSyncingCalendar ? "Generando archivo..." : "Sincronizar con Google Calendar"}
                   <span aria-hidden>→</span>
                 </button>
                 <button
                   type="button"
-                  className="flex w-full items-center justify-between rounded-2xl border border-white/10 bg-white/5 px-4 py-3 font-semibold uppercase tracking-wide transition hover:border-sky-400/40 hover:text-sky-200"
+                  onClick={handleActivateApiAccess}
+                  disabled={isActivatingApiKey}
+                  aria-busy={isActivatingApiKey}
+                  className={`flex w-full items-center justify-between rounded-2xl border border-white/10 bg-white/5 px-4 py-3 font-semibold uppercase tracking-wide transition hover:border-sky-400/40 hover:text-sky-200 disabled:cursor-not-allowed disabled:opacity-60 ${isActivatingApiKey ? "pointer-events-none" : ""}`}
                 >
-                  Activar API para tu equipo
+                  {isActivatingApiKey ? "Activando API..." : "Activar API para tu equipo"}
                   <span aria-hidden>→</span>
                 </button>
                 <button
                   type="button"
-                  className="flex w-full items-center justify-between rounded-2xl border border-white/10 bg-white/5 px-4 py-3 font-semibold uppercase tracking-wide transition hover:border-sky-400/40 hover:text-sky-200"
+                  onClick={handleExportMonthlyReport}
+                  disabled={isExportingMonthlyReport}
+                  aria-busy={isExportingMonthlyReport}
+                  className={`flex w-full items-center justify-between rounded-2xl border border-white/10 bg-white/5 px-4 py-3 font-semibold uppercase tracking-wide transition hover:border-sky-400/40 hover:text-sky-200 disabled:cursor-not-allowed disabled:opacity-60 ${isExportingMonthlyReport ? "pointer-events-none" : ""}`}
                 >
-                  Exportar informe mensual (PDF)
+                  {isExportingMonthlyReport ? "Preparando informe..." : "Exportar informe mensual (HTML/PDF)"}
                   <span aria-hidden>→</span>
                 </button>
               </div>
+
+              {latestApiKey ? (
+                <div className="space-y-2 rounded-2xl border border-sky-400/30 bg-sky-500/10 px-4 py-3 text-xs text-white/80">
+                  <p className="text-[11px] uppercase tracking-[0.3em] text-white/50">
+                    Clave API activa
+                  </p>
+                  <div className="flex flex-col gap-2 rounded-xl border border-white/10 bg-slate-950/50 p-3 sm:flex-row sm:items-center sm:justify-between">
+                    <code className="break-all font-mono text-[11px] text-sky-200">
+                      {latestApiKey}
+                    </code>
+                    <button
+                      type="button"
+                      onClick={handleCopyApiKey}
+                      className="inline-flex items-center justify-center rounded-full border border-white/20 px-3 py-1 text-[11px] font-semibold uppercase tracking-wide text-white/80 transition hover:border-sky-400/50 hover:text-sky-200"
+                    >
+                      {apiClipboardStatus === "copied" ? "Copiada" : "Copiar"}
+                    </button>
+                  </div>
+                  {apiClipboardStatus === "error" ? (
+                    <p className="text-[11px] text-rose-300">
+                      No se pudo copiar automáticamente. Selecciona la clave y cópiala manualmente.
+                    </p>
+                  ) : apiClipboardStatus === "copied" ? (
+                    <p className="text-[11px] text-emerald-300">La clave se copió al portapapeles.</p>
+                  ) : null}
+                </div>
+              ) : null}
+
+              {integrationStatus ? (
+                <p
+                  className={`text-xs ${integrationStatus.tone === "success" ? "text-emerald-300" : "text-rose-300"}`}
+                >
+                  {integrationStatus.message}
+                </p>
+              ) : null}
             </section>
 
             <footer className="space-y-3 border-t border-white/10 pt-4 text-sm text-white/70">

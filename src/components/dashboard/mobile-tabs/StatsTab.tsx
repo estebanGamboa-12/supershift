@@ -1,6 +1,8 @@
 import type { FC } from "react"
 import PlanningHealthCard from "@/components/dashboard/PlanningHealthCard"
 import ShiftDistribution from "@/components/dashboard/ShiftDistribution"
+import WeeklyShiftBalanceCard from "@/components/dashboard/WeeklyShiftBalanceCard"
+import type { WeeklyShiftSummary } from "@/lib/shiftStatistics"
 import type { ShiftType } from "@/types/shifts"
 
 type SummaryCard = {
@@ -16,6 +18,7 @@ type StatsTabProps = {
   activeShiftTypes: number
   typeCounts: Record<ShiftType, number>
   shiftTypeLabels: Record<ShiftType, string>
+  weeklyShiftSummaries: WeeklyShiftSummary[]
 }
 
 const StatsTab: FC<StatsTabProps> = ({
@@ -25,6 +28,7 @@ const StatsTab: FC<StatsTabProps> = ({
   activeShiftTypes,
   typeCounts,
   shiftTypeLabels,
+  weeklyShiftSummaries,
 }) => {
   return (
     <div className="flex flex-col gap-6">
@@ -53,6 +57,11 @@ const StatsTab: FC<StatsTabProps> = ({
         typeCounts={typeCounts}
         totalShifts={totalShiftCount}
         shiftTypeLabels={shiftTypeLabels}
+      />
+      <WeeklyShiftBalanceCard
+        summaries={weeklyShiftSummaries}
+        shiftTypeLabels={shiftTypeLabels}
+        maxWeeks={4}
       />
     </div>
   )

@@ -102,12 +102,12 @@ export default function ProfileSchedulingPreferencesCard({
       initial="hidden"
       animate="visible"
       transition={{ duration: 0.35, ease: "easeOut" }}
-      className="space-y-6 rounded-3xl border border-white/10 bg-slate-950/60 p-6 text-white shadow-xl shadow-black/40"
+      className="surface-card space-y-6 p-6 text-brand-text"
     >
       <header className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
         <div className="space-y-2">
           <h2 className="text-2xl font-semibold tracking-tight">Preferencias de programación</h2>
-          <p className="max-w-2xl text-sm text-white/70">
+          <p className="max-w-2xl text-sm text-brand-muted">
             Guarda tus respuestas para generar patrones alineados con tus objetivos. Puedes repetir el cuestionario cuando cambies de equipo o quieras preparar un nuevo ritmo de trabajo.
           </p>
         </div>
@@ -117,20 +117,20 @@ export default function ProfileSchedulingPreferencesCard({
               <button
                 type="button"
                 onClick={() => setMode("editing")}
-                className="inline-flex items-center gap-2 rounded-2xl border border-sky-400/60 bg-sky-500/80 px-4 py-2 font-semibold text-white transition hover:bg-sky-400/80 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:ring-offset-slate-900"
+                className="accent-action gap-2 px-4 py-2"
               >
                 Actualizar respuestas
               </button>
               <Link
                 href={builderUrl}
-                className="inline-flex items-center gap-2 rounded-2xl border border-white/20 bg-transparent px-4 py-2 font-semibold text-white/80 transition hover:border-white/40 hover:text-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:ring-offset-slate-900"
+                className="inline-flex items-center gap-2 rounded-2xl border border-white/20 bg-transparent px-4 py-2 font-semibold text-brand-muted transition hover:border-white/40 hover:text-brand-text focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:ring-offset-slate-900"
               >
                 Abrir constructor
               </Link>
               <button
                 type="button"
                 onClick={() => setMode("builder")}
-                className="inline-flex items-center gap-2 rounded-2xl border border-fuchsia-400/50 bg-fuchsia-500/20 px-4 py-2 font-semibold text-fuchsia-100 transition hover:bg-fuchsia-500/30 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:ring-offset-slate-900"
+                className="inline-flex items-center gap-2 rounded-2xl border border-brand-accent/40 bg-brand-accent/15 px-4 py-2 font-semibold text-brand-text transition hover:bg-brand-accent/25 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:ring-offset-slate-900"
               >
                 Repetir en línea
               </button>
@@ -138,7 +138,7 @@ export default function ProfileSchedulingPreferencesCard({
                 <button
                   type="button"
                   onClick={handleClear}
-                  className="inline-flex items-center gap-2 rounded-2xl border border-white/15 bg-transparent px-4 py-2 font-semibold text-white/60 transition hover:border-white/30 hover:text-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:ring-offset-slate-900"
+                  className="inline-flex items-center gap-2 rounded-2xl border border-white/15 bg-transparent px-4 py-2 font-semibold text-brand-muted transition hover:border-white/30 hover:text-brand-text focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:ring-offset-slate-900"
                 >
                   Limpiar respuestas
                 </button>

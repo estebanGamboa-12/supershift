@@ -117,7 +117,7 @@ export default function MobileAddShiftSheet({
   }
 
   return (
-    <div className="fixed inset-0 z-50 flex flex-col bg-slate-950/80 backdrop-blur-xl">
+    <div className="fixed inset-0 z-50 flex flex-col bg-brand-background/90 backdrop-blur-xl">
       {/* Fondo clickable para cerrar */}
       <button
         type="button"
@@ -129,49 +129,49 @@ export default function MobileAddShiftSheet({
       {/* Sheet */}
       <form
         onSubmit={handleSubmit}
-        className="mt-auto flex max-h-[85vh] w-full flex-col gap-4 overflow-y-auto rounded-t-4xl border border-white/10 bg-gradient-to-b from-slate-950/95 via-slate-950/90 to-slate-950/98 p-5 pb-[calc(1.25rem+env(safe-area-inset-bottom))] text-white shadow-[0_-30px_80px_rgba(56,189,248,0.25)] transition-transform duration-300 ease-out"
+        className="mt-auto flex max-h-[85vh] w-full flex-col gap-4 overflow-y-auto rounded-t-4xl border border-white/10 bg-gradient-to-b from-brand-background/95 via-[#121c30e6] to-[#0b1220f5] p-5 pb-[calc(1.25rem+env(safe-area-inset-bottom))] text-brand-text shadow-[0_-28px_85px_rgba(96,165,250,0.25)] transition-transform duration-300 ease-out"
       >
         {/* Drag handle */}
         <div className="mx-auto mb-1 h-1.5 w-16 rounded-full bg-white/25" />
 
         <div className="flex items-start justify-between">
           <div>
-            <p className="text-[11px] font-semibold uppercase tracking-[0.2em] text-sky-200/80">
+            <p className="text-[11px] font-semibold uppercase tracking-[0.2em] text-brand-accent/80">
               Nuevo turno
             </p>
-            <h2 className="text-2xl font-semibold text-white">Añadir rápidamente</h2>
+            <h2 className="text-2xl font-semibold text-brand-text">Añadir rápidamente</h2>
           </div>
           <button
             type="button"
             onClick={onClose}
-            className="rounded-full border border-white/20 bg-white/5 p-2 text-white/70 transition hover:border-white/40 hover:text-white focus-visible:border-white/60"
+            className="rounded-full border border-white/20 bg-white/5 p-2 text-brand-muted transition hover:border-white/40 hover:text-brand-text focus-visible:border-white/60"
           >
             ✕
           </button>
         </div>
 
-        <div className="flex items-center gap-3 rounded-2xl border border-sky-400/30 bg-gradient-to-r from-sky-500/20 via-blue-600/20 to-indigo-500/20 px-4 py-3 text-sm text-sky-100">
+        <div className="flex items-center gap-3 rounded-2xl border border-brand-accent/40 bg-gradient-to-r from-brand-accent/20 via-brand-primary/25 to-brand-primary/30 px-4 py-3 text-sm text-brand-text">
           <span aria-hidden className="text-lg">📆</span>
-          <span className="font-semibold text-sky-50">{selectedDateLabel}</span>
+          <span className="font-semibold text-brand-text">{selectedDateLabel}</span>
         </div>
 
         {/* Campos */}
-        <label className="flex flex-col gap-2 text-sm text-white/90">
+        <label className="flex flex-col gap-2 text-sm text-brand-muted">
           Fecha
           <input
             type="date"
             value={date}
             onChange={(event) => setDate(event.target.value)}
-            className="rounded-2xl border border-white/15 bg-slate-900/90 px-3.5 py-2.5 text-[15px] text-white shadow-inner shadow-sky-500/10 focus:border-sky-400 focus:outline-none focus:ring-2 focus:ring-sky-500/40"
+            className="rounded-2xl border border-white/15 bg-[rgba(18,28,48,0.88)] px-3.5 py-2.5 text-[15px] text-brand-text shadow-inner focus:border-brand-accent focus:outline-none focus:ring-2 focus:ring-brand-accent/40"
           />
         </label>
 
-        <label className="flex flex-col gap-2 text-sm text-white/90">
+        <label className="flex flex-col gap-2 text-sm text-brand-muted">
           Tipo de turno
           <select
             value={type}
             onChange={(event) => setType(event.target.value as ShiftType)}
-            className="rounded-2xl border border-white/15 bg-slate-900/90 px-3.5 py-2.5 text-[15px] text-white focus:border-indigo-400 focus:outline-none focus:ring-2 focus:ring-indigo-500/40"
+            className="rounded-2xl border border-white/15 bg-[rgba(18,28,48,0.88)] px-3.5 py-2.5 text-[15px] text-brand-text focus:border-brand-primary focus:outline-none focus:ring-2 focus:ring-brand-primary/40"
           >
             {Object.entries(SHIFT_TYPE_LABELS).map(([value, label]) => (
               <option key={value} value={value}>
@@ -182,36 +182,36 @@ export default function MobileAddShiftSheet({
         </label>
 
         <div className="grid grid-cols-2 gap-3">
-          <label className="flex flex-col gap-2 text-sm text-white/90">
+          <label className="flex flex-col gap-2 text-sm text-brand-muted">
             Hora de inicio
             <input
               type="time"
               value={startTime}
               onChange={(event) => setStartTime(event.target.value)}
-              className="rounded-2xl border border-white/15 bg-slate-900/90 px-3.5 py-2.5 text-[15px] text-white focus:border-sky-400 focus:outline-none focus:ring-2 focus:ring-sky-500/40"
+              className="rounded-2xl border border-white/15 bg-[rgba(18,28,48,0.88)] px-3.5 py-2.5 text-[15px] text-brand-text focus:border-brand-accent focus:outline-none focus:ring-2 focus:ring-brand-accent/40"
               required
             />
           </label>
-          <label className="flex flex-col gap-2 text-sm text-white/90">
+          <label className="flex flex-col gap-2 text-sm text-brand-muted">
             Hora de finalización
             <input
               type="time"
               value={endTime}
               onChange={(event) => setEndTime(event.target.value)}
-              className="rounded-2xl border border-white/15 bg-slate-900/90 px-3.5 py-2.5 text-[15px] text-white focus:border-sky-400 focus:outline-none focus:ring-2 focus:ring-sky-500/40"
+              className="rounded-2xl border border-white/15 bg-[rgba(18,28,48,0.88)] px-3.5 py-2.5 text-[15px] text-brand-text focus:border-brand-accent focus:outline-none focus:ring-2 focus:ring-brand-accent/40"
               required
             />
           </label>
         </div>
 
-        <label className="flex flex-col gap-2 text-sm text-white/90">
+        <label className="flex flex-col gap-2 text-sm text-brand-muted">
           Nota (opcional)
           <textarea
             value={note}
             onChange={(event) => setNote(event.target.value)}
             rows={3}
             placeholder="Añade recordatorios o detalles clave"
-            className="resize-none rounded-2xl border border-white/15 bg-slate-900/90 px-3.5 py-2.5 text-[15px] text-white placeholder:text-white/45 focus:border-indigo-400 focus:outline-none focus:ring-2 focus:ring-indigo-500/40"
+            className="resize-none rounded-2xl border border-white/15 bg-[rgba(18,28,48,0.88)] px-3.5 py-2.5 text-[15px] text-brand-text placeholder:text-brand-muted/70 focus:border-brand-primary focus:outline-none focus:ring-2 focus:ring-brand-primary/40"
           />
         </label>
 
@@ -223,7 +223,7 @@ export default function MobileAddShiftSheet({
           whileHover={{ scale: 1.01 }}
           type="submit"
           disabled={isSubmitting}
-          className="w-full rounded-2xl bg-gradient-to-r from-sky-500 via-blue-600 to-indigo-500 px-4 py-3.5 text-base font-semibold text-white shadow-lg shadow-sky-500/30 transition focus-visible:ring-2 focus-visible:ring-sky-400/60 disabled:opacity-60"
+          className="accent-action w-full px-4 py-3.5 text-base disabled:opacity-60"
         >
           {isSubmitting ? "Guardando..." : "Guardar turno"}
         </motion.button>

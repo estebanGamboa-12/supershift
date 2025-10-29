@@ -38,6 +38,14 @@ La importación crea dos cuentas listas para iniciar sesión en la aplicación:
 - **Admin Supershift** → correo `admin@supershift.local` y contraseña `admin123` (nombre heredado de la base de datos original).
 - **Esteban** → correo `esteban@example.com` y contraseña `supershift`.
 
+## Funcionalidades principales
+
+- **Calendario mensual y semanal interactivo**. Visualiza los turnos por colores para identificar rápidamente la carga de trabajo y los tipos de jornada.
+- **Panel del propietario**. Permite ver al equipo completo, asignar turnos y gestionar los roles disponibles.
+- **Modo de vista individual**. Cada usuario accede únicamente a sus turnos y al total de horas trabajadas.
+- **Plantillas de turnos y repetición automática (opcional)**. Acelera la creación de horarios recurrentes partiendo de configuraciones predefinidas.
+- **Historial de horas trabajadas y registro de asistencia diario**. Mantiene un seguimiento detallado de la actividad por empleado y facilita auditorías posteriores.
+
 ## Instalación de dependencias
 
 Instala las dependencias del proyecto (incluyendo `@supabase/supabase-js` para la conexión con Supabase):

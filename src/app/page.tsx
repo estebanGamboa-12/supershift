@@ -29,6 +29,7 @@ import {
   onUserPreferencesStorageChange,
   saveUserPreferences as persistUserPreferences,
 } from "@/lib/user-preferences"
+import { calculateWeeklyShiftSummaries } from "@/lib/shiftStatistics"
 import {
   CalendarTab,
   HistoryTab,
@@ -1678,6 +1679,9 @@ export default function Home() {
     [currentUser, parseJsonResponse, persistSession],
   )
 
+  const weekStartsOn: 0 | 1 =
+    userPreferences.startOfWeek === "monday" ? 1 : 0
+
   const orderedShifts = useMemo(
     () => sortByDate(shifts),
     [shifts, sortByDate]
@@ -1767,6 +1771,19 @@ export default function Home() {
       }))
       .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime())
   }, [orderedShifts])
+
+  const weeklyShiftSummaries = useMemo(
+    () =>
+      calculateWeeklyShiftSummaries(
+        orderedShifts.map((shift) => ({
+          date: shift.date,
+          durationMinutes: shift.durationMinutes,
+          type: shift.type,
+        })),
+        { weekStartsOn },
+      ),
+    [orderedShifts, weekStartsOn],
+  )
 
   const nextShiftCountdownLabel = useMemo(() => {
     if (daysUntilNextShift === null) {
@@ -2307,6 +2324,7 @@ export default function Home() {
                         activeShiftTypes={activeShiftTypes}
                         typeCounts={typeCounts}
                         shiftTypeLabels={SHIFT_TYPE_LABELS}
+                        weeklyShiftSummaries={weeklyShiftSummaries}
                       />
                     </div>
                   </section>
@@ -2503,16 +2521,17 @@ export default function Home() {
 
                   {activeTab === "insights" && (
                     <div className="space-y-5 sm:space-y-6">
-                      <StatsTab
-                        summaryCards={[]}
-                        currentMonthShiftCount={currentMonthShifts.length}
-                        totalShiftCount={orderedShifts.length}
-                        activeShiftTypes={activeShiftTypes}
-                        typeCounts={typeCounts}
-                        shiftTypeLabels={SHIFT_TYPE_LABELS}
-                      />
+                    <StatsTab
+                      summaryCards={[]}
+                      currentMonthShiftCount={currentMonthShifts.length}
+                      totalShiftCount={orderedShifts.length}
+                      activeShiftTypes={activeShiftTypes}
+                      typeCounts={typeCounts}
+                      shiftTypeLabels={SHIFT_TYPE_LABELS}
+                      weeklyShiftSummaries={weeklyShiftSummaries}
+                    />
 
-                      <HoursTab
+                    <HoursTab
                         entries={dailyHoursSummary}
                         shiftTypeLabels={SHIFT_TYPE_LABELS}
                       />

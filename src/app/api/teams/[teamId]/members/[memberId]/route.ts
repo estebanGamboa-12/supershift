@@ -6,6 +6,10 @@ import { getTeamDetails } from "../../../teamService"
 
 type RouteParams = Record<string, string | string[] | undefined>
 
+type RemoveMemberPayload = {
+  requesterId?: unknown
+}
+
 export const runtime = "nodejs"
 
 function sanitizeId(value: unknown): string | null {
@@ -36,12 +40,15 @@ export async function DELETE(
     )
   }
 
-  let payload: { requesterId?: unknown } | null = null
+  let payload: RemoveMemberPayload | null = null
 
   try {
     payload = await request.json()
   } catch {
-    payload = null
+    return NextResponse.json(
+      { error: "El cuerpo de la petición debe ser JSON" },
+      { status: 400 },
+    )
   }
 
   const requesterId = sanitizeId(payload?.requesterId)
@@ -60,32 +67,32 @@ export async function DELETE(
 
     if (!teamDetails) {
       return NextResponse.json(
-        { error: "No se encontró el equipo solicitado" },
+        { error: "No se encontró el equipo indicado" },
         { status: 404 },
       )
     }
 
-    if (teamDetails.ownerUserId !== requesterId) {
+    const requester = teamDetails.members.find((member) => member.id === requesterId)
+
+    if (!requester || requester.role !== "owner") {
       return NextResponse.json(
-        { error: "Solo el propietario puede eliminar miembros del equipo" },
+        { error: "Solo el propietario puede eliminar integrantes del equipo" },
         { status: 403 },
       )
     }
 
-    if (memberId === teamDetails.ownerUserId) {
+    if (memberId === requesterId) {
       return NextResponse.json(
-        { error: "El propietario no puede eliminarse a sí mismo" },
+        { error: "No puedes eliminar tu propio perfil del equipo" },
         { status: 400 },
       )
     }
 
-    const memberExists = teamDetails.members.some(
-      (member) => member.id === memberId,
-    )
+    const member = teamDetails.members.find((candidate) => candidate.id === memberId)
 
-    if (!memberExists) {
+    if (!member) {
       return NextResponse.json(
-        { error: "El usuario indicado no forma parte del equipo" },
+        { error: "El miembro seleccionado no forma parte del equipo" },
         { status: 404 },
       )
     }
@@ -102,12 +109,16 @@ export async function DELETE(
 
     const updatedTeam = await getTeamDetails(supabase, teamId)
 
-    return NextResponse.json({
-      success: true,
-      team: updatedTeam,
-    })
+    if (!updatedTeam) {
+      throw new Error(
+        "No se pudo recuperar el equipo después de eliminar al miembro",
+      )
+    }
+
+    return NextResponse.json({ team: updatedTeam })
   } catch (error) {
-    console.error("Error eliminando a un miembro del equipo", error)
+    console.error("Error eliminando miembro del equipo", error)
+
     return NextResponse.json(
       { error: "No se pudo eliminar al miembro del equipo" },
       { status: 500 },

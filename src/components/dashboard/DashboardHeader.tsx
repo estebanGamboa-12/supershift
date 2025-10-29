@@ -140,13 +140,16 @@ const DashboardHeader: FC<DashboardHeaderProps> = ({
                   className="pointer-events-none absolute -inset-[1px] rounded-2xl bg-gradient-to-r from-blue-500/60 via-indigo-500/60 to-sky-500/60 opacity-60 blur-sm transition duration-300 group-hover:opacity-90 group-focus-within:opacity-100"
                   aria-hidden
                 />
-                <div className="relative flex items-center gap-3 rounded-2xl border border-white/10 bg-slate-900/85 px-4 py-2.5 shadow-lg shadow-sky-500/30 backdrop-blur">
-                  <span className="inline-flex h-9 w-9 items-center justify-center rounded-xl bg-white/10 text-lg text-white">🔍</span>
+                <div className="relative flex items-center gap-3 overflow-hidden rounded-2xl border border-white/12 bg-[#141b2b]/90 px-4 py-2.5 shadow-[0_25px_60px_rgba(8,14,26,0.55)] transition duration-200 ease-out group-hover:border-sky-400/50 group-focus-within:border-sky-400/60">
+                  <div className="pointer-events-none absolute inset-0 opacity-0 transition duration-300 ease-out group-hover:opacity-70 group-focus-within:opacity-100" aria-hidden>
+                    <div className="absolute inset-0 bg-gradient-to-r from-sky-500/15 via-blue-600/15 to-indigo-500/15" />
+                  </div>
+                  <span className="relative inline-flex h-9 w-9 items-center justify-center rounded-xl bg-white/10 text-lg text-white shadow-[0_0_18px_rgba(59,130,246,0.35)]">🔍</span>
                   <input
                     ref={inputRef}
                     type="search"
                     placeholder="Buscar personas, turnos o notas..."
-                    className="flex-1 bg-transparent text-sm text-white placeholder:text-white/50 focus:outline-none"
+                    className="flex-1 bg-transparent text-sm text-white placeholder:text-white/55 outline-none focus-visible:outline-none focus-visible:ring-0"
                     value={searchQuery}
                     onChange={(event) => setSearchQuery(event.target.value)}
                     onKeyDown={(event) => {
@@ -156,7 +159,7 @@ const DashboardHeader: FC<DashboardHeaderProps> = ({
                     }}
                     aria-label="Buscar"
                   />
-                  <span className="pointer-events-none text-xs font-medium text-white/50">
+                  <span className="pointer-events-none text-xs font-medium text-white/60">
                     ⌘K
                   </span>
                 </div>
@@ -191,9 +194,13 @@ const DashboardHeader: FC<DashboardHeaderProps> = ({
                       ))}
                     </ul>
                   ) : (
-                    <p className="rounded-xl border border-dashed border-white/10 bg-white/5 px-4 py-5 text-center text-sm text-white/60">
-                      No se encontraron resultados.
-                    </p>
+                    <div className="flex flex-col items-center justify-center gap-3 rounded-xl border border-dashed border-white/10 bg-white/5 px-4 py-6 text-center">
+                      <span aria-hidden className="text-2xl">🌌</span>
+                      <p className="text-sm font-medium text-white/70">No se encontraron resultados.</p>
+                      <p className="text-xs text-white/50">
+                        Intenta con otro término o crea un nuevo turno al instante.
+                      </p>
+                    </div>
                   )}
                 </div>
               )}

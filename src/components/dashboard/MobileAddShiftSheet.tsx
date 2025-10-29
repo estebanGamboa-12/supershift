@@ -162,7 +162,7 @@ export default function MobileAddShiftSheet({
             type="date"
             value={date}
             onChange={(event) => setDate(event.target.value)}
-            className="rounded-2xl border border-white/15 bg-[rgba(18,28,48,0.88)] px-3.5 py-2.5 text-[15px] text-brand-text shadow-inner focus:border-brand-accent focus:outline-none focus:ring-2 focus:ring-brand-accent/40"
+            className="input-field text-[15px]"
           />
         </label>
 
@@ -171,7 +171,7 @@ export default function MobileAddShiftSheet({
           <select
             value={type}
             onChange={(event) => setType(event.target.value as ShiftType)}
-            className="rounded-2xl border border-white/15 bg-[rgba(18,28,48,0.88)] px-3.5 py-2.5 text-[15px] text-brand-text focus:border-brand-primary focus:outline-none focus:ring-2 focus:ring-brand-primary/40"
+            className="input-field text-[15px]"
           >
             {Object.entries(SHIFT_TYPE_LABELS).map(([value, label]) => (
               <option key={value} value={value}>
@@ -188,7 +188,7 @@ export default function MobileAddShiftSheet({
               type="time"
               value={startTime}
               onChange={(event) => setStartTime(event.target.value)}
-              className="rounded-2xl border border-white/15 bg-[rgba(18,28,48,0.88)] px-3.5 py-2.5 text-[15px] text-brand-text focus:border-brand-accent focus:outline-none focus:ring-2 focus:ring-brand-accent/40"
+              className="input-field text-[15px]"
               required
             />
           </label>
@@ -198,7 +198,7 @@ export default function MobileAddShiftSheet({
               type="time"
               value={endTime}
               onChange={(event) => setEndTime(event.target.value)}
-              className="rounded-2xl border border-white/15 bg-[rgba(18,28,48,0.88)] px-3.5 py-2.5 text-[15px] text-brand-text focus:border-brand-accent focus:outline-none focus:ring-2 focus:ring-brand-accent/40"
+              className="input-field text-[15px]"
               required
             />
           </label>
@@ -211,7 +211,7 @@ export default function MobileAddShiftSheet({
             onChange={(event) => setNote(event.target.value)}
             rows={3}
             placeholder="Añade recordatorios o detalles clave"
-            className="resize-none rounded-2xl border border-white/15 bg-[rgba(18,28,48,0.88)] px-3.5 py-2.5 text-[15px] text-brand-text placeholder:text-brand-muted/70 focus:border-brand-primary focus:outline-none focus:ring-2 focus:ring-brand-primary/40"
+            className="input-field resize-none text-[15px] placeholder:text-brand-muted/70"
           />
         </label>
 

@@ -4,6 +4,7 @@ import { useState, useMemo, useCallback, useEffect, useRef } from "react"
 import { useRouter } from "next/navigation"
 import { differenceInCalendarDays, format } from "date-fns"
 import { es } from "date-fns/locale"
+import { AnimatePresence, motion } from "framer-motion"
 import type { ShiftEvent, ShiftPluses, ShiftType } from "@/types/shifts"
 import EditShiftModal from "@/components/EditShiftModal"
 import type { ManualRotationDay } from "@/components/ManualRotationBuilder"
@@ -1814,6 +1815,7 @@ export default function Home() {
         title: "Turnos este mes",
         value: currentMonthShifts.length.toString(),
         description: "Programados",
+        icon: "🗓️",
       },
       {
         title: "Próximo turno",
@@ -1821,16 +1823,19 @@ export default function Home() {
           ? format(new Date(nextShift.date), "d MMM", { locale: es })
           : "Pendiente",
         description: nextShift ? nextShiftCountdownLabel : "Añade un turno",
+        icon: "⏰",
       },
       {
         title: "Tipos activos",
         value: activeShiftTypes.toString(),
         description: "Variaciones en uso",
+        icon: "📊",
       },
       {
         title: "Equipo",
         value: users.length > 0 ? `${users.length} miembros` : "Sin datos",
         description: "En Planloop",
+        icon: "👥",
       },
     ],
     [
@@ -2204,9 +2209,13 @@ export default function Home() {
   }
 
   return (
-    <div className="min-h-screen bg-slate-950 text-white">
-      <div className="mx-auto min-h-screen w-full max-w-[120rem] px-4 py-6 lg:px-8 lg:py-10">
-        <div className="flex min-h-full w-full flex-col gap-6">
+    <div className="relative min-h-screen overflow-hidden bg-slate-950 text-white">
+      <div
+        className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_10%_0%,rgba(59,130,246,0.18),transparent_55%),_radial-gradient(circle_at_80%_105%,rgba(139,92,246,0.2),transparent_60%),_radial-gradient(circle_at_50%_50%,rgba(59,130,246,0.12),transparent_65%)]"
+        aria-hidden
+      />
+      <div className="relative z-10 mx-auto min-h-screen w-full max-w-[120rem] px-4 py-6 lg:px-8 lg:py-10">
+        <div className="flex min-h-full w-full flex-col gap-7 lg:gap-8">
           <OfflineStatusBanner
             isOffline={isOffline}
             pendingCount={pendingShiftMutations}
@@ -2220,19 +2229,20 @@ export default function Home() {
             onNavigate={handleNavigateTab}
           />
           <div className="hidden lg:block">
-            <section
-            className="rounded-3xl border border-white/10 bg-slate-950/70 px-6 py-6 shadow-[0_45px_120px_-55px_rgba(37,99,235,0.65)]"
-          >
-            <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
-              <div>
-                <p className="text-sm text-white/60">Hola, {mobileGreeting}</p>
-                <h1 className="text-3xl font-semibold">Panel principal</h1>
-                <p className="mt-1 text-sm text-white/50">
-                  Supervisa tus turnos y el pulso de tu equipo desde un único lugar.
-                </p>
+            <section className="dashboard-section px-6 py-6">
+              <div className="pointer-events-none absolute inset-0 opacity-80" aria-hidden>
+                <div className="absolute inset-0 bg-[radial-gradient(circle_at_left_top,rgba(59,130,246,0.18),transparent_62%),_radial-gradient(circle_at_bottom_right,rgba(139,92,246,0.16),transparent_60%)]" />
               </div>
-              <div className="flex items-center gap-4">
-                <div className="text-right text-xs text-white/50">
+              <div className="relative flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
+                <div>
+                  <p className="text-sm text-white/60">Hola, {mobileGreeting}</p>
+                  <h1 className="text-3xl font-semibold">Panel principal</h1>
+                  <p className="mt-1 text-sm text-white/50">
+                    Supervisa tus turnos y el pulso de tu equipo desde un único lugar.
+                  </p>
+                </div>
+                <div className="flex items-center gap-4">
+                  <div className="text-right text-xs text-white/50">
                   <p className="text-sm font-semibold text-white">{currentUser.name}</p>
                   <p>{currentUser.email}</p>
                 </div>
@@ -2267,151 +2277,211 @@ export default function Home() {
         </div>
 
         <main className="flex-1 overflow-y-auto pb-[calc(6rem+env(safe-area-inset-bottom))] lg:pb-0">
-          <div className="mx-auto w-full max-w-[110rem] space-y-10 px-0 py-6 sm:px-2 lg:px-0">
-            <div className="hidden lg:flex lg:flex-col lg:gap-8">
-              {activeTab === "calendar" && (
-                <section className="rounded-3xl border border-white/10 bg-slate-950/70 p-5 sm:p-6">
-                  <header className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
-                    <div>
-                      <h2 className="text-2xl font-semibold">Calendario</h2>
-                      <p className="text-sm text-white/60">
-                        Visualiza y organiza tus turnos directamente en el calendario.
-                      </p>
+          <div className="mx-auto w-full max-w-[110rem] space-y-12 px-0 py-6 sm:px-2 lg:px-0">
+            <div className="hidden lg:flex lg:flex-col lg:gap-10">
+              <AnimatePresence mode="wait">
+                {activeTab === "calendar" && (
+                  <motion.section
+                    key="desktop-calendar"
+                    initial={{ opacity: 0, y: 24 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    exit={{ opacity: 0, y: -16 }}
+                    transition={{ duration: 0.18, ease: "easeOut" }}
+                    className="dashboard-section"
+                  >
+                    <div className="pointer-events-none absolute inset-0 opacity-75" aria-hidden>
+                      <div className="absolute inset-0 bg-[radial-gradient(circle_at_top_left,rgba(59,130,246,0.16),transparent_60%),_radial-gradient(circle_at_bottom_right,rgba(139,92,246,0.18),transparent_60%)]" />
                     </div>
-                    <button
-                      type="button"
-                      onClick={handleOpenMobileAdd}
-                      className="inline-flex items-center gap-2 rounded-full border border-white/15 px-4 py-2 text-xs font-bold uppercase tracking-wide text-white/80 transition hover:border-blue-400/40 hover:text-white"
-                    >
-                      <span aria-hidden className="text-base">＋</span>
-                      Añadir turno
-                    </button>
-                  </header>
+                    <div className="relative">
+                      <header className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
+                        <div>
+                          <h2 className="text-2xl font-semibold">Calendario</h2>
+                          <p className="text-sm text-white/60">
+                            Visualiza y organiza tus turnos directamente en el calendario.
+                          </p>
+                        </div>
+                        <button
+                          type="button"
+                          onClick={handleOpenMobileAdd}
+                          className="inline-flex items-center gap-2 rounded-full border border-white/15 px-4 py-2 text-xs font-bold uppercase tracking-wide text-white/80 transition hover:border-blue-400/40 hover:text-white"
+                        >
+                          <span aria-hidden className="text-base">＋</span>
+                          Añadir turno
+                        </button>
+                      </header>
 
-                  <div className="mt-6">
-                    <CalendarTab
-                      nextShift={nextShift ?? null}
-                      daysUntilNextShift={daysUntilNextShift}
-                      shiftTypeLabels={SHIFT_TYPE_LABELS}
-                      orderedShifts={orderedShifts}
-                      plannerDays={plannerDays}
-                      onCommitPlanner={handleManualRotationConfirm}
-                      isCommittingPlanner={isCommittingRotation}
-                      plannerError={rotationError}
-                      onSelectEvent={handleSelectShift}
-                    />
-                  </div>
-                </section>
-              )}
-
-              {activeTab === "insights" && (
-                <>
-                  <section className="rounded-3xl border border-white/10 bg-slate-950/70 p-5 sm:p-6">
-                    <header className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
-                      <div>
-                        <h2 className="text-2xl font-semibold">Indicadores clave</h2>
-                        <p className="text-sm text-white/60">
-                          Analiza la salud de tu planificación y los turnos programados.
-                        </p>
+                      <div className="mt-6">
+                        <CalendarTab
+                          nextShift={nextShift ?? null}
+                          daysUntilNextShift={daysUntilNextShift}
+                          shiftTypeLabels={SHIFT_TYPE_LABELS}
+                          orderedShifts={orderedShifts}
+                          plannerDays={plannerDays}
+                          onCommitPlanner={handleManualRotationConfirm}
+                          isCommittingPlanner={isCommittingRotation}
+                          plannerError={rotationError}
+                          onSelectEvent={handleSelectShift}
+                        />
                       </div>
-                    </header>
-
-                    <div className="mt-6">
-                      <StatsTab
-                        summaryCards={summaryCards}
-                        currentMonthShiftCount={currentMonthShifts.length}
-                        totalShiftCount={orderedShifts.length}
-                        activeShiftTypes={activeShiftTypes}
-                        typeCounts={typeCounts}
-                        shiftTypeLabels={SHIFT_TYPE_LABELS}
-                        weeklyShiftSummaries={weeklyShiftSummaries}
-                      />
                     </div>
-                  </section>
+                  </motion.section>
+                )}
 
-                  <section className="rounded-3xl border border-white/10 bg-slate-950/70 p-5 sm:p-6">
-                    <header className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
-                      <div>
-                        <h2 className="text-2xl font-semibold">Horas registradas</h2>
-                        <p className="text-sm text-white/60">
-                          Consulta el total de horas agrupadas por día y tipo de turno.
-                        </p>
+                {activeTab === "insights" && (
+                  <motion.div
+                    key="desktop-insights"
+                    initial={{ opacity: 0, y: 24 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    exit={{ opacity: 0, y: -16 }}
+                    transition={{ duration: 0.18, ease: "easeOut" }}
+                    className="flex flex-col gap-10"
+                  >
+                    <section className="dashboard-section">
+                      <div className="pointer-events-none absolute inset-0 opacity-80" aria-hidden>
+                        <div className="absolute inset-0 bg-[radial-gradient(circle_at_top_left,rgba(59,130,246,0.14),transparent_60%),_radial-gradient(circle_at_bottom_right,rgba(139,92,246,0.14),transparent_55%)]" />
                       </div>
-                    </header>
+                      <div className="relative">
+                        <header className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
+                          <div>
+                            <h2 className="text-2xl font-semibold">Indicadores clave</h2>
+                            <p className="text-sm text-white/60">
+                              Analiza la salud de tu planificación y los turnos programados.
+                            </p>
+                          </div>
+                        </header>
 
-                    <div className="mt-6">
-                      <HoursTab
-                        entries={dailyHoursSummary}
-                        shiftTypeLabels={SHIFT_TYPE_LABELS}
-                      />
-                    </div>
-                  </section>
-
-                  <section className="rounded-3xl border border-white/10 bg-slate-950/70 p-5 sm:p-6">
-                    <header className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
-                      <div>
-                        <h2 className="text-2xl font-semibold">Historial de cambios</h2>
-                        <p className="text-sm text-white/60">
-                          Revisa las modificaciones recientes y mantén el control del registro.
-                        </p>
+                        <div className="mt-6">
+                          <StatsTab
+                            summaryCards={summaryCards}
+                            currentMonthShiftCount={currentMonthShifts.length}
+                            totalShiftCount={orderedShifts.length}
+                            activeShiftTypes={activeShiftTypes}
+                            typeCounts={typeCounts}
+                            shiftTypeLabels={SHIFT_TYPE_LABELS}
+                            weeklyShiftSummaries={weeklyShiftSummaries}
+                          />
+                        </div>
                       </div>
-                    </header>
+                    </section>
 
-                    <div className="mt-6">
-                      <HistoryTab
-                        entries={shiftHistory}
-                        shiftTypeLabels={SHIFT_TYPE_LABELS}
-                      />
+                    <section className="dashboard-section">
+                      <div className="pointer-events-none absolute inset-0 opacity-75" aria-hidden>
+                        <div className="absolute inset-0 bg-[radial-gradient(circle_at_top,rgba(59,130,246,0.12),transparent_58%),_radial-gradient(circle_at_bottom_right,rgba(139,92,246,0.12),transparent_55%)]" />
+                      </div>
+                      <div className="relative">
+                        <header className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
+                          <div>
+                            <h2 className="text-2xl font-semibold">Horas registradas</h2>
+                            <p className="text-sm text-white/60">
+                              Consulta el total de horas agrupadas por día y tipo de turno.
+                            </p>
+                          </div>
+                        </header>
+
+                        <div className="mt-6">
+                          <HoursTab
+                            entries={dailyHoursSummary}
+                            shiftTypeLabels={SHIFT_TYPE_LABELS}
+                          />
+                        </div>
+                      </div>
+                    </section>
+
+                    <section className="dashboard-section">
+                      <div className="pointer-events-none absolute inset-0 opacity-75" aria-hidden>
+                        <div className="absolute inset-0 bg-[radial-gradient(circle_at_top_left,rgba(59,130,246,0.1),transparent_62%),_radial-gradient(circle_at_bottom_right,rgba(139,92,246,0.12),transparent_58%)]" />
+                      </div>
+                      <div className="relative">
+                        <header className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
+                          <div>
+                            <h2 className="text-2xl font-semibold">Historial de cambios</h2>
+                            <p className="text-sm text-white/60">
+                              Revisa las modificaciones recientes y mantén el control del registro.
+                            </p>
+                          </div>
+                        </header>
+
+                        <div className="mt-6">
+                          <HistoryTab
+                            entries={shiftHistory}
+                            shiftTypeLabels={SHIFT_TYPE_LABELS}
+                          />
+                        </div>
+                      </div>
+                    </section>
+                  </motion.div>
+                )}
+
+                {activeTab === "team" && (
+                  <motion.section
+                    key="desktop-team"
+                    initial={{ opacity: 0, y: 24 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    exit={{ opacity: 0, y: -16 }}
+                    transition={{ duration: 0.18, ease: "easeOut" }}
+                    className="dashboard-section"
+                  >
+                    <div className="pointer-events-none absolute inset-0 opacity-75" aria-hidden>
+                      <div className="absolute inset-0 bg-[radial-gradient(circle_at_top_left,rgba(59,130,246,0.12),transparent_58%),_radial-gradient(circle_at_bottom_right,rgba(139,92,246,0.12),transparent_55%)]" />
                     </div>
-                  </section>
-                </>
-              )}
+                    <div className="relative">
+                      <header className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
+                        <div>
+                          <h2 className="text-2xl font-semibold">Equipo conectado</h2>
+                          <p className="text-sm text-white/60">
+                            Anticípate a la disponibilidad del equipo y sus próximos turnos.
+                          </p>
+                        </div>
+                      </header>
 
-              {activeTab === "team" && (
-                <section className="rounded-3xl border border-white/10 bg-slate-950/70 p-5 sm:p-6">
-                  <header className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
-                    <div>
-                      <h2 className="text-2xl font-semibold">Equipo conectado</h2>
-                      <p className="text-sm text-white/60">
-                        Anticípate a la disponibilidad del equipo y sus próximos turnos.
-                      </p>
+                      <div className="mt-6">
+                        <TeamTab
+                          upcomingShifts={upcomingShifts}
+                          shiftTypeLabels={SHIFT_TYPE_LABELS}
+                          currentUser={currentUser}
+                        />
+                      </div>
                     </div>
-                  </header>
+                  </motion.section>
+                )}
 
-                  <div className="mt-6">
-                    <TeamTab
-                      upcomingShifts={upcomingShifts}
-                      shiftTypeLabels={SHIFT_TYPE_LABELS}
-                      currentUser={currentUser}
-                    />
-                  </div>
-                </section>
-              )}
-
-              {activeTab === "settings" && (
-                <section className="rounded-3xl border border-white/10 bg-slate-950/70 p-5 sm:p-6">
-                  <header className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
-                    <div>
-                      <h2 className="text-2xl font-semibold">Configuración</h2>
-                      <p className="text-sm text-white/60">
-                        Ajusta tus preferencias personales y la información de tu cuenta.
-                      </p>
+                {activeTab === "settings" && (
+                  <motion.section
+                    key="desktop-settings"
+                    initial={{ opacity: 0, y: 24 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    exit={{ opacity: 0, y: -16 }}
+                    transition={{ duration: 0.18, ease: "easeOut" }}
+                    className="dashboard-section"
+                  >
+                    <div className="pointer-events-none absolute inset-0 opacity-75" aria-hidden>
+                      <div className="absolute inset-0 bg-[radial-gradient(circle_at_top_left,rgba(59,130,246,0.12),transparent_58%),_radial-gradient(circle_at_bottom_right,rgba(139,92,246,0.14),transparent_55%)]" />
                     </div>
-                  </header>
+                    <div className="relative">
+                      <header className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
+                        <div>
+                          <h2 className="text-2xl font-semibold">Configuración</h2>
+                          <p className="text-sm text-white/60">
+                            Ajusta tus preferencias personales y la información de tu cuenta.
+                          </p>
+                        </div>
+                      </header>
 
-                  <div className="mt-6">
-                    <SettingsTab
-                      user={currentUser}
-                      preferences={userPreferences}
-                      onSave={handleSavePreferences}
-                      onUpdateProfile={handleUpdateProfile}
-                      isSaving={isSavingPreferences}
-                      lastSavedAt={preferencesSavedAt}
-                      onLogout={handleLogout}
-                    />
-                  </div>
-                </section>
-              )}
+                      <div className="mt-6">
+                        <SettingsTab
+                          user={currentUser}
+                          preferences={userPreferences}
+                          onSave={handleSavePreferences}
+                          onUpdateProfile={handleUpdateProfile}
+                          isSaving={isSavingPreferences}
+                          lastSavedAt={preferencesSavedAt}
+                          onLogout={handleLogout}
+                        />
+                      </div>
+                    </div>
+                  </motion.section>
+                )}
+              </AnimatePresence>
             </div>
 
               <div className="lg:hidden">
@@ -2420,8 +2490,11 @@ export default function Home() {
                     className="pointer-events-none absolute inset-x-4 top-0 h-full rounded-3xl bg-[radial-gradient(circle_at_top,_rgba(59,130,246,0.22),_transparent_65%)] blur-3xl"
                     aria-hidden
                   />
-                  <div className="relative mx-auto max-w-3xl overflow-hidden rounded-3xl border border-white/10 bg-slate-950/80 px-5 py-5 shadow-2xl shadow-blue-500/20 backdrop-blur">
-                    <div className="flex items-center justify-between gap-4">
+                  <div className="relative mx-auto max-w-3xl overflow-hidden rounded-3xl border border-white/10 bg-[rgba(13,18,32,0.82)] px-5 py-5 shadow-[0_35px_90px_-48px_rgba(59,130,246,0.75)] backdrop-blur-xl">
+                    <div className="pointer-events-none absolute inset-0 opacity-85" aria-hidden>
+                      <div className="absolute inset-0 bg-[radial-gradient(circle_at_top_left,rgba(59,130,246,0.18),transparent_60%),_radial-gradient(circle_at_bottom_right,rgba(139,92,246,0.18),transparent_58%)]" />
+                    </div>
+                    <div className="relative flex items-center justify-between gap-4">
                       <div>
                         <p className="text-xs font-semibold uppercase tracking-wide text-blue-200/80">
                           Tu panel hoy
@@ -2450,11 +2523,15 @@ export default function Home() {
                         </button>
                       </div>
                     </div>
-                    <p className="mt-4 text-sm text-white/70">
+                    <p className="relative mt-4 text-sm text-white/70">
                       Mantén el control de tus turnos con la misma experiencia premium que en escritorio.
                     </p>
-                    <div className="mt-4 grid grid-cols-2 gap-2.5 text-xs text-white/70">
-                      <div className="rounded-2xl border border-white/5 bg-white/5 px-3 py-3 shadow-inner shadow-blue-500/10">
+                    <div className="relative mt-4 grid grid-cols-2 gap-3 text-xs text-white/70">
+                      <div className="relative overflow-hidden rounded-2xl border border-white/10 bg-[#141b2b]/90 px-3 py-3 shadow-[0_18px_40px_-22px_rgba(59,130,246,0.55)]">
+                        <div className="pointer-events-none absolute inset-0 opacity-80" aria-hidden>
+                          <div className="absolute inset-0 bg-[radial-gradient(circle_at_top_left,rgba(59,130,246,0.18),transparent_65%),_radial-gradient(circle_at_bottom_right,rgba(139,92,246,0.18),transparent_60%)]" />
+                        </div>
+                        <span aria-hidden className="relative float-right text-lg">🗓️</span>
                         <p className="text-[11px] uppercase tracking-wide text-white/60">
                           Este mes
                         </p>
@@ -2465,7 +2542,11 @@ export default function Home() {
                           Turnos programados
                         </p>
                       </div>
-                      <div className="rounded-2xl border border-white/5 bg-white/5 px-3 py-3 shadow-inner shadow-blue-500/10">
+                      <div className="relative overflow-hidden rounded-2xl border border-white/10 bg-[#141b2b]/90 px-3 py-3 shadow-[0_18px_40px_-22px_rgba(59,130,246,0.55)]">
+                        <div className="pointer-events-none absolute inset-0 opacity-80" aria-hidden>
+                          <div className="absolute inset-0 bg-[radial-gradient(circle_at_top_left,rgba(59,130,246,0.15),transparent_60%),_radial-gradient(circle_at_bottom_right,rgba(139,92,246,0.15),transparent_58%)]" />
+                        </div>
+                        <span aria-hidden className="relative float-right text-lg">⏰</span>
                         <p className="text-[11px] uppercase tracking-wide text-white/60">
                           Próximo turno
                         </p>
@@ -2478,7 +2559,11 @@ export default function Home() {
                           {nextShiftCountdownLabel}
                         </p>
                       </div>
-                      <div className="rounded-2xl border border-white/5 bg-white/5 px-3 py-3 shadow-inner shadow-blue-500/10">
+                      <div className="relative overflow-hidden rounded-2xl border border-white/10 bg-[#141b2b]/90 px-3 py-3 shadow-[0_18px_40px_-22px_rgba(59,130,246,0.55)]">
+                        <div className="pointer-events-none absolute inset-0 opacity-80" aria-hidden>
+                          <div className="absolute inset-0 bg-[radial-gradient(circle_at_top_left,rgba(59,130,246,0.16),transparent_60%),_radial-gradient(circle_at_bottom_right,rgba(139,92,246,0.16),transparent_58%)]" />
+                        </div>
+                        <span aria-hidden className="relative float-right text-lg">📊</span>
                         <p className="text-[11px] uppercase tracking-wide text-white/60">
                           Tipos activos
                         </p>
@@ -2489,7 +2574,11 @@ export default function Home() {
                           Variaciones en uso
                         </p>
                       </div>
-                      <div className="rounded-2xl border border-white/5 bg-white/5 px-3 py-3 shadow-inner shadow-blue-500/10">
+                      <div className="relative overflow-hidden rounded-2xl border border-white/10 bg-[#141b2b]/90 px-3 py-3 shadow-[0_18px_40px_-22px_rgba(59,130,246,0.55)]">
+                        <div className="pointer-events-none absolute inset-0 opacity-80" aria-hidden>
+                          <div className="absolute inset-0 bg-[radial-gradient(circle_at_top_left,rgba(59,130,246,0.14),transparent_60%),_radial-gradient(circle_at_bottom_right,rgba(139,92,246,0.16),transparent_60%)]" />
+                        </div>
+                        <span aria-hidden className="relative float-right text-lg">👥</span>
                         <p className="text-[11px] uppercase tracking-wide text-white/60">
                           Equipo
                         </p>
@@ -2505,63 +2594,97 @@ export default function Home() {
                 </section>
 
                 <div className="mx-auto mt-4 flex w-full max-w-3xl flex-col gap-5 pb-[calc(5.5rem+env(safe-area-inset-bottom))] sm:mt-6 sm:gap-6 sm:pb-32">
-                  {activeTab === "calendar" && (
-                    <CalendarTab
-                      nextShift={nextShift ?? null}
-                      daysUntilNextShift={daysUntilNextShift}
-                      shiftTypeLabels={SHIFT_TYPE_LABELS}
-                      orderedShifts={orderedShifts}
-                      plannerDays={plannerDays}
-                      onCommitPlanner={handleManualRotationConfirm}
-                      isCommittingPlanner={isCommittingRotation}
-                      plannerError={rotationError}
-                      onSelectEvent={handleSelectShift}
-                    />
-                  )}
+                  <AnimatePresence mode="wait">
+                    {activeTab === "calendar" && (
+                      <motion.div
+                        key="mobile-calendar"
+                        initial={{ opacity: 0, y: 24 }}
+                        animate={{ opacity: 1, y: 0 }}
+                        exit={{ opacity: 0, y: -16 }}
+                        transition={{ duration: 0.18, ease: "easeOut" }}
+                        className="w-full"
+                      >
+                        <CalendarTab
+                          nextShift={nextShift ?? null}
+                          daysUntilNextShift={daysUntilNextShift}
+                          shiftTypeLabels={SHIFT_TYPE_LABELS}
+                          orderedShifts={orderedShifts}
+                          plannerDays={plannerDays}
+                          onCommitPlanner={handleManualRotationConfirm}
+                          isCommittingPlanner={isCommittingRotation}
+                          plannerError={rotationError}
+                          onSelectEvent={handleSelectShift}
+                        />
+                      </motion.div>
+                    )}
 
-                  {activeTab === "insights" && (
-                    <div className="space-y-5 sm:space-y-6">
-                    <StatsTab
-                      summaryCards={[]}
-                      currentMonthShiftCount={currentMonthShifts.length}
-                      totalShiftCount={orderedShifts.length}
-                      activeShiftTypes={activeShiftTypes}
-                      typeCounts={typeCounts}
-                      shiftTypeLabels={SHIFT_TYPE_LABELS}
-                      weeklyShiftSummaries={weeklyShiftSummaries}
-                    />
+                    {activeTab === "insights" && (
+                      <motion.div
+                        key="mobile-insights"
+                        initial={{ opacity: 0, y: 24 }}
+                        animate={{ opacity: 1, y: 0 }}
+                        exit={{ opacity: 0, y: -16 }}
+                        transition={{ duration: 0.18, ease: "easeOut" }}
+                        className="space-y-6"
+                      >
+                        <StatsTab
+                          summaryCards={summaryCards}
+                          currentMonthShiftCount={currentMonthShifts.length}
+                          totalShiftCount={orderedShifts.length}
+                          activeShiftTypes={activeShiftTypes}
+                          typeCounts={typeCounts}
+                          shiftTypeLabels={SHIFT_TYPE_LABELS}
+                          weeklyShiftSummaries={weeklyShiftSummaries}
+                        />
 
-                    <HoursTab
-                        entries={dailyHoursSummary}
-                        shiftTypeLabels={SHIFT_TYPE_LABELS}
-                      />
+                        <HoursTab
+                          entries={dailyHoursSummary}
+                          shiftTypeLabels={SHIFT_TYPE_LABELS}
+                        />
 
-                      <HistoryTab
-                        entries={shiftHistory}
-                        shiftTypeLabels={SHIFT_TYPE_LABELS}
-                      />
-                    </div>
-                  )}
+                        <HistoryTab
+                          entries={shiftHistory}
+                          shiftTypeLabels={SHIFT_TYPE_LABELS}
+                        />
+                      </motion.div>
+                    )}
 
-                  {activeTab === "team" && (
-                    <TeamTab
-                      upcomingShifts={upcomingShifts}
-                      shiftTypeLabels={SHIFT_TYPE_LABELS}
-                      currentUser={currentUser}
-                    />
-                  )}
+                    {activeTab === "team" && (
+                      <motion.div
+                        key="mobile-team"
+                        initial={{ opacity: 0, y: 24 }}
+                        animate={{ opacity: 1, y: 0 }}
+                        exit={{ opacity: 0, y: -16 }}
+                        transition={{ duration: 0.18, ease: "easeOut" }}
+                      >
+                        <TeamTab
+                          upcomingShifts={upcomingShifts}
+                          shiftTypeLabels={SHIFT_TYPE_LABELS}
+                          currentUser={currentUser}
+                        />
+                      </motion.div>
+                    )}
 
-                  {activeTab === "settings" && (
-                    <SettingsTab
-                      user={currentUser}
-                      preferences={userPreferences}
-                      onSave={handleSavePreferences}
-                      onUpdateProfile={handleUpdateProfile}
-                      isSaving={isSavingPreferences}
-                      lastSavedAt={preferencesSavedAt}
-                      onLogout={handleLogout}
-                    />
-                  )}
+                    {activeTab === "settings" && (
+                      <motion.div
+                        key="mobile-settings"
+                        initial={{ opacity: 0, y: 24 }}
+                        animate={{ opacity: 1, y: 0 }}
+                        exit={{ opacity: 0, y: -16 }}
+                        transition={{ duration: 0.18, ease: "easeOut" }}
+                      >
+                        <SettingsTab
+                          user={currentUser}
+                          preferences={userPreferences}
+                          onSave={handleSavePreferences}
+                          onUpdateProfile={handleUpdateProfile}
+                          isSaving={isSavingPreferences}
+                          lastSavedAt={preferencesSavedAt}
+                          onLogout={handleLogout}
+                        />
+                      </motion.div>
+                    )}
+                  </AnimatePresence>
                 </div>
               </div>
             </div>

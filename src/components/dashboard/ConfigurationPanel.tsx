@@ -792,10 +792,10 @@ const ConfigurationPanel: FC<ConfigurationPanelProps> = ({
       className={`relative overflow-hidden rounded-3xl border border-white/10 bg-slate-950/70 text-white shadow-[0_40px_90px_-35px_rgba(15,23,42,0.95)] ${className ?? ""}`}
     >
       <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_top,_rgba(59,130,246,0.18),transparent_60%),_radial-gradient(circle_at_bottom_right,_rgba(236,72,153,0.14),transparent_55%)]" />
-      <div className="relative space-y-6 p-4 sm:p-6">
+      <div className="relative space-y-8 p-4 sm:p-6">
         <form
           onSubmit={handleProfileSubmit}
-          className="space-y-6 rounded-3xl border border-white/10 bg-slate-950/60 p-4 sm:p-6"
+          className="space-y-7 rounded-3xl border border-white/10 bg-slate-950/60 p-4 sm:p-6"
         >
           <header className="flex flex-col gap-2 border-b border-white/10 pb-4 sm:flex-row sm:items-center sm:justify-between">
             <div>
@@ -815,8 +815,8 @@ const ConfigurationPanel: FC<ConfigurationPanelProps> = ({
 
           {user ? (
             <>
-              <div className="grid gap-6 lg:grid-cols-[1.05fr_0.95fr]">
-                <div className="space-y-4">
+              <div className="grid gap-7 lg:grid-cols-[1.05fr_0.95fr]">
+                <div className="space-y-5">
                   <label className="block">
                     <span className="text-xs uppercase tracking-wide text-white/40">
                       Nombre completo
@@ -870,7 +870,7 @@ const ConfigurationPanel: FC<ConfigurationPanelProps> = ({
                   </p>
                 </div>
 
-                <div className="flex flex-col items-center gap-4 rounded-2xl border border-white/10 bg-slate-950/50 p-4 sm:p-5">
+                <div className="flex flex-col items-center gap-5 rounded-2xl border border-white/10 bg-slate-950/50 p-4 sm:p-5">
                   {renderAvatar(
                     avatarPreview,
                     profileForm.name || user.name || user.email,
@@ -936,7 +936,7 @@ const ConfigurationPanel: FC<ConfigurationPanelProps> = ({
                 </div>
               </div>
 
-              <footer className="flex flex-col gap-3 border-t border-white/10 pt-4 text-sm text-white/70 sm:flex-row sm:items-center sm:justify-between">
+              <footer className="flex flex-col gap-4 border-t border-white/10 pt-4 text-sm text-white/70 sm:flex-row sm:items-center sm:justify-between">
                 <div>
                   {profileError ? (
                     <p className="text-sm text-rose-300">{profileError}</p>
@@ -953,7 +953,7 @@ const ConfigurationPanel: FC<ConfigurationPanelProps> = ({
                 <button
                   type="submit"
                   disabled={!canEditProfile || isSavingProfile}
-                  className="inline-flex items-center justify-center rounded-full bg-gradient-to-r from-sky-500 to-indigo-500 px-5 py-2 text-xs font-semibold uppercase tracking-wide text-white shadow shadow-sky-500/30 transition hover:brightness-110 disabled:cursor-not-allowed disabled:opacity-60"
+                  className="inline-flex items-center justify-center rounded-full bg-gradient-to-r from-sky-500 to-indigo-500 px-5 py-2 text-xs font-bold uppercase tracking-wide text-white shadow shadow-sky-500/30 transition hover:brightness-110 disabled:cursor-not-allowed disabled:opacity-60"
                 >
                   {isSavingProfile ? "Guardando..." : "Guardar perfil"}
                 </button>
@@ -968,9 +968,9 @@ const ConfigurationPanel: FC<ConfigurationPanelProps> = ({
 
         <form
           onSubmit={handlePreferencesSubmit}
-          className="grid gap-6 rounded-3xl border border-white/10 bg-slate-950/60 p-4 sm:p-6 lg:grid-cols-[1.1fr_0.9fr]"
+          className="grid gap-7 rounded-3xl border border-white/10 bg-slate-950/60 p-4 sm:p-6 lg:grid-cols-[1.1fr_0.9fr]"
         >
-          <section className="space-y-4">
+          <section className="space-y-5">
             <header className="flex flex-col gap-2 border-b border-white/10 pb-4 sm:flex-row sm:items-center sm:justify-between">
               <div>
                 <p className="text-[11px] uppercase tracking-[0.35em] text-white/40">
@@ -987,7 +987,7 @@ const ConfigurationPanel: FC<ConfigurationPanelProps> = ({
               ) : null}
             </header>
 
-            <div className="space-y-3 rounded-2xl border border-white/10 bg-slate-950/50 p-4">
+            <div className="space-y-4 rounded-2xl border border-white/10 bg-slate-950/50 p-4">
               <p className="text-xs uppercase tracking-wide text-white/40">
                 Inicio de semana
               </p>
@@ -1012,7 +1012,7 @@ const ConfigurationPanel: FC<ConfigurationPanelProps> = ({
               </p>
             </div>
 
-            <div className="space-y-3 rounded-2xl border border-white/10 bg-slate-950/50 p-4">
+            <div className="space-y-4 rounded-2xl border border-white/10 bg-slate-950/50 p-4">
               <p className="text-xs uppercase tracking-wide text-white/40">Tema</p>
               <div className="grid gap-2 text-sm text-white/70 sm:grid-cols-3">
                 {(["system", "light", "dark"] as const).map((option) => (
@@ -1040,13 +1040,13 @@ const ConfigurationPanel: FC<ConfigurationPanelProps> = ({
             </div>
           </section>
 
-          <aside className="space-y-4 rounded-2xl border border-white/10 bg-slate-950/50 p-4 sm:p-5">
-            <section className="space-y-3">
+          <aside className="space-y-5 rounded-2xl border border-white/10 bg-slate-950/50 p-4 sm:p-5">
+            <section className="space-y-4">
               <header>
                 <p className="text-xs uppercase tracking-[0.35em] text-white/40">
                   Notificaciones
                 </p>
-                <h3 className="mt-2 text-lg font-semibold text-white">
+                <h3 className="mt-3 text-xl font-semibold text-white">
                   Mantente informado
                 </h3>
               </header>
@@ -1093,12 +1093,12 @@ const ConfigurationPanel: FC<ConfigurationPanelProps> = ({
               </div>
             </section>
 
-            <section className="space-y-3">
+            <section className="space-y-4">
               <header>
                 <p className="text-xs uppercase tracking-[0.35em] text-white/40">
                   Integraciones
                 </p>
-                <h3 className="mt-2 text-lg font-semibold text-white">
+                <h3 className="mt-3 text-xl font-semibold text-white">
                   Conecta tus herramientas
                 </h3>
               </header>

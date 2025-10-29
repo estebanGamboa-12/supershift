@@ -14,9 +14,9 @@ const ShiftDistribution: FC<ShiftDistributionProps> = ({
 }) => {
   return (
     <div className="rounded-3xl border border-white/10 bg-white/5 p-6 shadow-xl shadow-blue-500/10">
-      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+      <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
         <div>
-          <h3 className="text-lg font-semibold">Distribución de turnos</h3>
+          <h3 className="text-xl font-semibold">Distribución de turnos</h3>
           <p className="text-sm text-white/60">
             Mantén el equilibrio entre trabajo y descanso con una visión rápida de los tipos de turno planificados.
           </p>

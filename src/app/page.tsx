@@ -2281,7 +2281,7 @@ export default function Home() {
                     <button
                       type="button"
                       onClick={handleOpenMobileAdd}
-                      className="inline-flex items-center gap-2 rounded-full border border-white/15 px-4 py-2 text-xs font-semibold uppercase tracking-wide text-white/80 transition hover:border-blue-400/40 hover:text-white"
+                      className="inline-flex items-center gap-2 rounded-full border border-white/15 px-4 py-2 text-xs font-bold uppercase tracking-wide text-white/80 transition hover:border-blue-400/40 hover:text-white"
                     >
                       <span aria-hidden className="text-base">＋</span>
                       Añadir turno
@@ -2434,7 +2434,7 @@ export default function Home() {
                         <button
                           type="button"
                           onClick={handleOpenMobileAdd}
-                          className="inline-flex items-center gap-2 rounded-2xl border border-blue-400/40 bg-gradient-to-br from-blue-500/40 to-indigo-500/40 px-4 py-2 text-sm font-semibold uppercase tracking-wide text-white shadow-lg shadow-blue-500/30 transition hover:from-blue-400/50 hover:to-indigo-400/50 focus:outline-none focus:ring-2 focus:ring-blue-400/60"
+                          className="inline-flex items-center gap-2 rounded-2xl border border-blue-400/40 bg-gradient-to-br from-blue-500/40 to-indigo-500/40 px-4 py-2 text-sm font-bold uppercase tracking-wide text-white shadow-lg shadow-blue-500/30 transition hover:from-blue-400/50 hover:to-indigo-400/50 focus:outline-none focus:ring-2 focus:ring-blue-400/60"
                         >
                           <span aria-hidden className="text-lg font-bold leading-none">
                             +

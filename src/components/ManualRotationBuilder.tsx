@@ -66,49 +66,49 @@ function InlineCalendar({ selectedDates, onSelectDate }: InlineCalendarProps) {
 
   return (
     <div className="space-y-4">
-      <header className="flex flex-col gap-3 rounded-2xl border border-white/10 bg-slate-950/40 p-4 sm:flex-row sm:items-center sm:justify-between">
+      <header className="surface-card--muted flex flex-col gap-3 p-4 sm:flex-row sm:items-center sm:justify-between">
         <div className="inline-flex items-center gap-2 text-xs sm:text-[13px]">
           <button
             type="button"
             onClick={goToPreviousMonth}
-            className="rounded-full border border-white/10 bg-white/5 px-3 py-1 font-semibold text-white/70 transition hover:border-sky-400/60 hover:text-sky-200"
+            className="rounded-full border border-white/10 bg-white/5 px-3 py-1 font-semibold text-brand-muted transition hover:border-brand-accent/60 hover:text-brand-text"
           >
             Ant.
           </button>
           <button
             type="button"
             onClick={goToToday}
-            className="rounded-full border border-sky-500/60 bg-sky-500/80 px-4 py-1.5 font-semibold text-white shadow-sm transition hover:bg-sky-500"
+            className="accent-action rounded-full px-4 py-1.5 text-xs font-semibold sm:text-[13px]"
           >
             Hoy
           </button>
           <button
             type="button"
             onClick={goToNextMonth}
-            className="rounded-full border border-white/10 bg-white/5 px-3 py-1 font-semibold text-white/70 transition hover:border-sky-400/60 hover:text-sky-200"
+            className="rounded-full border border-white/10 bg-white/5 px-3 py-1 font-semibold text-brand-muted transition hover:border-brand-accent/60 hover:text-brand-text"
           >
             Sig.
           </button>
         </div>
 
         <div className="text-right">
-          <p className="text-base font-semibold text-white sm:text-lg">
+          <p className="text-base font-semibold text-brand-text sm:text-lg">
             {formatCompactMonth(currentMonth)}
           </p>
-          <p className="text-[11px] uppercase tracking-[0.35em] text-white/40">Calendario</p>
+          <p className="text-[11px] uppercase tracking-[0.35em] text-brand-muted/70">Calendario</p>
         </div>
       </header>
 
-      <div className="overflow-hidden rounded-3xl border border-white/5 bg-slate-900/60">
-        <div className="grid grid-cols-7 gap-px border-b border-white/5 bg-slate-900/60 text-[11px] font-semibold uppercase tracking-wide text-white/60 sm:text-xs">
+      <div className="overflow-hidden rounded-3xl border border-white/10 bg-[rgba(15,24,40,0.65)]">
+        <div className="grid grid-cols-7 gap-px border-b border-white/10 bg-[rgba(15,24,40,0.65)] text-[11px] font-semibold uppercase tracking-wide text-brand-muted sm:text-xs">
           {weekdays.map((day) => (
-            <div key={day} className="bg-slate-950/40 py-2 text-center">
+            <div key={day} className="bg-[rgba(11,18,32,0.85)] py-2 text-center">
               {day}
             </div>
           ))}
         </div>
 
-        <div className="grid grid-cols-7 grid-rows-6 gap-px bg-slate-900/50">
+        <div className="grid grid-cols-7 grid-rows-6 gap-px bg-[rgba(12,20,34,0.6)]">
           {calendarDays.map((day) => {
             const key = format(day, "yyyy-MM-dd")
             const isSelected = selectedKeys.has(key)
@@ -120,20 +120,20 @@ function InlineCalendar({ selectedDates, onSelectDate }: InlineCalendarProps) {
                 key={key}
                 type="button"
                 onClick={() => onSelectDate(day)}
-                className={`flex h-full flex-col gap-1 rounded-2xl border border-transparent p-3 text-left transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sky-400/70 ${
-                  isCurrentMonth ? "text-white/90" : "text-white/40"
-                } ${
-                  isSelected
-                    ? "bg-sky-500/20 text-sky-200 shadow-[0_8px_24px_rgba(14,165,233,0.25)]"
-                    : "bg-slate-950/40 hover:border-sky-400/30 hover:bg-slate-900/60"
-                }`}
-              >
-                <span
-                  className={`flex h-7 w-7 items-center justify-center rounded-full text-sm font-semibold transition ${
-                    isCurrentDay
+                  className={`flex h-full flex-col gap-1 rounded-2xl border border-transparent p-3 text-left transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-accent/70 ${
+                    isCurrentMonth ? "text-white/90" : "text-white/40"
+                  } ${
+                    isSelected
+                      ? "bg-brand-accent/25 text-brand-text shadow-[0_8px_24px_rgba(96,165,250,0.35)]"
+                      : "bg-[rgba(11,18,32,0.65)] hover:border-brand-accent/30 hover:bg-[rgba(14,25,42,0.75)]"
+                  }`}
+                >
+                  <span
+                    className={`flex h-7 w-7 items-center justify-center rounded-full text-sm font-semibold transition ${
+                      isCurrentDay
                       ? "bg-fuchsia-500 text-white shadow-lg shadow-fuchsia-500/50"
                       : "bg-white/5 text-white/80"
-                  } ${isSelected ? "ring-2 ring-sky-300" : ""}`}
+                    } ${isSelected ? "ring-2 ring-brand-accent/60" : ""}`}
                 >
                   {format(day, "d")}
                 </span>

@@ -177,7 +177,12 @@ const DEFAULT_SHIFT_START_TIME = "09:00"
 const DEFAULT_SHIFT_END_TIME = "17:00"
 
 const HISTORY_STORAGE_KEY = "planloop:shift-history"
+const HISTORY_STORAGE_VERSION = 2
 const MAX_HISTORY_ENTRIES = 100
+
+const isRecord = (value: unknown): value is Record<string, unknown> => {
+  return Boolean(value) && typeof value === "object" && !Array.isArray(value)
+}
 
 type ShiftSnapshot = {
   date: string
@@ -198,6 +203,89 @@ type ShiftHistoryEntry = {
   timestamp: string
   before?: ShiftSnapshot | null
   after?: ShiftSnapshot | null
+}
+
+type StoredHistoryPayload = {
+  version: number
+  byUser: Record<string, ShiftHistoryEntry[]>
+}
+
+const DEFAULT_STORED_HISTORY: StoredHistoryPayload = {
+  version: HISTORY_STORAGE_VERSION,
+  byUser: {},
+}
+
+function loadHistoryFromStorage(): StoredHistoryPayload {
+  if (typeof window === "undefined") {
+    return DEFAULT_STORED_HISTORY
+  }
+
+  try {
+    const raw = window.localStorage.getItem(HISTORY_STORAGE_KEY)
+    if (!raw) {
+      return DEFAULT_STORED_HISTORY
+    }
+
+    const parsed = JSON.parse(raw) as unknown
+    if (!parsed || Array.isArray(parsed) || !isRecord(parsed)) {
+      return DEFAULT_STORED_HISTORY
+    }
+
+    const byUserRaw = (parsed as { byUser?: unknown }).byUser
+    const byUser: Record<string, ShiftHistoryEntry[]> = {}
+
+    if (isRecord(byUserRaw)) {
+      for (const [userId, entries] of Object.entries(byUserRaw)) {
+        if (Array.isArray(entries)) {
+          byUser[userId] = (entries as ShiftHistoryEntry[]).slice(
+            0,
+            MAX_HISTORY_ENTRIES,
+          )
+        }
+      }
+    }
+
+    return { version: HISTORY_STORAGE_VERSION, byUser }
+  } catch (error) {
+    console.error("No se pudo recuperar el historial guardado", error)
+    return DEFAULT_STORED_HISTORY
+  }
+}
+
+function persistHistoryToStorage(payload: StoredHistoryPayload): void {
+  if (typeof window === "undefined") {
+    return
+  }
+
+  try {
+    window.localStorage.setItem(
+      HISTORY_STORAGE_KEY,
+      JSON.stringify({
+        version: HISTORY_STORAGE_VERSION,
+        byUser: payload.byUser,
+      }),
+    )
+  } catch (error) {
+    console.error("No se pudo guardar el historial de cambios", error)
+  }
+}
+
+function updateHistoryInStorage(
+  userId: string,
+  entries: ShiftHistoryEntry[],
+): void {
+  if (typeof window === "undefined") {
+    return
+  }
+
+  const payload = loadHistoryFromStorage()
+  if (entries.length > 0) {
+    payload.byUser[userId] = entries.slice(0, MAX_HISTORY_ENTRIES)
+  } else {
+    delete payload.byUser[userId]
+  }
+
+  persistHistoryToStorage(payload)
 }
 
 const SESSION_STORAGE_KEY = "planloop:session"
@@ -387,25 +475,7 @@ export default function Home() {
     useState<ActionFeedbackState | null>(null)
   const actionFeedbackTimeoutRef =
     useRef<ReturnType<typeof setTimeout> | null>(null)
-  const [shiftHistory, setShiftHistory] = useState<ShiftHistoryEntry[]>(() => {
-    if (typeof window === "undefined") {
-      return []
-    }
-    try {
-      const stored = window.localStorage.getItem(HISTORY_STORAGE_KEY)
-      if (!stored) {
-        return []
-      }
-      const parsed = JSON.parse(stored) as ShiftHistoryEntry[] | null
-      if (!Array.isArray(parsed)) {
-        return []
-      }
-      return parsed.slice(0, MAX_HISTORY_ENTRIES)
-    } catch (error) {
-      console.error("No se pudo recuperar el historial guardado", error)
-      return []
-    }
-  })
+  const [shiftHistory, setShiftHistory] = useState<ShiftHistoryEntry[]>([])
 
   const supabase = useMemo(() => {
     if (typeof window === "undefined") {
@@ -625,18 +695,12 @@ export default function Home() {
   }, [])
 
   useEffect(() => {
-    if (typeof window === "undefined") {
+    if (!currentUser) {
       return
     }
-    try {
-      window.localStorage.setItem(
-        HISTORY_STORAGE_KEY,
-        JSON.stringify(shiftHistory.slice(0, MAX_HISTORY_ENTRIES)),
-      )
-    } catch (error) {
-      console.error("No se pudo guardar el historial de cambios", error)
-    }
-  }, [shiftHistory])
+
+    updateHistoryInStorage(currentUser.id, shiftHistory)
+  }, [currentUser, shiftHistory])
 
   const createSnapshot = useCallback((shift: ShiftEvent): ShiftSnapshot => {
     return {
@@ -731,6 +795,21 @@ export default function Home() {
   useEffect(() => {
     restoreSession()
   }, [restoreSession])
+
+  useEffect(() => {
+    if (typeof window === "undefined") {
+      return
+    }
+
+    if (!currentUser) {
+      setShiftHistory([])
+      return
+    }
+
+    const stored = loadHistoryFromStorage()
+    const entries = stored.byUser[currentUser.id] ?? []
+    setShiftHistory(entries.slice(0, MAX_HISTORY_ENTRIES))
+  }, [currentUser])
 
   const persistSession = useCallback((user: UserSummary) => {
     if (typeof window === "undefined") {
@@ -1968,6 +2047,9 @@ export default function Home() {
         }
         const ordered = sortByDate(data)
         setShifts(ordered)
+        if (ordered.length === 0) {
+          setShiftHistory([])
+        }
         persistShiftsSnapshot(userId, ordered)
         setIsOffline(false)
         setLastSyncError(null)

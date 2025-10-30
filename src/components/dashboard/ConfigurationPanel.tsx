@@ -282,7 +282,17 @@ const ConfigurationPanel: FC<ConfigurationPanelProps> = ({
     }
   }
 
+  function resetPreferenceFeedback() {
+    if (status !== "idle") {
+      setStatus("idle")
+    }
+    if (errorMessage) {
+      setErrorMessage(null)
+    }
+  }
+
   function handleToggle(field: keyof UserPreferences["notifications"]) {
+    resetPreferenceFeedback()
     setPreferences((current) => ({
       ...current,
       notifications: {
@@ -300,6 +310,7 @@ const ConfigurationPanel: FC<ConfigurationPanelProps> = ({
   }
 
   function handleThemeChange(theme: UserPreferences["theme"]) {
+    resetPreferenceFeedback()
     setPreferences((current) => ({
       ...current,
       theme,
@@ -307,6 +318,7 @@ const ConfigurationPanel: FC<ConfigurationPanelProps> = ({
   }
 
   function handleStartOfWeekChange(startOfWeek: UserPreferences["startOfWeek"]) {
+    resetPreferenceFeedback()
     setPreferences((current) => ({
       ...current,
       startOfWeek,

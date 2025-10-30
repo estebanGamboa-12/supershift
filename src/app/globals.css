@@ -8,6 +8,7 @@
   --brand-surface-soft: rgba(16, 24, 40, 0.78);
   --brand-primary: #3b82f6;
   --brand-accent: #60a5fa;
+  --brand-violet: #8b5cf6;
   --brand-text: #f1f5f9;
   --brand-muted: #d1d5db;
   --brand-glow: 0 32px 90px -48px rgba(96, 165, 250, 0.45),
@@ -18,10 +19,12 @@
 body {
   font-family: system-ui, sans-serif;
   background-color: var(--brand-background);
-  background-image: radial-gradient(circle at 12% 18%, rgba(96, 165, 250, 0.2), transparent 60%),
-    radial-gradient(circle at 82% -10%, rgba(96, 196, 213, 0.18), transparent 55%),
-    radial-gradient(circle at 48% 102%, rgba(59, 130, 246, 0.16), transparent 60%),
-    linear-gradient(180deg, rgba(13, 21, 38, 0.92), var(--brand-background));
+  background-image: radial-gradient(circle at 14% 18%, rgba(59, 130, 246, 0.3), transparent 58%),
+    radial-gradient(circle at 82% -10%, rgba(139, 92, 246, 0.28), transparent 55%),
+    radial-gradient(circle at 50% 105%, rgba(56, 189, 248, 0.22), transparent 60%),
+    radial-gradient(circle at 12% 82%, rgba(59, 130, 246, 0.16), transparent 58%),
+    linear-gradient(180deg, rgba(11, 18, 32, 0.95), var(--brand-background));
+  background-attachment: fixed;
   color: var(--brand-text);
 }
 
@@ -65,6 +68,41 @@ body {
     box-shadow: var(--brand-soft-glow);
   }
 
+  .input-field {
+    @apply w-full rounded-2xl border border-white/10 bg-[#141b2b]/90 px-4 py-2.5 text-sm text-white placeholder:text-white/60 shadow-[inset_0_1px_0_rgba(148,163,184,0.12)] transition-all duration-200 ease-out focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sky-400/70 focus-visible:border-sky-400/70 focus-visible:shadow-[0_0_0_3px_rgba(59,130,246,0.4)];
+    background-image: linear-gradient(135deg, rgba(59, 130, 246, 0.08), rgba(139, 92, 246, 0.05));
+  }
+
+  select.input-field {
+    @apply appearance-none pr-10;
+    background-image: linear-gradient(135deg, rgba(59, 130, 246, 0.08), rgba(139, 92, 246, 0.05)),
+      linear-gradient(45deg, transparent 50%, rgba(241, 245, 249, 0.4) 50%),
+      linear-gradient(135deg, rgba(241, 245, 249, 0.4) 50%, transparent 50%);
+    background-position: 0 0, calc(100% - 20px) calc(50% - 3px), calc(100% - 15px) calc(50% - 3px);
+    background-size: auto, 6px 6px, 6px 6px;
+    background-repeat: no-repeat;
+  }
+
+  .configuration-panel input:not([type="checkbox"]):not([type="file"]),
+  .configuration-panel select,
+  .configuration-panel textarea {
+    @apply input-field mt-2;
+  }
+
+  .configuration-panel select {
+    @apply pr-10;
+    background-image: linear-gradient(135deg, rgba(59, 130, 246, 0.08), rgba(139, 92, 246, 0.05)),
+      linear-gradient(45deg, transparent 50%, rgba(241, 245, 249, 0.4) 50%),
+      linear-gradient(135deg, rgba(241, 245, 249, 0.4) 50%, transparent 50%);
+    background-position: 0 0, calc(100% - 20px) calc(50% - 3px), calc(100% - 15px) calc(50% - 3px);
+    background-size: auto, 6px 6px, 6px 6px;
+    background-repeat: no-repeat;
+  }
+
+  .configuration-panel textarea {
+    @apply resize-none;
+  }
+
   .accent-action {
     @apply inline-flex items-center justify-center rounded-2xl px-4 py-2 font-semibold text-white transition;
     background: linear-gradient(135deg, var(--brand-accent), var(--brand-primary));
@@ -78,6 +116,12 @@ body {
   .accent-action:focus-visible {
     outline: 2px solid rgba(96, 196, 213, 0.8);
     outline-offset: 4px;
+  }
+}
+
+@layer utilities {
+  .dashboard-section {
+    @apply relative overflow-hidden rounded-3xl border border-white/10 bg-[rgba(13,18,32,0.8)] p-5 shadow-[0_55px_140px_-70px_rgba(59,130,246,0.55)] transition-all duration-150 ease-out sm:p-6;
   }
 }
 
@@ -148,6 +192,19 @@ body {
   animation: loaderParticleFloat linear infinite;
   animation-duration: var(--particle-duration, 6s);
   animation-delay: var(--particle-delay, 0s);
+}
+
+@keyframes inputFieldGlow {
+  0% {
+    box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.4), 0 0 18px rgba(56, 189, 248, 0.25);
+  }
+  100% {
+    box-shadow: 0 0 0 4px rgba(139, 92, 246, 0.45), 0 0 26px rgba(59, 130, 246, 0.45);
+  }
+}
+
+.input-field:focus-visible {
+  animation: inputFieldGlow 1.2s ease-in-out infinite alternate;
 }
 
 @keyframes loaderRingGlow {

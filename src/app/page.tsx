@@ -1911,7 +1911,7 @@ export default function Home() {
       },
       {
         title: "Equipo",
-        value: users.length > 0 ? `${users.length} miembros` : "Sin datos",
+        value: "Equipo activo",
         description: "En Planloop",
         icon: "👥",
       },
@@ -1921,7 +1921,6 @@ export default function Home() {
       currentMonthShifts.length,
       nextShift,
       nextShiftCountdownLabel,
-      users.length,
     ]
   )
 
@@ -2658,7 +2657,7 @@ export default function Home() {
                           Equipo
                         </p>
                         <p className="mt-1 text-base font-semibold text-white">
-                          {users.length > 0 ? `${users.length} miembros` : "Sin datos"}
+                          Equipo activo
                         </p>
                         <p className="mt-1 text-[11px] text-white/50">
                           Activos en Planloop

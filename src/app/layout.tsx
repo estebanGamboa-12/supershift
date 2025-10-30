@@ -34,7 +34,7 @@ export const viewport: Viewport = {
 export default function RootLayout({ children }: { children: ReactNode }) {
   return (
     <html lang="es" className="h-full">
-      <body className="min-h-screen bg-slate-950 text-slate-100 antialiased">
+      <body className="min-h-screen overflow-x-hidden bg-slate-950 text-slate-100 antialiased">
         {children}
         <InstallPromptBanner />
         <ServiceWorkerRegistration />

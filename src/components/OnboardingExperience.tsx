@@ -37,6 +37,8 @@ const SHIFT_TYPE_LABELS: Record<ShiftType, string> = {
 
 type StepKey = "shift" | "invite"
 
+type InviteMode = "link" | "manual"
+
 type StepDefinition = {
   key: StepKey
   title: string
@@ -56,6 +58,19 @@ const STEP_DEFINITIONS: StepDefinition[] = [
     title: "Invita a tus compañeros",
     description: "Comparte un enlace seguro para que se unan al equipo.",
     icon: Send,
+  },
+]
+
+const INVITE_MODE_OPTIONS: { key: InviteMode; label: string; description: string }[] = [
+  {
+    key: "link",
+    label: "Compartir enlace",
+    description: "Genera un enlace seguro para que tu equipo se una cuando quiera.",
+  },
+  {
+    key: "manual",
+    label: "Gestionar manualmente",
+    description: "Registra a cada compañero desde el panel principal sin usar enlaces.",
   },
 ]
 
@@ -115,6 +130,8 @@ export default function OnboardingExperience({ userId }: OnboardingExperiencePro
   const [isGeneratingInvite, setIsGeneratingInvite] = useState<boolean>(false)
   const [remainingSpots, setRemainingSpots] = useState<number | null>(null)
   const [copyState, setCopyState] = useState<"idle" | "copied" | "error">("idle")
+  const [inviteMode, setInviteMode] = useState<InviteMode>("link")
+  const [manualInviteCompleted, setManualInviteCompleted] = useState(false)
 
   useEffect(() => {
     if (typeof window === "undefined") {
@@ -346,6 +363,7 @@ export default function OnboardingExperience({ userId }: OnboardingExperiencePro
     setIsGeneratingInvite(true)
     setInviteError(null)
     setInviteNotice(null)
+    setManualInviteCompleted(false)
 
     try {
       const response = await fetch(`/api/teams/${encodeURIComponent(team.id)}/invite-link`, {
@@ -410,12 +428,25 @@ export default function OnboardingExperience({ userId }: OnboardingExperiencePro
     }
   }, [inviteUrl])
 
+  const handleManualInviteCompletion = useCallback(() => {
+    setInviteError(null)
+    setManualInviteCompleted(true)
+    setInviteNotice(
+      "Has marcado este paso como gestionado manualmente. Siempre podrás invitar a más personas desde el panel principal.",
+    )
+  }, [])
+
+  const handleManualInviteReset = useCallback(() => {
+    setManualInviteCompleted(false)
+    setInviteNotice(null)
+  }, [])
+
   const completedSteps: Record<StepKey, boolean> = useMemo(
     () => ({
       shift: Boolean(createdShift),
-      invite: Boolean(invite),
+      invite: Boolean(invite) || manualInviteCompleted,
     }),
-    [createdShift, invite],
+    [createdShift, invite, manualInviteCompleted],
   )
 
   const renderStepper = () => (
@@ -636,63 +667,164 @@ export default function OnboardingExperience({ userId }: OnboardingExperiencePro
         </div>
       ) : teamError ? (
         <div className="rounded-2xl border border-red-400/40 bg-red-500/10 p-4 text-sm text-red-100">{teamError}</div>
-      ) : !team ? (
-        <div className="rounded-2xl border border-white/10 bg-white/5 p-4 text-sm text-white/70">
-          La creación de equipos forma parte de Supershift Premium. Ponte en contacto con nosotros para activar esta funcionalidad y
-          poder invitar a tus compañeros.
-        </div>
-      ) : !isOwner ? (
-        <div className="rounded-2xl border border-white/10 bg-white/5 p-4 text-sm text-white/70">
-          Solo el propietario del equipo puede generar enlaces de invitación. Solicita acceso a la persona que creó el equipo.
-        </div>
       ) : (
-        <div className="space-y-5">
-          <div className="rounded-2xl border border-white/10 bg-white/5 p-4 text-sm text-white/80">
-            <p>
-              Espacios disponibles: {spotsLeft ?? "-"} de {team.memberLimit}. Comparte el enlace solo con compañeros de confianza.
-            </p>
-          </div>
-
-          <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
-            <button
-              type="button"
-              onClick={handleGenerateInvite}
-              disabled={isGeneratingInvite}
-              className="inline-flex items-center gap-2 rounded-xl bg-sky-500 px-4 py-2 text-sm font-semibold text-white shadow-lg shadow-sky-500/30 transition hover:bg-sky-400 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-sky-200 disabled:cursor-not-allowed disabled:opacity-70"
-            >
-              {isGeneratingInvite ? <Loader2 className="h-4 w-4 animate-spin" aria-hidden /> : null}
-              {isGeneratingInvite ? "Generando enlace..." : invite ? "Obtener enlace actualizado" : "Generar enlace"}
-            </button>
-
-            {invite && (
-              <button
-                type="button"
-                onClick={handleCopyInvite}
-                className="inline-flex items-center gap-2 rounded-xl border border-white/20 px-4 py-2 text-sm font-semibold text-white transition hover:border-sky-400 hover:text-sky-200 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-sky-200"
-              >
-                <ClipboardCopy className="h-4 w-4" aria-hidden />
-                {copyState === "copied"
-                  ? "Copiado"
-                  : copyState === "error"
-                    ? "No se pudo copiar"
-                    : "Copiar enlace"}
-              </button>
-            )}
-          </div>
-
-          {invite && (
-            <div className="rounded-2xl border border-emerald-400/40 bg-emerald-500/10 p-4 text-sm text-emerald-100 break-words">
-              <p className="font-semibold text-emerald-100">Enlace de invitación</p>
-              <p className="mt-1 text-emerald-100/80">{inviteUrl}</p>
-              <p className="mt-2 text-emerald-100/70">
-                Creado el {new Date(invite.createdAt).toLocaleString()}. {invite.uses} de {invite.maxUses} usos consumidos.
-              </p>
-              {invite.expiresAt ? (
-                <p className="text-emerald-100/70">Caduca el {new Date(invite.expiresAt).toLocaleString()}.</p>
-              ) : (
-                <p className="text-emerald-100/70">Sin fecha de caducidad establecida.</p>
-              )}
+        <div className="space-y-6">
+          {!team ? (
+            <div className="rounded-2xl border border-white/10 bg-white/5 p-4 text-sm text-white/70">
+              La creación de equipos forma parte de Supershift Premium. Ponte en contacto con nosotros para activar esta
+              funcionalidad y poder invitar a tus compañeros.
             </div>
+          ) : (
+            <>
+              <div className="space-y-3">
+                <p className="text-xs font-semibold uppercase tracking-wide text-white/50">¿Cómo quieres continuar?</p>
+                <div className="grid gap-3 sm:grid-cols-2">
+                  {INVITE_MODE_OPTIONS.map((option) => {
+                    const isActive = inviteMode === option.key
+                    return (
+                      <button
+                        key={option.key}
+                        type="button"
+                        onClick={() => setInviteMode(option.key)}
+                        aria-pressed={isActive}
+                        className={`group rounded-2xl border p-4 text-left transition focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-sky-300 ${
+                          isActive
+                            ? "border-sky-400/80 bg-sky-500/10 shadow-lg shadow-sky-500/20"
+                            : "border-white/10 bg-white/5 hover:border-white/20"
+                        }`}
+                      >
+                        <p className="text-sm font-semibold text-white">{option.label}</p>
+                        <p className="mt-1 text-sm text-white/60">{option.description}</p>
+                      </button>
+                    )
+                  })}
+                </div>
+              </div>
+
+              {inviteMode === "link" ? (
+                !isOwner ? (
+                  <div className="rounded-2xl border border-sky-400/40 bg-sky-500/10 p-4 text-sm text-sky-100">
+                    Solo los propietarios pueden generar enlaces de invitación. Pide al propietario que comparta el acceso con el
+                    equipo o cambia a la opción de gestión manual.
+                  </div>
+                ) : (
+                  <div className="space-y-5">
+                    <div className="rounded-2xl border border-white/10 bg-white/5 p-4 text-sm text-white/80">
+                      <p>
+                        Espacios disponibles: {spotsLeft ?? "-"} de {team.memberLimit}. Comparte el enlace solo con compañeros de
+                        confianza.
+                      </p>
+                    </div>
+
+                    <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
+                      <button
+                        type="button"
+                        onClick={handleGenerateInvite}
+                        disabled={isGeneratingInvite}
+                        className="inline-flex items-center gap-2 rounded-xl bg-sky-500 px-4 py-2 text-sm font-semibold text-white shadow-lg shadow-sky-500/30 transition hover:bg-sky-400 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-sky-200 disabled:cursor-not-allowed disabled:opacity-70"
+                      >
+                        {isGeneratingInvite ? <Loader2 className="h-4 w-4 animate-spin" aria-hidden /> : null}
+                        {isGeneratingInvite ? "Generando enlace..." : invite ? "Obtener enlace actualizado" : "Generar enlace"}
+                      </button>
+
+                      {invite && (
+                        <button
+                          type="button"
+                          onClick={handleCopyInvite}
+                          className="inline-flex items-center gap-2 rounded-xl border border-white/20 px-4 py-2 text-sm font-semibold text-white transition hover:border-sky-400 hover:text-sky-200 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-sky-200"
+                        >
+                          <ClipboardCopy className="h-4 w-4" aria-hidden />
+                          {copyState === "copied"
+                            ? "Copiado"
+                            : copyState === "error"
+                              ? "No se pudo copiar"
+                              : "Copiar enlace"}
+                        </button>
+                      )}
+                    </div>
+
+                    {invite && (
+                      <div className="rounded-2xl border border-emerald-400/40 bg-emerald-500/10 p-4 text-sm text-emerald-100 break-words">
+                        <p className="font-semibold text-emerald-100">Enlace de invitación</p>
+                        <p className="mt-1 text-emerald-100/80">{inviteUrl}</p>
+                        <p className="mt-2 text-emerald-100/70">
+                          Creado el {new Date(invite.createdAt).toLocaleString()}. {invite.uses} de {invite.maxUses} usos
+                          consumidos.
+                        </p>
+                        {invite.expiresAt ? (
+                          <p className="text-emerald-100/70">Caduca el {new Date(invite.expiresAt).toLocaleString()}.</p>
+                        ) : (
+                          <p className="text-emerald-100/70">Sin fecha de caducidad establecida.</p>
+                        )}
+                      </div>
+                    )}
+                  </div>
+                )
+              ) : (
+                <div className="space-y-6 rounded-3xl border border-white/10 bg-slate-950/60 p-6 text-white">
+                  <div className="space-y-2">
+                    <h3 className="text-xl font-semibold text-white">Gestiona las incorporaciones manualmente</h3>
+                    <p className="text-sm text-white/70">
+                      Si prefieres controlar cada alta personalmente, añade a tus compañeros desde el panel principal sin
+                      compartir enlaces públicos.
+                    </p>
+                    {!isOwner ? (
+                      <p className="text-sm text-sky-100/80">
+                        Necesitarás pedir al propietario que te habilite permisos o que ejecute estos pasos.
+                      </p>
+                    ) : null}
+                  </div>
+
+                  <ol className="space-y-3 text-sm text-white/70">
+                    {["Ve al panel principal y abre la sección Equipo.", "Añade a cada persona indicando su correo y rol.", "Confirma los permisos y guarda los cambios para activar su acceso."].map((step, index) => (
+                      <li key={step} className="flex items-start gap-3">
+                        <span className="flex h-7 w-7 items-center justify-center rounded-full bg-sky-500/20 text-sm font-semibold text-sky-200">
+                          {index + 1}
+                        </span>
+                        <span>{step}</span>
+                      </li>
+                    ))}
+                  </ol>
+
+                  <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
+                    <button
+                      type="button"
+                      onClick={handleManualInviteCompletion}
+                      disabled={manualInviteCompleted}
+                      className="inline-flex items-center gap-2 rounded-xl bg-emerald-500 px-4 py-2 text-sm font-semibold text-emerald-950 shadow-lg shadow-emerald-500/30 transition hover:bg-emerald-400 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-emerald-200 disabled:cursor-not-allowed disabled:opacity-70"
+                    >
+                      <CheckCircle2 className="h-4 w-4" aria-hidden />
+                      {manualInviteCompleted ? "Paso marcado como completado" : "Marcar paso como completado"}
+                    </button>
+
+                    {manualInviteCompleted ? (
+                      <button
+                        type="button"
+                        onClick={handleManualInviteReset}
+                        className="inline-flex items-center gap-2 rounded-xl border border-white/20 px-4 py-2 text-sm font-semibold text-white transition hover:border-sky-400 hover:text-sky-200 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-sky-200"
+                      >
+                        Deshacer
+                      </button>
+                    ) : (
+                      <button
+                        type="button"
+                        onClick={() => setInviteMode("link")}
+                        className="inline-flex items-center gap-2 rounded-xl border border-white/20 px-4 py-2 text-sm font-semibold text-white transition hover:border-sky-400 hover:text-sky-200 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-sky-200"
+                      >
+                        Prefiero compartir un enlace
+                      </button>
+                    )}
+                  </div>
+
+                  {manualInviteCompleted ? (
+                    <div className="rounded-2xl border border-emerald-400/40 bg-emerald-500/10 p-4 text-sm text-emerald-100">
+                      Recuerda que puedes volver a esta pantalla cuando quieras para cambiar de estrategia o generar un enlace de
+                      invitación.
+                    </div>
+                  ) : null}
+                </div>
+              )}
+            </>
           )}
         </div>
       )}

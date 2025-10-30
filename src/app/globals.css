@@ -69,7 +69,7 @@ body {
   }
 
   .input-field {
-    @apply w-full rounded-2xl border border-white/12 bg-[#141b2b]/90 px-4 py-2.5 text-sm text-white placeholder:text-white/60 shadow-[inset_0_1px_0_rgba(148,163,184,0.12)] transition-all duration-200 ease-out focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sky-400/70 focus-visible:border-sky-400/70 focus-visible:shadow-[0_0_0_3px_rgba(59,130,246,0.4)];
+    @apply w-full rounded-2xl border border-white/10 bg-[#141b2b]/90 px-4 py-2.5 text-sm text-white placeholder:text-white/60 shadow-[inset_0_1px_0_rgba(148,163,184,0.12)] transition-all duration-200 ease-out focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sky-400/70 focus-visible:border-sky-400/70 focus-visible:shadow-[0_0_0_3px_rgba(59,130,246,0.4)];
     background-image: linear-gradient(135deg, rgba(59, 130, 246, 0.08), rgba(139, 92, 246, 0.05));
   }
 

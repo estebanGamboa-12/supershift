@@ -121,7 +121,15 @@ body {
 
 @layer utilities {
   .dashboard-section {
-    @apply relative overflow-hidden rounded-3xl border border-white/10 bg-[rgba(13,18,32,0.8)] p-5 shadow-[0_55px_140px_-70px_rgba(59,130,246,0.55)] transition-all duration-150 ease-out sm:p-6;
+    @apply relative overflow-hidden rounded-3xl bg-[rgba(13,18,32,0.8)] p-5 shadow-[0_55px_140px_-70px_rgba(59,130,246,0.55)] transition-all duration-150 ease-out sm:p-6;
+  }
+}
+
+@layer components {
+  .no-card-borders .border,
+  .no-card-borders [class*="border-"] {
+    border-width: 0 !important;
+    border-color: transparent !important;
   }
 }
 

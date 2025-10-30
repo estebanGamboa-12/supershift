@@ -23,7 +23,6 @@ import type { UserSummary } from "@/types/users"
 import type { Session } from "@supabase/supabase-js"
 import { getSupabaseBrowserClient } from "@/lib/supabase"
 import { exchangeAccessToken } from "@/lib/auth-client"
-import { loadStoredPreferences } from "@/lib/preferences-storage"
 import {
   applyThemePreference,
   loadUserPreferences as loadProfilePreferences,
@@ -2106,20 +2105,8 @@ export default function Home() {
       setCurrentUser(sanitized)
       persistSession(sanitized)
 
-      if (typeof window !== "undefined") {
-        const storedPreferences = loadStoredPreferences()
-        if (!storedPreferences) {
-          const params = new URLSearchParams()
-          if (sanitized.calendarId) {
-            params.set("calendarId", String(sanitized.calendarId))
-          }
-          params.set("userId", sanitized.id)
-          const query = params.toString()
-          router.push(`/onboarding${query ? `?${query}` : ""}`)
-        }
-      }
     },
-    [clearSession, persistSession, router],
+    [clearSession, persistSession],
   )
 
   const synchronizeSupabaseSession = useCallback(

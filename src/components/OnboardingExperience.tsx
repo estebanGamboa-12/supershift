@@ -14,9 +14,9 @@ import {
   Circle,
   ClipboardCopy,
   Loader2,
-  Users,
   CalendarPlus,
   Send,
+  type LucideIcon,
 } from "lucide-react"
 
 import type { ShiftType } from "@/types/shifts"
@@ -35,22 +35,16 @@ const SHIFT_TYPE_LABELS: Record<ShiftType, string> = {
   CUSTOM: "Personalizado",
 }
 
-type StepKey = "team" | "shift" | "invite"
+type StepKey = "shift" | "invite"
 
 type StepDefinition = {
   key: StepKey
   title: string
   description: string
-  icon: typeof Users
+  icon: LucideIcon
 }
 
 const STEP_DEFINITIONS: StepDefinition[] = [
-  {
-    key: "team",
-    title: "Crea tu equipo",
-    description: "Define el nombre del equipo y conviértete en su propietario.",
-    icon: Users,
-  },
   {
     key: "shift",
     title: "Programa tu primer turno",
@@ -94,17 +88,14 @@ function formatDateInput(date: Date): string {
 }
 
 export default function OnboardingExperience({ userId }: OnboardingExperienceProps) {
-  const [currentStep, setCurrentStep] = useState<StepKey>("team")
+  const [currentStep, setCurrentStep] = useState<StepKey>("shift")
   const [autoNavigationEnabled, setAutoNavigationEnabled] = useState(true)
 
   const [origin, setOrigin] = useState<string>("")
 
   const [team, setTeam] = useState<TeamDetails | null>(null)
-  const [teamName, setTeamName] = useState<string>("")
   const [teamError, setTeamError] = useState<string | null>(null)
-  const [teamNotice, setTeamNotice] = useState<string | null>(null)
   const [isLoadingTeam, setIsLoadingTeam] = useState<boolean>(false)
-  const [isCreatingTeam, setIsCreatingTeam] = useState<boolean>(false)
 
   const [shiftForm, setShiftForm] = useState<ShiftFormState>(() => ({
     date: formatDateInput(new Date()),
@@ -137,25 +128,20 @@ export default function OnboardingExperience({ userId }: OnboardingExperiencePro
       return
     }
 
-    if (!team) {
-      setCurrentStep("team")
-      return
-    }
-
     if (!createdShift) {
       setCurrentStep("shift")
       return
     }
 
     setCurrentStep("invite")
-  }, [autoNavigationEnabled, team, createdShift])
+  }, [autoNavigationEnabled, createdShift])
 
   useEffect(() => {
     if (!userId) {
       setTeam(null)
       setInvite(null)
       setRemainingSpots(null)
-      setTeamName("")
+      setTeamError(null)
       setIsLoadingTeam(false)
       return
     }
@@ -165,7 +151,6 @@ export default function OnboardingExperience({ userId }: OnboardingExperiencePro
     const loadTeam = async () => {
       setIsLoadingTeam(true)
       setTeamError(null)
-      setTeamNotice(null)
       try {
         const response = await fetch(`/api/teams?userId=${encodeURIComponent(userId)}`, {
           cache: "no-store",
@@ -191,14 +176,10 @@ export default function OnboardingExperience({ userId }: OnboardingExperiencePro
         const fetchedTeam = data && "team" in data ? data.team ?? null : null
         setTeam(fetchedTeam)
         setInvite(fetchedTeam?.invite ?? null)
-        setTeamName(fetchedTeam?.name ?? "")
         const computedSpots = fetchedTeam
           ? Math.max(0, fetchedTeam.memberLimit - fetchedTeam.members.length)
           : null
         setRemainingSpots(computedSpots)
-        if (fetchedTeam) {
-          setTeamNotice(`Ya formas parte del equipo ${fetchedTeam.name}`)
-        }
       } catch (error) {
         if (cancelled) {
           return
@@ -267,63 +248,6 @@ export default function OnboardingExperience({ userId }: OnboardingExperiencePro
 
     return Math.max(0, team.memberLimit - team.members.length)
   }, [remainingSpots, team])
-
-  const handleTeamNameChange = useCallback((event: ChangeEvent<HTMLInputElement>) => {
-    setTeamName(event.target.value)
-  }, [])
-
-  const handleCreateTeam = useCallback(
-    async (event: FormEvent<HTMLFormElement>) => {
-      event.preventDefault()
-      if (!userId) {
-        setTeamError("Debes iniciar sesión para crear un equipo")
-        return
-      }
-
-      if (!teamName.trim()) {
-        setTeamError("El nombre del equipo es obligatorio")
-        return
-      }
-
-      setIsCreatingTeam(true)
-      setTeamError(null)
-      setTeamNotice(null)
-
-      try {
-        const response = await fetch("/api/teams", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ ownerId: userId, name: teamName.trim() }),
-        })
-
-        const data = (await response.json().catch(() => null)) as
-          | { team: TeamDetails }
-          | { error?: string }
-          | null
-
-        if (!response.ok || !data || !("team" in data)) {
-          throw new Error(
-            (data && "error" in data && typeof data.error === "string"
-              ? data.error
-              : null) ?? "No se pudo crear el equipo",
-          )
-        }
-
-        setTeam(data.team)
-        setInvite(data.team.invite ?? null)
-        setRemainingSpots(Math.max(0, data.team.memberLimit - data.team.members.length))
-        setTeamNotice(`Equipo ${data.team.name} creado correctamente`)
-        setAutoNavigationEnabled(true)
-      } catch (error) {
-        const message =
-          error instanceof Error ? error.message : "No se pudo crear el equipo"
-        setTeamError(message)
-      } finally {
-        setIsCreatingTeam(false)
-      }
-    },
-    [teamName, userId],
-  )
 
   const handleShiftFieldChange = useCallback(
     (event: ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
@@ -409,8 +333,13 @@ export default function OnboardingExperience({ userId }: OnboardingExperiencePro
   )
 
   const handleGenerateInvite = useCallback(async () => {
-    if (!team || !userId) {
-      setInviteError("Debes completar los pasos anteriores antes de invitar a tu equipo")
+    if (!userId) {
+      setInviteError("Debes iniciar sesión para generar invitaciones")
+      return
+    }
+
+    if (!team) {
+      setInviteError("Necesitas un equipo activo de Supershift Premium para generar invitaciones")
       return
     }
 
@@ -483,11 +412,10 @@ export default function OnboardingExperience({ userId }: OnboardingExperiencePro
 
   const completedSteps: Record<StepKey, boolean> = useMemo(
     () => ({
-      team: Boolean(team),
       shift: Boolean(createdShift),
       invite: Boolean(invite),
     }),
-    [createdShift, invite, team],
+    [createdShift, invite],
   )
 
   const renderStepper = () => (
@@ -496,8 +424,7 @@ export default function OnboardingExperience({ userId }: OnboardingExperiencePro
         const Icon = step.icon
         const isActive = currentStep === step.key
         const isCompleted = completedSteps[step.key]
-        const isLocked =
-          step.key === "shift" ? !team : step.key === "invite" ? !team || !createdShift : false
+        const isLocked = step.key === "invite" ? !createdShift : false
 
         return (
           <button
@@ -537,93 +464,6 @@ export default function OnboardingExperience({ userId }: OnboardingExperiencePro
     </nav>
   )
 
-  const renderTeamStep = () => (
-    <section className="space-y-6 rounded-3xl border border-white/10 bg-slate-950/70 p-6 shadow-xl shadow-black/40 sm:p-8">
-      <header className="space-y-2">
-        <h3 className="text-2xl font-semibold text-white">Pon nombre a tu equipo</h3>
-        <p className="text-sm text-white/70">
-          El propietario puede invitar a nuevos miembros y gestionar la configuración general. Este paso te ayudará a activar el
-          espacio compartido para tu organización.
-        </p>
-      </header>
-
-      {!userId ? (
-        <div className="rounded-2xl border border-red-400/40 bg-red-500/10 p-4 text-sm text-red-100">
-          Inicia sesión para crear o gestionar tu equipo.
-        </div>
-      ) : (
-        <div className="space-y-5">
-          {!team && (
-            <form onSubmit={handleCreateTeam} className="space-y-4">
-              <div className="space-y-2">
-                <label htmlFor="team-name" className="text-sm font-medium text-white">
-                  Nombre del equipo
-                </label>
-                <input
-                  id="team-name"
-                  name="team-name"
-                  type="text"
-                  value={teamName}
-                  onChange={handleTeamNameChange}
-                  disabled={isCreatingTeam}
-                  placeholder="Ej. Soporte 24/7"
-                  className="w-full rounded-xl border border-white/10 bg-slate-900 px-4 py-3 text-sm text-white placeholder:text-white/30 focus:border-sky-400 focus:outline-none focus:ring-2 focus:ring-sky-400/40"
-                />
-              </div>
-              <button
-                type="submit"
-                disabled={isCreatingTeam}
-                className="inline-flex items-center gap-2 rounded-xl bg-sky-500 px-4 py-2 text-sm font-semibold text-white shadow-lg shadow-sky-500/30 transition hover:bg-sky-400 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-sky-200 disabled:cursor-not-allowed disabled:opacity-70"
-              >
-                {isCreatingTeam ? <Loader2 className="h-4 w-4 animate-spin" aria-hidden /> : null}
-                {isCreatingTeam ? "Creando equipo..." : "Crear equipo"}
-              </button>
-            </form>
-          )}
-
-          {isLoadingTeam && (
-            <div className="flex items-center gap-2 rounded-xl border border-white/10 bg-white/5 px-4 py-3 text-sm text-white/80">
-              <Loader2 className="h-4 w-4 animate-spin" aria-hidden />
-              <span>Cargando información del equipo...</span>
-            </div>
-          )}
-
-          {team && (
-            <div className="space-y-4">
-              <div className="rounded-2xl border border-emerald-400/40 bg-emerald-500/10 p-4 text-sm text-emerald-100">
-                <p>
-                  <strong>{team.name}</strong> está listo. Actualmente hay {team.members.length} de {team.memberLimit} espacios ocupados.
-                </p>
-                <p className="mt-2 text-emerald-100/80">
-                  Como propietario podrás invitar a tu equipo y asignar roles adicionales más adelante.
-                </p>
-              </div>
-              <button
-                type="button"
-                onClick={() => setAutoNavigationEnabled(true)}
-                className="inline-flex items-center gap-2 rounded-xl border border-white/20 px-4 py-2 text-sm font-semibold text-white transition hover:border-sky-400 hover:text-sky-200 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-sky-200"
-              >
-                Continuar con la planificación de turnos
-              </button>
-            </div>
-          )}
-
-          {teamNotice && !teamError && !isLoadingTeam && !isCreatingTeam && !team && (
-            <div className="rounded-2xl border border-emerald-400/40 bg-emerald-500/10 p-4 text-sm text-emerald-100">
-              {teamNotice}
-            </div>
-          )}
-        </div>
-      )}
-
-      {teamError && (
-        <div className="rounded-2xl border border-red-400/40 bg-red-500/10 p-4 text-sm text-red-100">
-          {teamError}
-        </div>
-      )}
-    </section>
-  )
-
   const renderShiftStep = () => (
     <section className="space-y-6 rounded-3xl border border-white/10 bg-slate-950/70 p-6 shadow-xl shadow-black/40 sm:p-8">
       <header className="space-y-2">
@@ -634,11 +474,11 @@ export default function OnboardingExperience({ userId }: OnboardingExperiencePro
         </p>
       </header>
 
-      {!userId || !team ? (
-        <div className="rounded-2xl border border-white/10 bg-white/5 p-4 text-sm text-white/70">
-          Completa el paso anterior para activar la planificación de turnos.
-        </div>
-      ) : (
+        {!userId ? (
+          <div className="rounded-2xl border border-red-400/40 bg-red-500/10 p-4 text-sm text-red-100">
+            Inicia sesión para programar turnos.
+          </div>
+        ) : (
         <div className="space-y-5">
           {!createdShift && (
             <form onSubmit={handleCreateShift} className="grid gap-4 md:grid-cols-2">
@@ -785,9 +625,21 @@ export default function OnboardingExperience({ userId }: OnboardingExperiencePro
         </p>
       </header>
 
-      {!team || !userId ? (
+      {!userId ? (
+        <div className="rounded-2xl border border-red-400/40 bg-red-500/10 p-4 text-sm text-red-100">
+          Inicia sesión para gestionar invitaciones.
+        </div>
+      ) : isLoadingTeam ? (
+        <div className="flex items-center gap-2 rounded-2xl border border-white/10 bg-white/5 px-4 py-3 text-sm text-white/80">
+          <Loader2 className="h-4 w-4 animate-spin" aria-hidden />
+          <span>Cargando información del equipo...</span>
+        </div>
+      ) : teamError ? (
+        <div className="rounded-2xl border border-red-400/40 bg-red-500/10 p-4 text-sm text-red-100">{teamError}</div>
+      ) : !team ? (
         <div className="rounded-2xl border border-white/10 bg-white/5 p-4 text-sm text-white/70">
-          Completa los pasos anteriores para generar un enlace de invitación.
+          La creación de equipos forma parte de Supershift Premium. Ponte en contacto con nosotros para activar esta funcionalidad y
+          poder invitar a tus compañeros.
         </div>
       ) : !isOwner ? (
         <div className="rounded-2xl border border-white/10 bg-white/5 p-4 text-sm text-white/70">
@@ -869,17 +721,15 @@ export default function OnboardingExperience({ userId }: OnboardingExperiencePro
     >
       <header className="space-y-4 rounded-3xl border border-white/10 bg-slate-950/70 p-8 text-white shadow-xl shadow-black/40">
         <div className="space-y-3">
-          <h1 className="text-3xl font-semibold tracking-tight sm:text-4xl">Configura Supershift en tres pasos</h1>
+          <h1 className="text-3xl font-semibold tracking-tight sm:text-4xl">Configura Supershift en dos pasos</h1>
           <p className="max-w-3xl text-sm text-white/70">
-            Te acompañamos para que tu equipo empiece a trabajar cuanto antes: crea el espacio compartido, programa un turno de
-            referencia y comparte el acceso con tus compañeros.
+            Te acompañamos para que empieces a trabajar cuanto antes: programa un turno de referencia y comparte el acceso con tus
+            compañeros.
           </p>
         </div>
       </header>
 
       {renderStepper()}
-
-      {currentStep === "team" && renderTeamStep()}
       {currentStep === "shift" && renderShiftStep()}
       {currentStep === "invite" && renderInviteStep()}
 

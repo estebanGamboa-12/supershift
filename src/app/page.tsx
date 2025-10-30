@@ -16,6 +16,7 @@ import MobileAddShiftSheet from "@/components/dashboard/MobileAddShiftSheet"
 import ResponsiveNav from "@/components/dashboard/ResponsiveNav"
 import UserAuthPanel from "@/components/auth/UserAuthPanel"
 import FloatingParticlesLoader from "@/components/FloatingParticlesLoader"
+import TeamMarketingSection from "@/components/marketing/TeamMarketingSection"
 import ActionFeedback, {
   type ActionFeedbackState,
 } from "@/components/dashboard/ActionFeedback"
@@ -2179,29 +2180,40 @@ export default function Home() {
   if (!currentUser) {
     return (
       <div className="min-h-screen bg-slate-950 text-white">
-        <main className="mx-auto flex min-h-screen w-full max-w-5xl items-center justify-center px-4 py-16">
-          <div className="w-full space-y-5 sm:space-y-6">
-            <OfflineStatusBanner
-              isOffline={isOffline}
-              pendingCount={pendingShiftMutations}
-              isSyncing={isSyncingPendingShifts}
-              lastError={lastSyncError}
-              onRetry={synchronizePendingShiftRequests}
-            />
-            {userError && (
-              <div className="rounded-2xl border border-red-400/40 bg-red-500/10 px-4 py-3 text-sm text-red-200">
-                {userError}
-              </div>
-            )}
-            {isLoadingUsers ? (
-              <FloatingParticlesLoader />
-            ) : (
-              <UserAuthPanel
-                users={users}
-                onLogin={handleLoginSuccess}
-                onUserCreated={handleUserCreated}
+        <main className="mx-auto flex min-h-screen w-full max-w-6xl items-center justify-center px-4 py-16">
+          <div className="grid w-full gap-6 lg:grid-cols-[minmax(0,1.1fr)_minmax(0,0.9fr)]">
+            <div className="lg:col-span-2">
+              <OfflineStatusBanner
+                isOffline={isOffline}
+                pendingCount={pendingShiftMutations}
+                isSyncing={isSyncingPendingShifts}
+                lastError={lastSyncError}
+                onRetry={synchronizePendingShiftRequests}
               />
-            )}
+            </div>
+
+            <div className="order-1 space-y-5 sm:space-y-6 lg:order-2">
+              {userError && (
+                <div className="rounded-2xl border border-red-400/40 bg-red-500/10 px-4 py-3 text-sm text-red-200">
+                  {userError}
+                </div>
+              )}
+              <div className="rounded-3xl border border-white/10 bg-slate-950/70 p-6 shadow-[0_30px_80px_-48px_rgba(59,130,246,0.6)]">
+                {isLoadingUsers ? (
+                  <div className="flex items-center justify-center py-12">
+                    <FloatingParticlesLoader />
+                  </div>
+                ) : (
+                  <UserAuthPanel
+                    users={users}
+                    onLogin={handleLoginSuccess}
+                    onUserCreated={handleUserCreated}
+                  />
+                )}
+              </div>
+            </div>
+
+            <TeamMarketingSection className="order-2 lg:order-1" />
           </div>
         </main>
       </div>

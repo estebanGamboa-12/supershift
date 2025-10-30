@@ -17,6 +17,7 @@ import ResponsiveNav from "@/components/dashboard/ResponsiveNav"
 import UserAuthPanel from "@/components/auth/UserAuthPanel"
 import FloatingParticlesLoader from "@/components/FloatingParticlesLoader"
 import TeamMarketingSection from "@/components/marketing/TeamMarketingSection"
+import KeyFeaturesSection from "@/components/marketing/KeyFeaturesSection"
 import ActionFeedback, {
   type ActionFeedbackState,
 } from "@/components/dashboard/ActionFeedback"
@@ -2213,7 +2214,8 @@ export default function Home() {
               </div>
             </div>
 
-            <TeamMarketingSection className="order-2 lg:order-1" />
+            <KeyFeaturesSection className="order-2 lg:order-1" />
+            <TeamMarketingSection className="order-3 lg:order-1" />
           </div>
         </main>
       </div>

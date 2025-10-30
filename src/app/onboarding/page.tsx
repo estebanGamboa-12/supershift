@@ -1,5 +1,3 @@
-import OnboardingExperience from "@/components/OnboardingExperience"
-
 function sanitizeUserId(value: string | string[] | undefined): string | undefined {
   if (!value) {
     return undefined
@@ -29,8 +27,13 @@ export default async function OnboardingPage({
 
   return (
     <main className="min-h-screen bg-slate-950 py-12 text-white">
-      <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
-        <OnboardingExperience userId={userId} />
+      <div className="mx-auto max-w-7xl px-4 text-center sm:px-6 lg:px-8">
+        <h1 className="text-3xl font-semibold">Onboarding not available</h1>
+        <p className="mt-4 text-lg text-slate-300">
+          {userId
+            ? `Hi ${userId}, onboarding is currently disabled.`
+            : "Onboarding is currently disabled."}
+        </p>
       </div>
     </main>
   )

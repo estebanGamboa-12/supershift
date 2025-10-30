@@ -49,8 +49,7 @@ export default function UserAuthPanel({
   const [resetNotice, setResetNotice] = useState("")
   const [isResetting, setIsResetting] = useState(false)
 
-  const highlightedUsers = users.slice(0, 3)
-  const remainingUsers = Math.max(users.length - highlightedUsers.length, 0)
+  const hasActiveUsers = users.length > 0
 
   const supabase = useMemo(() => {
     if (typeof window === "undefined") {
@@ -510,13 +509,10 @@ export default function UserAuthPanel({
         </AnimatePresence>
       </div>
 
-      {(highlightedUsers.length > 0 || remainingUsers > 0) && (
+      {hasActiveUsers && (
         <div className="relative z-10 mt-10 space-y-1 text-center text-xs text-white/50">
           <p className="font-medium text-white/60">Personas ya organizando sus turnos</p>
-          <p>
-            {highlightedUsers.map((user) => user.name).join(", ")}
-            {remainingUsers > 0 ? ` y ${remainingUsers} más` : ""}
-          </p>
+          <p>Planloop ayuda a equipos a mantener sus turnos sincronizados.</p>
         </div>
       )}
 

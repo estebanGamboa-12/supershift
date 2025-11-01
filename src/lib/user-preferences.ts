@@ -14,6 +14,65 @@ type LoadedPreferences = {
   savedAt: Date
 }
 
+type StorageSource = "session" | "local" | null
+
+function safeGetItem(storage: Storage | null | undefined, key: string): string | null {
+  if (!storage) {
+    return null
+  }
+
+  try {
+    return storage.getItem(key)
+  } catch (error) {
+    console.warn("No se pudo acceder al almacenamiento para leer preferencias", error)
+    return null
+  }
+}
+
+function safeSetItem(storage: Storage | null | undefined, key: string, value: string): boolean {
+  if (!storage) {
+    return false
+  }
+
+  try {
+    storage.setItem(key, value)
+    return true
+  } catch (error) {
+    console.warn("No se pudo escribir en el almacenamiento de preferencias", error)
+    return false
+  }
+}
+
+function safeRemoveItem(storage: Storage | null | undefined, key: string) {
+  if (!storage) {
+    return
+  }
+
+  try {
+    storage.removeItem(key)
+  } catch (error) {
+    console.warn("No se pudo eliminar del almacenamiento de preferencias", error)
+  }
+}
+
+function getStoredPreferences(): { raw: string | null; source: StorageSource } {
+  if (typeof window === "undefined") {
+    return { raw: null, source: null }
+  }
+
+  const sessionRaw = safeGetItem(window.sessionStorage, STORAGE_KEY)
+  if (sessionRaw) {
+    return { raw: sessionRaw, source: "session" }
+  }
+
+  const localRaw = safeGetItem(window.localStorage, STORAGE_KEY)
+  if (localRaw) {
+    return { raw: localRaw, source: "local" }
+  }
+
+  return { raw: null, source: null }
+}
+
 function normalizeBoolean(value: unknown, fallback: boolean): boolean {
   return typeof value === "boolean" ? value : fallback
 }
@@ -91,8 +150,14 @@ export function loadUserPreferences(): LoadedPreferences | null {
     return null
   }
 
-  const raw = window.localStorage.getItem(STORAGE_KEY)
-  return parseStoredRecord(raw)
+  const { raw, source } = getStoredPreferences()
+  const parsed = parseStoredRecord(raw)
+
+  if (parsed && source === "local" && raw) {
+    safeSetItem(window.sessionStorage, STORAGE_KEY, raw)
+  }
+
+  return parsed
 }
 
 export function saveUserPreferences(preferences: UserPreferences): { savedAt: Date } {
@@ -100,20 +165,26 @@ export function saveUserPreferences(preferences: UserPreferences): { savedAt: Da
   const savedAt = new Date()
 
   if (typeof window !== "undefined") {
+    const record: StoredUserPreferencesRecord = {
+      version: STORAGE_VERSION,
+      updatedAt: savedAt.toISOString(),
+      preferences: normalized,
+    }
+
     try {
-      const record: StoredUserPreferencesRecord = {
-        version: STORAGE_VERSION,
-        updatedAt: savedAt.toISOString(),
-        preferences: normalized,
+      const serialized = JSON.stringify(record)
+      const wroteToSession = safeSetItem(window.sessionStorage, STORAGE_KEY, serialized)
+      const wroteToLocal = safeSetItem(window.localStorage, STORAGE_KEY, serialized)
+
+      if (wroteToSession || wroteToLocal) {
+        window.dispatchEvent(
+          new CustomEvent("supershift:user-preferences-saved", {
+            detail: { preferences: normalized, savedAt: record.updatedAt },
+          }),
+        )
       }
-      window.localStorage.setItem(STORAGE_KEY, JSON.stringify(record))
-      window.dispatchEvent(
-        new CustomEvent("supershift:user-preferences-saved", {
-          detail: { preferences: normalized, savedAt: record.updatedAt },
-        }),
-      )
     } catch (error) {
-      console.error("No se pudieron guardar las preferencias del usuario", error)
+      console.error("No se pudieron serializar las preferencias del usuario", error)
     }
   }
 
@@ -125,12 +196,9 @@ export function clearUserPreferencesStorage() {
     return
   }
 
-  try {
-    window.localStorage.removeItem(STORAGE_KEY)
-    window.dispatchEvent(new CustomEvent("supershift:user-preferences-cleared"))
-  } catch (error) {
-    console.error("No se pudieron limpiar las preferencias del usuario", error)
-  }
+  safeRemoveItem(window.sessionStorage, STORAGE_KEY)
+  safeRemoveItem(window.localStorage, STORAGE_KEY)
+  window.dispatchEvent(new CustomEvent("supershift:user-preferences-cleared"))
 }
 
 export function applyThemePreference(theme: ThemePreference): () => void {

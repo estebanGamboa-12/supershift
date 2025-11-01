@@ -23,6 +23,7 @@ import {
   enableShiftReminders,
   disableShiftReminders,
 } from "@/lib/reminders-client"
+import { applyThemePreference } from "@/lib/user-preferences"
 
 export { DEFAULT_USER_PREFERENCES }
 export type { UserPreferences }
@@ -138,6 +139,10 @@ const ConfigurationPanel: FC<ConfigurationPanelProps> = ({
   useEffect(() => {
     setPreferences(defaultPreferences)
   }, [defaultPreferences])
+
+  useEffect(() => {
+    return applyThemePreference(preferences.theme)
+  }, [preferences.theme])
 
   useEffect(() => {
     setProfileForm({

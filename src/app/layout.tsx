@@ -33,7 +33,7 @@ export const viewport: Viewport = {
 
 export default function RootLayout({ children }: { children: ReactNode }) {
   return (
-    <html lang="es" className="h-full">
+    <html lang="es" className="h-full dark" data-theme="dark">
       <body className="min-h-screen overflow-x-hidden bg-slate-950 text-slate-100 antialiased">
         {children}
         <InstallPromptBanner />

@@ -1,4 +1,4 @@
-import { DEFAULT_USER_PREFERENCES, type ThemePreference, type UserPreferences } from "@/types/preferences"
+import { DEFAULT_USER_PREFERENCES, type UserPreferences } from "@/types/preferences"
 
 const STORAGE_KEY = "supershift::user-preferences"
 const STORAGE_VERSION = 1
@@ -77,13 +77,6 @@ function normalizeBoolean(value: unknown, fallback: boolean): boolean {
   return typeof value === "boolean" ? value : fallback
 }
 
-function normalizeTheme(theme: unknown): ThemePreference {
-  if (theme === "light" || theme === "dark" || theme === "system") {
-    return theme
-  }
-  return DEFAULT_USER_PREFERENCES.theme
-}
-
 function normalizeStartOfWeek(value: unknown): UserPreferences["startOfWeek"] {
   if (value === "monday" || value === "sunday") {
     return value
@@ -101,7 +94,6 @@ function normalizePreferences(raw: unknown): UserPreferences {
 
   return {
     startOfWeek: normalizeStartOfWeek(candidate.startOfWeek),
-    theme: normalizeTheme(candidate.theme),
     notifications: {
       email: normalizeBoolean(notifications.email, DEFAULT_USER_PREFERENCES.notifications.email),
       push: normalizeBoolean(notifications.push, DEFAULT_USER_PREFERENCES.notifications.push),
@@ -199,35 +191,6 @@ export function clearUserPreferencesStorage() {
   safeRemoveItem(window.sessionStorage, STORAGE_KEY)
   safeRemoveItem(window.localStorage, STORAGE_KEY)
   window.dispatchEvent(new CustomEvent("supershift:user-preferences-cleared"))
-}
-
-export function applyThemePreference(theme: ThemePreference): () => void {
-  if (typeof window === "undefined") {
-    return () => {}
-  }
-
-  const root = document.documentElement
-
-  const setTheme = (value: "light" | "dark") => {
-    root.dataset.theme = value
-    root.classList.toggle("dark", value === "dark")
-  }
-
-  if (theme === "system") {
-    const mediaQuery = window.matchMedia("(prefers-color-scheme: dark)")
-    const listener = (event: MediaQueryListEvent) => {
-      setTheme(event.matches ? "dark" : "light")
-    }
-
-    setTheme(mediaQuery.matches ? "dark" : "light")
-    mediaQuery.addEventListener("change", listener)
-    return () => {
-      mediaQuery.removeEventListener("change", listener)
-    }
-  }
-
-  setTheme(theme === "dark" ? "dark" : "light")
-  return () => {}
 }
 
 export function onUserPreferencesStorageChange(

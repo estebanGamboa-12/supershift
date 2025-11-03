@@ -24,7 +24,6 @@ import type { Session } from "@supabase/supabase-js"
 import { getSupabaseBrowserClient } from "@/lib/supabase"
 import { exchangeAccessToken } from "@/lib/auth-client"
 import {
-  applyThemePreference,
   loadUserPreferences as loadProfilePreferences,
   onUserPreferencesStorageChange,
   saveUserPreferences as persistUserPreferences,
@@ -516,10 +515,6 @@ export default function Home() {
 
     return unsubscribe
   }, [])
-
-  useEffect(() => {
-    return applyThemePreference(userPreferences.theme)
-  }, [userPreferences.theme])
 
   useEffect(() => {
     if (typeof window === "undefined") {

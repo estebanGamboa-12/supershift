@@ -16,6 +16,13 @@ import MobileAddShiftSheet from "@/components/dashboard/MobileAddShiftSheet"
 import ResponsiveNav from "@/components/dashboard/ResponsiveNav"
 import UserAuthPanel from "@/components/auth/UserAuthPanel"
 import FloatingParticlesLoader from "@/components/FloatingParticlesLoader"
+import UserOnboardingDialog from "@/components/onboarding/UserOnboardingDialog"
+import {
+  buildPatternFromPreferences,
+  createPreferencesSnapshot,
+  generateCalendarFromPattern,
+  type QuestionnaireState,
+} from "@/components/CustomCycleBuilder"
 import ActionFeedback, {
   type ActionFeedbackState,
 } from "@/components/dashboard/ActionFeedback"
@@ -28,6 +35,15 @@ import {
   onUserPreferencesStorageChange,
   saveUserPreferences as persistUserPreferences,
 } from "@/lib/user-preferences"
+import {
+  loadStoredPreferences as loadOnboardingPreferences,
+  saveStoredPreferences as saveOnboardingPreferences,
+  type StoredPreferencesRecord,
+} from "@/lib/preferences-storage"
+import {
+  hasCompletedOnboarding,
+  markOnboardingCompleted,
+} from "@/lib/onboarding-status"
 import { calculateWeeklyShiftSummaries } from "@/lib/shiftStatistics"
 import {
   CalendarTab,
@@ -473,6 +489,11 @@ export default function Home() {
   const actionFeedbackTimeoutRef =
     useRef<ReturnType<typeof setTimeout> | null>(null)
   const [shiftHistory, setShiftHistory] = useState<ShiftHistoryEntry[]>([])
+  const [shiftsLoaded, setShiftsLoaded] = useState(false)
+  const [shouldShowOnboarding, setShouldShowOnboarding] = useState(false)
+  const [isOnboardingOpen, setIsOnboardingOpen] = useState(false)
+  const [onboardingInitialState, setOnboardingInitialState] =
+    useState<QuestionnaireState | null>(null)
 
   const supabase = useMemo(() => {
     if (typeof window === "undefined") {
@@ -802,6 +823,21 @@ export default function Home() {
     const stored = loadHistoryFromStorage()
     const entries = stored.byUser[currentUser.id] ?? []
     setShiftHistory(entries.slice(0, MAX_HISTORY_ENTRIES))
+  }, [currentUser])
+
+  useEffect(() => {
+    if (!currentUser) {
+      setShouldShowOnboarding(false)
+      setIsOnboardingOpen(false)
+      setOnboardingInitialState(null)
+      return
+    }
+
+    const completed = hasCompletedOnboarding(currentUser.id)
+    setShouldShowOnboarding(!completed)
+
+    const record = loadOnboardingPreferences(currentUser.id)
+    setOnboardingInitialState(record?.questionnaire ?? null)
   }, [currentUser])
 
   const persistSession = useCallback((user: UserSummary) => {
@@ -1720,6 +1756,7 @@ export default function Home() {
 
       setCurrentUser(sanitized)
       persistSession(sanitized)
+      setIsOnboardingOpen(false)
 
       let updatedUsers: UserSummary[] | null = null
       setUsers((previous) => {
@@ -2012,8 +2049,12 @@ export default function Home() {
     if (!currentUser) {
       setShifts([])
       setPendingShiftMutations(0)
+      setShiftsLoaded(false)
+      setIsOnboardingOpen(false)
       return
     }
+
+    setShiftsLoaded(false)
 
     let isMounted = true
 
@@ -2056,6 +2097,10 @@ export default function Home() {
         if (isMounted && isLikelyOfflineError(error)) {
           setIsOffline(true)
         }
+      } finally {
+        if (isMounted) {
+          setShiftsLoaded(true)
+        }
       }
     }
 
@@ -2086,6 +2131,29 @@ export default function Home() {
     void synchronizePendingShiftRequests()
   }, [currentUser, synchronizePendingShiftRequests])
 
+  useEffect(() => {
+    if (!currentUser) {
+      return
+    }
+
+    if (!shouldShowOnboarding) {
+      return
+    }
+
+    if (!shiftsLoaded) {
+      return
+    }
+
+    if (shifts.length > 0) {
+      setShouldShowOnboarding(false)
+      markOnboardingCompleted(currentUser.id)
+      return
+    }
+
+    setIsOnboardingOpen(true)
+    setShouldShowOnboarding(false)
+  }, [currentUser, shifts.length, shiftsLoaded, shouldShowOnboarding])
+
   const handleLoginSuccess = useCallback(
     (user: UserSummary) => {
       const sanitized = sanitizeUserSummary(user)
@@ -2098,9 +2166,110 @@ export default function Home() {
 
       setCurrentUser(sanitized)
       persistSession(sanitized)
+      setIsOnboardingOpen(false)
 
     },
     [clearSession, persistSession],
+  )
+
+  const handleOnboardingSubmit = useCallback(
+    async (preferences: QuestionnaireState) => {
+      if (!currentUser) {
+        throw new Error("No hay una sesión activa para personalizar el calendario")
+      }
+
+      if (!supabase) {
+        throw new Error(
+          "Supabase no está configurado correctamente. Revisa las variables de entorno.",
+        )
+      }
+
+      const calendarId = currentUser.calendarId
+      if (!calendarId) {
+        throw new Error(
+          "No se encontró un calendario asociado al usuario. Vuelve a iniciar sesión.",
+        )
+      }
+
+      const pattern = buildPatternFromPreferences(preferences)
+      const shiftTypes = pattern.map((item) => item.type)
+      const labels = pattern.map((item) => item.label ?? null)
+
+      if (shiftTypes.length === 0) {
+        throw new Error(
+          "Configura al menos un día en tu ciclo para poder generar el calendario.",
+        )
+      }
+
+      const startDate = preferences.startDate?.trim()
+      if (!startDate) {
+        throw new Error("Selecciona una fecha de inicio para tu ciclo personalizado")
+      }
+
+      setShiftsLoaded(false)
+
+      try {
+        const { error: deleteError } = await supabase
+          .from("shifts")
+          .delete()
+          .eq("calendar_id", calendarId)
+
+        if (deleteError) {
+          throw new Error(
+            `No se pudieron limpiar los turnos anteriores: ${deleteError.message}`,
+          )
+        }
+
+        await generateCalendarFromPattern(
+          supabase,
+          shiftTypes,
+          startDate,
+          calendarId,
+          labels,
+          4,
+        )
+
+        const snapshot = createPreferencesSnapshot(preferences)
+        const record: StoredPreferencesRecord = {
+          completedAt: new Date().toISOString(),
+          snapshot,
+          questionnaire: preferences,
+          userId: currentUser.id,
+        }
+        saveOnboardingPreferences(record, currentUser.id)
+        markOnboardingCompleted(currentUser.id)
+        setIsOnboardingOpen(false)
+        setShouldShowOnboarding(false)
+        setOnboardingInitialState(preferences)
+
+        const data = await fetchShiftsFromApi(currentUser.id)
+        const ordered = sortByDate(data)
+        setShifts(ordered)
+        if (ordered.length === 0) {
+          setShiftHistory([])
+        }
+        persistShiftsSnapshot(currentUser.id, ordered)
+        setIsOffline(false)
+        setLastSyncError(null)
+      } catch (error) {
+        if (error instanceof Error) {
+          throw error
+        }
+
+        throw new Error(
+          "No se pudo generar el calendario automáticamente. Inténtalo de nuevo.",
+        )
+      } finally {
+        setShiftsLoaded(true)
+      }
+    },
+    [
+      currentUser,
+      fetchShiftsFromApi,
+      persistShiftsSnapshot,
+      sortByDate,
+      supabase,
+    ],
   )
 
   const synchronizeSupabaseSession = useCallback(
@@ -2278,7 +2447,8 @@ export default function Home() {
   }
 
   return (
-    <div className="no-card-borders relative min-h-screen overflow-hidden bg-slate-950 text-white">
+    <>
+      <div className="no-card-borders relative min-h-screen overflow-hidden bg-slate-950 text-white">
       <div
         className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_10%_0%,rgba(59,130,246,0.18),transparent_55%),_radial-gradient(circle_at_80%_105%,rgba(139,92,246,0.2),transparent_60%),_radial-gradient(circle_at_50%_50%,rgba(59,130,246,0.12),transparent_65%)]"
         aria-hidden
@@ -2791,5 +2961,13 @@ export default function Home() {
         onDismiss={dismissActionFeedback}
       />
     </div>
+    <UserOnboardingDialog
+      isOpen={isOnboardingOpen}
+      user={currentUser}
+      onSubmit={handleOnboardingSubmit}
+      onDismiss={() => setIsOnboardingOpen(false)}
+      initialState={onboardingInitialState}
+    />
+    </>
   )
 }

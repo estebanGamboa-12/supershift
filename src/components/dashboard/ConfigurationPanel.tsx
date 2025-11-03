@@ -10,10 +10,7 @@ import {
   useState,
 } from "react"
 import { POPULAR_TIMEZONES } from "@/data/timezones"
-import {
-  DEFAULT_USER_PREFERENCES,
-  type UserPreferences,
-} from "@/types/preferences"
+import { DEFAULT_USER_PREFERENCES, type UserPreferences } from "@/types/preferences"
 import type { UserProfileHistoryEntry, UserSummary } from "@/types/users"
 import {
   enablePushNotifications,
@@ -23,7 +20,6 @@ import {
   enableShiftReminders,
   disableShiftReminders,
 } from "@/lib/reminders-client"
-import { applyThemePreference } from "@/lib/user-preferences"
 
 export { DEFAULT_USER_PREFERENCES }
 export type { UserPreferences }
@@ -139,10 +135,6 @@ const ConfigurationPanel: FC<ConfigurationPanelProps> = ({
   useEffect(() => {
     setPreferences(defaultPreferences)
   }, [defaultPreferences])
-
-  useEffect(() => {
-    return applyThemePreference(preferences.theme)
-  }, [preferences.theme])
 
   useEffect(() => {
     setProfileForm({
@@ -312,14 +304,6 @@ const ConfigurationPanel: FC<ConfigurationPanelProps> = ({
         void handleNotificationIntegration(field, nextValue)
       })
     }
-  }
-
-  function handleThemeChange(theme: UserPreferences["theme"]) {
-    resetPreferenceFeedback()
-    setPreferences((current) => ({
-      ...current,
-      theme,
-    }))
   }
 
   function handleStartOfWeekChange(startOfWeek: UserPreferences["startOfWeek"]) {
@@ -1026,33 +1010,6 @@ const ConfigurationPanel: FC<ConfigurationPanelProps> = ({
               </div>
               <p className="text-xs text-white/50">
                 Afecta al orden en el calendario y resúmenes semanales compartidos con tu equipo.
-              </p>
-            </div>
-
-            <div className="space-y-4 rounded-2xl border border-white/10 bg-slate-950/50 p-4">
-              <p className="text-xs uppercase tracking-wide text-white/40">Tema</p>
-              <div className="grid gap-2 text-sm text-white/70 sm:grid-cols-3">
-                {(["system", "light", "dark"] as const).map((option) => (
-                  <button
-                    key={option}
-                    type="button"
-                    onClick={() => handleThemeChange(option)}
-                    className={`rounded-2xl border px-3 py-2 font-semibold uppercase tracking-wide transition ${
-                      preferences.theme === option
-                        ? "border-sky-400/70 bg-sky-500/20 text-white"
-                        : "border-white/10 bg-white/5 hover:border-sky-400/40 hover:text-sky-200"
-                    }`}
-                  >
-                    {option === "system"
-                      ? "Sistema"
-                      : option === "light"
-                        ? "Claro"
-                        : "Oscuro"}
-                  </button>
-                ))}
-              </div>
-              <p className="text-xs text-white/50">
-                Cambia la apariencia de la aplicación. El modo sistema seguirá la configuración de tu dispositivo.
               </p>
             </div>
           </section>

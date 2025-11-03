@@ -165,6 +165,38 @@ export type CalendarGeneratedPayload = {
   startDate: string
 }
 
+type UsageScenario = "personal" | "work" | "team"
+
+const USAGE_SCENARIO_LABELS: Record<UsageScenario, string> = {
+  personal: "Uso personal",
+  work: "Para mi trabajo",
+  team: "Crear turnos para mi equipo",
+}
+
+const USAGE_SCENARIO_DESCRIPTIONS: Record<UsageScenario, string> = {
+  personal: "Gestiona tus propios turnos y descansos de forma individual.",
+  work: "Planifica tus turnos profesionales sin coordinar a otras personas.",
+  team: "Organiza rotaciones y calendarios compartidos para un equipo completo.",
+}
+
+const USAGE_SCENARIO_HEADLINES: Record<UsageScenario, { title: string; subtitle: string }> = {
+  personal: {
+    title: "Crea una rutina para ti",
+    subtitle:
+      "Define tus bloques de trabajo, descanso o estudio con total flexibilidad. Podrás ajustar cada día antes de guardarlo.",
+  },
+  work: {
+    title: "Planifica tus turnos profesionales",
+    subtitle:
+      "Organiza jornadas laborales, descansos y noches según las necesidades de tu puesto. Personaliza la rotación a tu ritmo.",
+  },
+  team: {
+    title: "Da forma al calendario de tu equipo",
+    subtitle:
+      "Distribuye responsabilidades, noches y descansos para varias personas. Ajusta los bloques antes de publicar el plan.",
+  },
+}
+
 export const GOAL_DESCRIPTIONS: Record<WorkGoal, string> = {
   balance: "Equilibrar carga de trabajo y descansos",
   rest_first: "Priorizar descansos frecuentes",
@@ -374,6 +406,54 @@ function DayCell({
         </AnimatePresence>
       )}
     </motion.div>
+  )
+}
+
+function UsageSelection({
+  onSelect,
+}: {
+  onSelect: (scenario: UsageScenario) => void
+}) {
+  return (
+    <motion.section
+      layout
+      className="space-y-8 rounded-3xl border border-white/10 bg-slate-950/60 p-8 text-white shadow-xl shadow-black/40"
+    >
+      <header className="space-y-3">
+        <motion.h2 layout className="text-2xl font-semibold">
+          ¿Para qué quieres crear turnos?
+        </motion.h2>
+        <p className="max-w-3xl text-sm text-white/70">
+          Elige la opción que mejor describa tu caso de uso y prepararemos el constructor adecuado. Después podrás ajustar cada
+          detalle del calendario antes de guardarlo.
+        </p>
+      </header>
+
+      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+        {(Object.keys(USAGE_SCENARIO_LABELS) as UsageScenario[]).map((scenario) => (
+          <button
+            key={scenario}
+            type="button"
+            onClick={() => onSelect(scenario)}
+            className="group flex h-full flex-col gap-4 rounded-3xl border border-white/10 bg-slate-950/70 p-6 text-left transition hover:border-sky-400/60 hover:bg-slate-900/60 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sky-400/40"
+          >
+            <div className="flex items-center justify-between">
+              <span className="text-lg font-semibold text-white">{USAGE_SCENARIO_LABELS[scenario]}</span>
+              <span className="rounded-full border border-sky-400/50 bg-sky-500/10 px-3 py-1 text-xs font-semibold uppercase tracking-wide text-sky-200/80 transition group-hover:border-sky-300/70 group-hover:bg-sky-500/20">
+                Seleccionar
+              </span>
+            </div>
+            <p className="text-sm leading-relaxed text-white/70">
+              {USAGE_SCENARIO_DESCRIPTIONS[scenario]}
+            </p>
+          </button>
+        ))}
+      </div>
+
+      <p className="text-xs uppercase tracking-wide text-white/40">
+        Puedes cambiar de opción más adelante si tus necesidades evolucionan.
+      </p>
+    </motion.section>
   )
 }
 
@@ -678,12 +758,7 @@ export function CustomCycleBuilder({
   onCalendarGenerated,
 }: CustomCycleBuilderProps) {
   const supabase = useMemo(() => getSupabaseBrowserClient(), [])
-  const [preferences, setPreferences] = useState<QuestionnaireState>(
-    initialQuestionnaire ?? DEFAULT_QUESTIONNAIRE,
-  )
-  const [hasCompletedQuestionnaire, setHasCompletedQuestionnaire] = useState(
-    showQuestionnaireOnMount === false,
-  )
+  const [usageScenario, setUsageScenario] = useState<UsageScenario | null>(null)
   const initialPattern = useMemo(
     () => buildPatternFromPreferences(initialQuestionnaire ?? DEFAULT_QUESTIONNAIRE),
     [initialQuestionnaire],
@@ -709,7 +784,6 @@ export function CustomCycleBuilder({
       return
     }
 
-    setPreferences(initialQuestionnaire)
     const generatedPattern = buildPatternFromPreferences(initialQuestionnaire)
     setPattern(generatedPattern)
     setCycleLength(generatedPattern.length)
@@ -718,9 +792,9 @@ export function CustomCycleBuilder({
 
   useEffect(() => {
     if (showQuestionnaireOnMount === false) {
-      setHasCompletedQuestionnaire(true)
+      setUsageScenario((previous) => previous ?? "personal")
     } else {
-      setHasCompletedQuestionnaire(false)
+      setUsageScenario(null)
     }
   }, [showQuestionnaireOnMount])
 
@@ -737,12 +811,6 @@ export function CustomCycleBuilder({
     setRepetitions(initialRepetitions ?? 4)
   }, [initialRepetitions])
 
-  useEffect(() => {
-    setPreferences((previous) =>
-      previous.startDate === startDate ? previous : { ...previous, startDate },
-    )
-  }, [startDate])
-
   const normalizedPattern = useMemo(
     () => pattern.map((day) => day.type),
     [pattern],
@@ -753,28 +821,34 @@ export function CustomCycleBuilder({
     [pattern],
   )
 
-  const preferencesSnapshot = useMemo<PreferencesSnapshot | undefined>(() => {
-    if (!hasCompletedQuestionnaire) {
-      return undefined
-    }
+  const handleScenarioSelect = useCallback(
+    (scenario: UsageScenario) => {
+      setUsageScenario(scenario)
+      setFeedback(undefined)
+      setSelectedTable(scenario === "personal" ? "user_patterns" : "rotation_templates")
 
-    return createPreferencesSnapshot(preferences)
-  }, [hasCompletedQuestionnaire, preferences])
+      const questionnaireState = initialQuestionnaire ?? DEFAULT_QUESTIONNAIRE
+      onQuestionnaireComplete?.({
+        snapshot: createPreferencesSnapshot(questionnaireState),
+        state: questionnaireState,
+      })
+    },
+    [initialQuestionnaire, onQuestionnaireComplete],
+  )
+
+  const handleScenarioReset = useCallback(() => {
+    setUsageScenario(null)
+    setFeedback(undefined)
+  }, [])
 
   const submissionPayload = useMemo<SubmissionPayload>(() => {
-    const basePayload: SubmissionPayload = {
+    return {
       pattern: normalizedPattern,
       cycle_length: cycleLength,
       start_date: startDate,
       custom_labels: customLabels,
     }
-
-    if (preferencesSnapshot) {
-      return { ...basePayload, preferences_snapshot: preferencesSnapshot }
-    }
-
-    return basePayload
-  }, [customLabels, cycleLength, normalizedPattern, preferencesSnapshot, startDate])
+  }, [customLabels, cycleLength, normalizedPattern, startDate])
 
   const previewPayload = submissionPayload
 
@@ -804,30 +878,6 @@ export function CustomCycleBuilder({
     }
     return CYCLE_LENGTH_PRESETS
   }, [cycleLength])
-
-  const handleQuestionnaireComplete = useCallback(() => {
-    const generatedPattern = buildPatternFromPreferences(preferences)
-    const fallbackStartDate = format(new Date(), "yyyy-MM-dd")
-    const snapshot = createPreferencesSnapshot(preferences)
-
-    setPattern(generatedPattern)
-    setCycleLength(generatedPattern.length)
-    setStartDate(preferences.startDate || fallbackStartDate)
-
-    const recommendedRepetitions =
-      preferences.goal === "compact_work"
-        ? Math.max(4, (initialRepetitions ?? 4) + 2)
-        : preferences.goal === "rest_first"
-          ? Math.max(3, Math.min(4, initialRepetitions ?? 4))
-          : preferences.goal === "development"
-            ? Math.max(4, initialRepetitions ?? 4)
-            : initialRepetitions ?? 4
-
-    setRepetitions(recommendedRepetitions)
-    setFeedback(undefined)
-    setHasCompletedQuestionnaire(true)
-    onQuestionnaireComplete?.({ snapshot, state: preferences })
-  }, [initialRepetitions, onQuestionnaireComplete, preferences])
 
   const handleSave = useCallback(async () => {
     setIsSaving(true)
@@ -905,11 +955,9 @@ export function CustomCycleBuilder({
           )
         }
 
-        const { preferences_snapshot, ...userPatternPayload } = submissionPayload
-        void preferences_snapshot
         const finalUserPatternPayload = {
           user_id: userId,
-          ...userPatternPayload,
+          ...submissionPayload,
         }
 
         const { error } = await supabase
@@ -970,122 +1018,48 @@ export function CustomCycleBuilder({
   return (
     <div className="mx-auto max-w-6xl space-y-8">
       <AnimatePresence mode="wait" initial={false}>
-        {!hasCompletedQuestionnaire ? (
+        {!usageScenario ? (
           <motion.div
-            key="questionnaire"
+            key="usage-selection"
             initial={{ opacity: 0, y: 32 }}
             animate={{ opacity: 1, y: 0 }}
             exit={{ opacity: 0, y: -24 }}
             transition={{ duration: 0.35, ease: "easeOut" }}
           >
-            <PreferenceQuestionnaire
-              value={preferences}
-              onChange={setPreferences}
-              onComplete={handleQuestionnaireComplete}
-            />
+            <UsageSelection onSelect={handleScenarioSelect} />
           </motion.div>
         ) : (
           <motion.div
-            key="builder"
+            key={`builder-${usageScenario}`}
             initial={{ opacity: 0, y: 32 }}
             animate={{ opacity: 1, y: 0 }}
             exit={{ opacity: 0, y: -24 }}
             transition={{ duration: 0.35, ease: "easeOut" }}
           >
             <div className="space-y-8 rounded-3xl border border-white/10 bg-slate-950/60 p-8 text-white shadow-xl shadow-black/40 backdrop-blur-xl">
-              <header className="space-y-3">
+              <header className="space-y-4">
+                <div className="flex flex-wrap items-center gap-3 text-xs font-semibold uppercase tracking-wide text-white/60">
+                  <span className="rounded-full border border-sky-400/40 bg-sky-500/15 px-3 py-1 text-sky-100/90">
+                    {USAGE_SCENARIO_LABELS[usageScenario]}
+                  </span>
+                  <button
+                    type="button"
+                    onClick={handleScenarioReset}
+                    className="inline-flex items-center gap-2 rounded-2xl border border-white/15 px-3 py-1 text-[11px] font-semibold text-white/70 transition hover:border-white/40 hover:text-white"
+                  >
+                    Cambiar opción
+                  </button>
+                </div>
                 <motion.h1
                   layout
                   className="text-2xl font-semibold tracking-tight text-white sm:text-3xl"
                 >
-                  Diseña tu ciclo personalizado
+                  {USAGE_SCENARIO_HEADLINES[usageScenario].title}
                 </motion.h1>
                 <p className="max-w-3xl text-sm text-white/70">
-                  Ajusta cualquier detalle del patrón sugerido, personaliza los turnos por día y
-                  guarda el resultado en Supabase. Puedes volver a las preguntas iniciales cuando
-                  necesites actualizar tus preferencias desde el perfil.
+                  {USAGE_SCENARIO_HEADLINES[usageScenario].subtitle}
                 </p>
               </header>
-
-              {preferencesSnapshot && (
-                <div className="rounded-3xl border border-white/10 bg-slate-900/70 p-6">
-                  <div className="flex flex-col gap-6 lg:flex-row lg:items-center lg:justify-between">
-                    <div className="grid gap-4 text-sm text-white/80 sm:grid-cols-2 lg:grid-cols-4">
-                      <div>
-                        <p className="text-xs font-semibold uppercase tracking-wide text-white/50">
-                          Prioridad
-                        </p>
-                        <p className="font-semibold text-white">
-                          {GOAL_LABELS[preferencesSnapshot.goal]}
-                        </p>
-                        <p className="text-xs text-white/50">
-                          {GOAL_DESCRIPTIONS[preferencesSnapshot.goal]}
-                        </p>
-                      </div>
-                      <div>
-                        <p className="text-xs font-semibold uppercase tracking-wide text-white/50">
-                          Rol o equipo
-                        </p>
-                        <p className="font-semibold text-white">
-                          {preferencesSnapshot.role ?? "No especificado"}
-                        </p>
-                      </div>
-                      <div>
-                        <p className="text-xs font-semibold uppercase tracking-wide text-white/50">
-                          Bloques
-                        </p>
-                        <p className="font-semibold text-white">
-                          {preferencesSnapshot.work_block} trabajo · {preferencesSnapshot.rest_block} descanso
-                        </p>
-                        <p className="text-xs text-white/50">
-                          Preferencia nocturna: {NIGHT_PREFERENCE_DESCRIPTIONS[preferencesSnapshot.night_preference]}
-                        </p>
-                      </div>
-                      <div>
-                        <p className="text-xs font-semibold uppercase tracking-wide text-white/50">
-                          Extras
-                        </p>
-                        <p className="font-semibold text-white">
-                          {preferencesSnapshot.include_vacation_day ? "Incluye vacaciones" : "Sin día de vacaciones"}
-                        </p>
-                        <p className="text-xs text-white/50">
-                          {preferencesSnapshot.include_personal_focus
-                            ? `Día especial: ${preferencesSnapshot.custom_focus_label ?? "Personal"}`
-                            : "Sin bloque personalizado"}
-                        </p>
-                      </div>
-                    </div>
-                    <div className="flex flex-col gap-3 text-sm">
-                      {preferencesSnapshot.notes && (
-                        <p className="rounded-2xl border border-white/10 bg-slate-950/60 p-4 text-white/70">
-                          {preferencesSnapshot.notes}
-                        </p>
-                      )}
-                      <button
-                        type="button"
-                        onClick={() => {
-                          setHasCompletedQuestionnaire(false)
-                          setFeedback(undefined)
-                        }}
-                        className="inline-flex items-center justify-center gap-2 rounded-2xl border border-sky-400/60 bg-transparent px-4 py-2 text-sm font-semibold text-sky-200 transition hover:bg-sky-500/10 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:ring-offset-slate-900"
-                      >
-                        Actualizar respuestas iniciales
-                        <svg
-                          viewBox="0 0 24 24"
-                          className="h-4 w-4"
-                          fill="none"
-                          stroke="currentColor"
-                          strokeWidth={1.5}
-                          strokeLinecap="round"
-                          strokeLinejoin="round"
-                        >
-                          <path d="M3 12a9 9 0 0 1 15.54-5.64M21 12a9 9 0 0 1-15.54 5.64M3 12h4m10 0h4" />
-                        </svg>
-                      </button>
-                    </div>
-                  </div>
-                </div>
-              )}
 
               <section className="grid gap-6 lg:grid-cols-[2fr,1fr]">
                 <div className="space-y-6">

@@ -3,7 +3,7 @@
 import type { CSSProperties } from "react"
 import { useCallback, useEffect, useMemo, useRef, useState } from "react"
 import { AnimatePresence, motion } from "framer-motion"
-import { AlertTriangle, CalendarDays, Check, Sparkles, X } from "lucide-react"
+import { CalendarDays, Check, Loader2, Sparkles } from "lucide-react"
 import {
   addDays,
   addMonths,
@@ -24,6 +24,9 @@ import { es } from "date-fns/locale"
 import type { ManualRotationDay } from "@/components/ManualRotationBuilder"
 import type { ShiftType } from "@/types/shifts"
 import { formatCompactDate, formatCompactMonth } from "@/lib/formatDate"
+import { useShiftTemplates } from "@/lib/useShiftTemplates"
+import { useRotationTemplates } from "@/lib/useRotationTemplates"
+import type { RotationTemplate, ShiftTemplate } from "@/types/templates"
 
 type PlannerPluses = {
   night: number
@@ -80,13 +83,6 @@ const INITIAL_PLUSES: PlannerPluses = {
   other: 0,
 }
 
-const ROTATION_PATTERNS: { label: string; cycle: [number, number] }[] = [
-  { label: "4x2", cycle: [4, 2] },
-  { label: "5x3", cycle: [5, 3] },
-  { label: "6x3", cycle: [6, 3] },
-  { label: "7x7", cycle: [7, 7] },
-]
-
 type Mode = "manual" | "rotation"
 
 type ToastType = "success" | "error"
@@ -103,6 +99,7 @@ type ShiftPlannerLabProps = {
   isCommitting?: boolean
   errorMessage?: string | null
   resetSignal?: number
+  userId?: string | null
 }
 
 function toIsoDate(date: Date) {
@@ -197,6 +194,7 @@ export default function ShiftPlannerLab({
   isCommitting = false,
   errorMessage = null,
   resetSignal,
+  userId = null,
 }: ShiftPlannerLabProps) {
   const stableInitialEntries = useMemo(
     () => initialEntries ?? [],
@@ -208,13 +206,49 @@ export default function ShiftPlannerLab({
   )
   const [mode, setMode] = useState<Mode>("manual")
   const [selectedDate, setSelectedDate] = useState<string | null>(null)
-  const [rotationPattern, setRotationPattern] = useState<[number, number]>(
-    ROTATION_PATTERNS[0]?.cycle ?? [4, 2],
-  )
+  const [selectedRotationId, setSelectedRotationId] = useState<number | null>(null)
   const [rotationStart, setRotationStart] = useState(() => toIsoDate(new Date()))
   const [isConfirmingRotation, setIsConfirmingRotation] = useState(false)
   const [toasts, setToasts] = useState<ToastMessage[]>([])
   const toastTimeoutsRef = useRef<Map<number, number>>(new Map())
+
+  const {
+    templates: shiftTemplates,
+    isLoading: isLoadingShiftTemplates,
+  } = useShiftTemplates(userId)
+  const {
+    templates: rotationTemplates,
+    isLoading: isLoadingRotationTemplates,
+    error: rotationTemplatesError,
+  } = useRotationTemplates(userId)
+
+  useEffect(() => {
+    if (
+      selectedRotationId != null &&
+      !rotationTemplates.some((template) => template.id === selectedRotationId)
+    ) {
+      setSelectedRotationId(null)
+    }
+  }, [rotationTemplates, selectedRotationId])
+
+  const activeRotationId = useMemo(() => {
+    if (selectedRotationId != null) {
+      return selectedRotationId
+    }
+    return rotationTemplates[0]?.id ?? null
+  }, [rotationTemplates, selectedRotationId])
+
+  const shiftTemplatesById = useMemo(
+    () => new Map<number, ShiftTemplate>(shiftTemplates.map((item) => [item.id, item])),
+    [shiftTemplates],
+  )
+
+  const selectedRotationTemplate = useMemo<RotationTemplate | null>(() => {
+    if (activeRotationId == null) {
+      return null
+    }
+    return rotationTemplates.find((template) => template.id === activeRotationId) ?? null
+  }, [activeRotationId, rotationTemplates])
 
   useEffect(() => {
     setEntries(buildEntriesMap(stableInitialEntries))
@@ -299,7 +333,7 @@ export default function ShiftPlannerLab({
 
   useEffect(() => {
     setIsConfirmingRotation(false)
-  }, [rotationPattern, rotationStart])
+  }, [activeRotationId, rotationStart])
 
   const calendarConfig = useMemo(() => {
     const monthStart = startOfMonth(currentMonth)
@@ -385,11 +419,6 @@ export default function ShiftPlannerLab({
     })
   }, [entries, rotationTargetMonth])
 
-  const rotationPatternLabel = useMemo(
-    () => `${rotationPattern[0]}×${rotationPattern[1]}`,
-    [rotationPattern],
-  )
-
   const rotationStartLabel = useMemo(() => {
     const parsed = parseISO(rotationStart)
     if (Number.isNaN(parsed.getTime())) {
@@ -445,15 +474,32 @@ export default function ShiftPlannerLab({
   }
 
   const handleApplyRotation = useCallback(() => {
-    if (!rotationPattern?.length || rotationPattern.some((value) => value <= 0)) {
-      pushToast("error", "Selecciona un patrón de rotación válido antes de aplicarlo.")
+    if (!selectedRotationTemplate) {
+      pushToast("error", "Selecciona una plantilla de rotación antes de aplicarla.")
       return false
     }
 
-    const [workLength, restLength] = rotationPattern
     const parsedStart = parseISO(rotationStart)
     if (Number.isNaN(parsedStart.getTime())) {
       pushToast("error", "Introduce una fecha de inicio válida para la rotación.")
+      return false
+    }
+
+    const cycleLength = selectedRotationTemplate.daysCount
+    if (!cycleLength || cycleLength <= 0) {
+      pushToast("error", "La plantilla seleccionada no tiene una duración válida.")
+      return false
+    }
+
+    const missingTemplates = selectedRotationTemplate.assignments
+      .filter((assignment) => assignment.shiftTemplateId != null)
+      .filter((assignment) => !shiftTemplatesById.has(assignment.shiftTemplateId ?? -1))
+
+    if (missingTemplates.length > 0) {
+      pushToast(
+        "error",
+        "Faltan plantillas de turno necesarias para esta rotación. Crea o recupera las plantillas antes de aplicarla.",
+      )
       return false
     }
 
@@ -461,30 +507,46 @@ export default function ShiftPlannerLab({
     const monthStart = startOfMonth(targetMonth)
     const monthEnd = endOfMonth(targetMonth)
 
+    const assignmentsByDay = new Map(
+      selectedRotationTemplate.assignments.map((assignment) => [assignment.dayIndex, assignment]),
+    )
+
     updateEntries((prev) => {
       const updates: Record<string, PlannerEntry> = {}
-      const cycleLength = workLength + restLength
       let pointer = monthStart
 
       while (pointer <= monthEnd) {
         const iso = toIsoDate(pointer)
         const diff = differenceInCalendarDays(pointer, parsedStart)
         const normalized = ((diff % cycleLength) + cycleLength) % cycleLength
-        const shiftType: ShiftType = normalized < workLength ? "WORK" : "REST"
+        const assignment = assignmentsByDay.get(normalized)
+        const template = assignment?.shiftTemplateId
+          ? shiftTemplatesById.get(assignment.shiftTemplateId)
+          : null
         const existing = prev[iso]
-        const palette =
-          SHIFT_TYPES.find(({ value }) => value === shiftType)?.defaultColor ??
-          (shiftType === "REST" ? "#64748b" : "#2563eb")
 
-        updates[iso] = {
-          date: iso,
-          type: shiftType,
-          note: "",
-          color: palette,
-          label: SHIFT_LABELS[shiftType],
-          pluses: { ...INITIAL_PLUSES },
-          startTime: existing?.startTime ?? DEFAULT_PLANNER_START_TIME,
-          endTime: existing?.endTime ?? DEFAULT_PLANNER_END_TIME,
+        if (!assignment || !template) {
+          updates[iso] = {
+            date: iso,
+            type: "REST",
+            note: "",
+            color: SHIFT_TYPES.find(({ value }) => value === "REST")?.defaultColor ?? "#64748b",
+            label: SHIFT_LABELS.REST,
+            pluses: { ...INITIAL_PLUSES },
+            startTime: existing?.startTime ?? DEFAULT_PLANNER_START_TIME,
+            endTime: existing?.endTime ?? DEFAULT_PLANNER_END_TIME,
+          }
+        } else {
+          updates[iso] = {
+            date: iso,
+            type: "WORK",
+            note: "",
+            color: SHIFT_TYPES.find(({ value }) => value === "WORK")?.defaultColor ?? "#2563eb",
+            label: template.title,
+            pluses: { ...INITIAL_PLUSES },
+            startTime: template.startTime || existing?.startTime || DEFAULT_PLANNER_START_TIME,
+            endTime: template.endTime || existing?.endTime || DEFAULT_PLANNER_END_TIME,
+          }
         }
 
         pointer = addDays(pointer, 1)
@@ -500,24 +562,30 @@ export default function ShiftPlannerLab({
     pushToast(
       "success",
       monthHasEntries
-        ? `La rotación anterior se reemplazó con el nuevo patrón en ${rotationTargetMonthLabel}.`
-        : `La rotación se aplicó correctamente en ${rotationTargetMonthLabel}.`,
+        ? `La rotación anterior se reemplazó con "${selectedRotationTemplate.title}" en ${rotationTargetMonthLabel}.`
+        : `La rotación "${selectedRotationTemplate.title}" se aplicó correctamente en ${rotationTargetMonthLabel}.`,
     )
     return true
   }, [
     monthHasEntries,
     pushToast,
-    rotationPattern,
     rotationStart,
     rotationTargetMonth,
     rotationTargetMonthLabel,
+    selectedRotationTemplate,
+    shiftTemplatesById,
     updateEntries,
   ])
 
   function confirmApplyRotation() {
+    if (!selectedRotationTemplate) {
+      pushToast("error", "Selecciona una plantilla de rotación antes de aplicarla.")
+      return
+    }
+
     if (monthHasEntries && typeof window !== "undefined") {
       const shouldOverwrite = window.confirm(
-        `Ya existe una rotación aplicada en ${rotationTargetMonthLabel}. ¿Quieres reemplazarla con el nuevo patrón?`,
+        `Ya existe una rotación aplicada en ${rotationTargetMonthLabel}. ¿Quieres reemplazarla con "${selectedRotationTemplate.title}"?`,
       )
 
       if (!shouldOverwrite) {
@@ -744,19 +812,51 @@ export default function ShiftPlannerLab({
 
           {mode === "rotation" ? (
             <div className="space-y-3 rounded-2xl border border-white/10 bg-slate-950/40 p-3 text-xs text-white/70 sm:p-4">
-              <p className="text-[11px] uppercase tracking-[0.3em] text-white/40">Patrón automático</p>
-              <div className="flex flex-wrap items-center gap-3">
-                {ROTATION_PATTERNS.map((pattern) => (
-                  <button
-                    key={pattern.label}
-                    type="button"
-                    onClick={() => setRotationPattern(pattern.cycle)}
-                    className={`rounded-full border px-3 py-1 font-semibold uppercase tracking-wide transition ${rotationPattern[0] === pattern.cycle[0] && rotationPattern[1] === pattern.cycle[1] ? "border-sky-400/70 bg-sky-500/20 text-sky-200" : "border-white/10 bg-white/5 hover:border-sky-400/40 hover:text-sky-200"}`}
-                  >
-                    {pattern.label}
-                  </button>
-                ))}
-              </div>
+              <p className="text-[11px] uppercase tracking-[0.3em] text-white/40">Plantilla de rotación</p>
+              {rotationTemplatesError ? (
+                <div className="rounded-xl border border-red-400/50 bg-red-500/10 px-3 py-2 text-sm text-red-200">
+                  {rotationTemplatesError}
+                </div>
+              ) : null}
+              {isLoadingRotationTemplates ? (
+                <div className="flex items-center gap-2 rounded-xl border border-white/10 bg-white/5 px-4 py-3 text-sm">
+                  <Loader2 className="h-4 w-4 animate-spin text-white/60" />
+                  Cargando plantillas de rotación...
+                </div>
+              ) : rotationTemplates.length === 0 ? (
+                <div className="rounded-xl border border-dashed border-white/15 bg-white/5 px-4 py-4 text-sm text-white/60">
+                  No tienes plantillas de rotación todavía. Crea una en la sección de plantillas.
+                </div>
+              ) : (
+                <div className="flex flex-wrap gap-2">
+                  {rotationTemplates.map((template) => {
+                    const isSelected = selectedRotationTemplate?.id === template.id
+                    const assignedCount = template.assignments.filter(
+                      (assignment) => assignment.shiftTemplateId != null,
+                    ).length
+                    return (
+                      <button
+                        key={template.id}
+                        type="button"
+                        onClick={() => setSelectedRotationId(template.id)}
+                        className={`flex items-center gap-3 rounded-2xl border px-4 py-3 text-left transition ${
+                          isSelected
+                            ? "border-sky-400/60 bg-sky-500/20 text-sky-100 shadow shadow-sky-500/30"
+                            : "border-white/10 bg-white/5 text-white/70 hover:border-sky-400/40 hover:text-white"
+                        }`}
+                      >
+                        <span className="text-xl">{template.icon ?? "🔄"}</span>
+                        <span className="text-sm font-semibold">
+                          {template.title}
+                          <span className="block text-[11px] font-normal uppercase tracking-[0.3em] text-white/40">
+                            {template.daysCount} días · {assignedCount} turnos asignados
+                          </span>
+                        </span>
+                      </button>
+                    )
+                  })}
+                </div>
+              )}
               <label className="flex flex-col gap-2 text-xs text-white/70 sm:flex-row sm:items-center">
                 <span className="uppercase tracking-wide text-white/40">Inicio</span>
                 <input
@@ -765,7 +865,7 @@ export default function ShiftPlannerLab({
                   onChange={(event) => setRotationStart(event.target.value)}
                   className="w-full rounded-lg border border-white/10 bg-white/5 px-3 py-2 text-sm text-white focus:border-sky-400 focus:outline-none focus:ring-2 focus:ring-sky-400/40 sm:max-w-[180px]"
                 />
-                {isConfirmingRotation ? (
+                {isConfirmingRotation && selectedRotationTemplate ? (
                   <motion.div
                     initial={{ opacity: 0, y: 10 }}
                     animate={{ opacity: 1, y: 0 }}
@@ -779,11 +879,11 @@ export default function ShiftPlannerLab({
                           <Sparkles className="h-5 w-5" />
                         </div>
                         <div className="space-y-1">
-                          <p className="text-sm font-semibold text-white">Aplicar nueva rotación</p>
+                          <p className="text-sm font-semibold text-white">Aplicar plantilla</p>
                           <p className="text-xs text-white/70">
                             {monthHasEntries
-                              ? `Se reemplazarán los turnos configurados en ${rotationTargetMonthLabel} por el nuevo patrón seleccionado.`
-                              : "Confirma si quieres aplicar el patrón seleccionado sobre el calendario mostrado."}
+                              ? `Se reemplazarán los turnos configurados en ${rotationTargetMonthLabel} por la plantilla seleccionada.`
+                              : "Confirma si quieres aplicar la plantilla seleccionada sobre el calendario mostrado."}
                           </p>
                         </div>
                       </div>
@@ -792,10 +892,10 @@ export default function ShiftPlannerLab({
                         <div className="flex items-start gap-3">
                           <Sparkles className="mt-1 h-4 w-4 text-sky-300" />
                           <div className="space-y-1">
-                            <p className="text-[11px] uppercase tracking-wide text-white/40">Patrón</p>
-                            <p className="text-sm font-semibold text-white">{rotationPatternLabel}</p>
+                            <p className="text-[11px] uppercase tracking-wide text-white/40">Plantilla</p>
+                            <p className="text-sm font-semibold text-white">{selectedRotationTemplate.title}</p>
                             <p className="text-[10px] text-white/50">
-                              {rotationPattern[0]} días de trabajo · {rotationPattern[1]} de descanso
+                              {selectedRotationTemplate.daysCount} días · {selectedRotationTemplate.assignments.filter((assignment) => assignment.shiftTemplateId != null).length} turnos asignados
                             </p>
                           </div>
                         </div>
@@ -810,46 +910,59 @@ export default function ShiftPlannerLab({
                       </div>
 
                       {monthHasEntries ? (
-                        <div className="flex items-center gap-2 rounded-xl border border-amber-400/40 bg-amber-500/10 p-3 text-[11px] text-amber-200">
-                          <AlertTriangle className="h-4 w-4" />
-                          <span>
-                            Se sustituirán los turnos existentes en {rotationTargetMonthLabel}.
-                          </span>
-                        </div>
-                      ) : null}
-
-                        <div className="flex flex-col gap-2 sm:flex-row sm:justify-end">
-                        <button
-                          type="button"
-                          onClick={confirmApplyRotation}
-                          className="inline-flex items-center justify-center gap-2 rounded-full bg-gradient-to-r from-emerald-400 to-emerald-500 px-4 py-2 text-xs font-semibold uppercase tracking-wide text-emerald-950 shadow shadow-emerald-500/30 transition hover:brightness-110 focus:outline-none focus:ring-2 focus:ring-emerald-400/40 focus:ring-offset-2 focus:ring-offset-slate-950"
-                        >
-                          <Check className="h-4 w-4" />
-                          Confirmar
-                        </button>
-                        <button
-                          type="button"
-                          onClick={() => setIsConfirmingRotation(false)}
-                          className="inline-flex items-center justify-center gap-2 rounded-full border border-white/20 px-4 py-2 text-xs font-semibold uppercase tracking-wide text-white/70 transition hover:border-white/40 hover:text-white focus:outline-none focus:ring-2 focus:ring-white/30 focus:ring-offset-2 focus:ring-offset-slate-950"
-                        >
-                          <X className="h-4 w-4" />
-                          Cancelar
-                        </button>
-                      </div>
+                        <p className="text-[10px] text-white/50">
+                          Se sobrescribirán los turnos existentes en {rotationTargetMonthLabel}.
+                        </p>
+                      ) : (
+                        <p className="text-[10px] text-white/50">No se encontraron turnos existentes en el periodo seleccionado.</p>
+                      )}
                     </div>
                   </motion.div>
-                ) : (
+                ) : null}
+
+                <div className="flex flex-wrap gap-2">
                   <button
                     type="button"
-                    onClick={() => setIsConfirmingRotation(true)}
-                    className="inline-flex items-center justify-center gap-2 rounded-full bg-gradient-to-r from-sky-500 via-sky-400 to-fuchsia-500 px-4 py-2 text-xs font-semibold uppercase tracking-wide text-white shadow-lg shadow-sky-500/30 transition hover:scale-[1.02] hover:brightness-110 focus:outline-none focus:ring-2 focus:ring-sky-400/40 focus:ring-offset-2 focus:ring-offset-slate-950"
+                    onClick={() => setIsConfirmingRotation((value) => !value)}
+                    disabled={
+                      isCommitting ||
+                      isLoadingRotationTemplates ||
+                      rotationTemplates.length === 0 ||
+                      !selectedRotationTemplate ||
+                      isLoadingShiftTemplates
+                    }
+                    className={`inline-flex items-center gap-2 rounded-full border px-4 py-2 text-[11px] font-semibold uppercase tracking-wide transition ${
+                      isConfirmingRotation
+                        ? "border-sky-400/60 bg-sky-500/20 text-sky-100"
+                        : "border-white/10 bg-white/5 text-white/70 hover:border-sky-400/40 hover:text-white"
+                    } ${isCommitting ? "opacity-50" : ""}`}
                   >
                     <Sparkles className="h-4 w-4" />
-                    Aplicar patrón
+                    {isConfirmingRotation ? "Cancelar" : "Previsualizar"}
                   </button>
-                )}
+                  <button
+                    type="button"
+                    onClick={confirmApplyRotation}
+                    disabled={
+                      isCommitting ||
+                      isLoadingRotationTemplates ||
+                      rotationTemplates.length === 0 ||
+                      !selectedRotationTemplate ||
+                      isLoadingShiftTemplates
+                    }
+                    className="inline-flex items-center gap-2 rounded-full border border-sky-400/60 bg-sky-500/20 px-4 py-2 text-[11px] font-semibold uppercase tracking-wide text-sky-100 transition hover:bg-sky-500/30 disabled:opacity-50"
+                  >
+                    <Check className="h-4 w-4" />
+                    Aplicar rotación
+                  </button>
+                  <a
+                    href="/templates"
+                    className="inline-flex items-center gap-2 rounded-full border border-white/10 bg-white/5 px-4 py-2 text-[11px] font-semibold uppercase tracking-wide text-white/70 transition hover:border-sky-400/40 hover:text-white"
+                  >
+                    Gestionar plantillas
+                  </a>
+                </div>
               </label>
-              <p className="text-[11px] text-white/50">Usa el patrón como base y edita manualmente los días que necesites.</p>
             </div>
           ) : (
             <div className="rounded-2xl border border-white/10 bg-slate-950/40 p-3 text-sm text-white/70 sm:p-4">

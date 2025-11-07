@@ -2397,6 +2397,7 @@ export default function Home() {
                           isCommittingPlanner={isCommittingRotation}
                           plannerError={rotationError}
                           onSelectEvent={handleSelectShift}
+                          userId={currentUser?.id ?? null}
                         />
                       </div>
                     </div>
@@ -2690,6 +2691,7 @@ export default function Home() {
                           isCommittingPlanner={isCommittingRotation}
                           plannerError={rotationError}
                           onSelectEvent={handleSelectShift}
+                          userId={currentUser?.id ?? null}
                         />
                       </motion.div>
                     )}

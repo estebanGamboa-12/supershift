@@ -261,7 +261,7 @@ export default function EditRotationModal({
                         </button>
                       )
                     })}
-                    <div className="absolute inset-0 flex items-center justify-center">
+                    <div className="pointer-events-none absolute inset-0 flex items-center justify-center">
                       <div className="flex flex-col items-center rounded-full border border-white/10 bg-white/5 px-6 py-6 text-center text-sm text-white/70">
                         <span className="text-3xl">{icon}</span>
                         <span>{daysCount} días</span>

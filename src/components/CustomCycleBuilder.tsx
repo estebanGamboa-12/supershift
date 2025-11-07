@@ -230,7 +230,9 @@ export const DEFAULT_QUESTIONNAIRE: QuestionnaireState = {
   notes: "",
 }
 
-function buildPatternFromPreferences(preferences: QuestionnaireState): DayPattern[] {
+export function buildPatternFromPreferences(
+  preferences: QuestionnaireState,
+): DayPattern[] {
   const pattern: DayPattern[] = []
 
   const normalizedWorkBlock = Math.max(1, Math.min(14, preferences.workBlock))
@@ -268,7 +270,7 @@ function buildPatternFromPreferences(preferences: QuestionnaireState): DayPatter
   return pattern
 }
 
-async function generateCalendarFromPattern(
+export async function generateCalendarFromPattern(
   supabase: SupabaseClient,
   pattern: ShiftType[],
   startDate: string,
@@ -467,6 +469,7 @@ export type PreferenceQuestionnaireProps = {
   onCancel?: () => void
   cancelLabel?: string
   footnote?: string
+  isSubmitting?: boolean
 }
 
 export function PreferenceQuestionnaire({
@@ -480,6 +483,7 @@ export function PreferenceQuestionnaire({
   cancelLabel = "Cancelar",
   footnote =
     "Utilizaremos estas respuestas para proponer un patrón inicial y podrás modificarlo antes de guardarlo en Supabase.",
+  isSubmitting = false,
 }: PreferenceQuestionnaireProps) {
   const handleChange = useCallback(<Key extends keyof QuestionnaireState>(
     key: Key,
@@ -725,8 +729,17 @@ export function PreferenceQuestionnaire({
           )}
           <button
             type="button"
-            onClick={onComplete}
-            className="inline-flex items-center gap-2 rounded-2xl border border-sky-400/60 bg-sky-500/80 px-5 py-3 text-sm font-semibold text-white shadow-lg shadow-sky-500/20 transition hover:bg-sky-400/80 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:ring-offset-slate-900"
+            onClick={() => {
+              if (!isSubmitting) {
+                onComplete()
+              }
+            }}
+            disabled={isSubmitting}
+            className={`inline-flex items-center gap-2 rounded-2xl border border-sky-400/60 px-5 py-3 text-sm font-semibold text-white shadow-lg shadow-sky-500/20 transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:ring-offset-slate-900 ${
+              isSubmitting
+                ? "bg-sky-500/40 opacity-75"
+                : "bg-sky-500/80 hover:bg-sky-400/80"
+            }`}
           >
             {ctaLabel}
             <svg

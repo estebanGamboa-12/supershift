@@ -46,12 +46,15 @@ export default function ProfileSchedulingPreferencesCard({
   const [mode, setMode] = useState<Mode>("summary")
 
   useEffect(() => {
-    const record = loadStoredPreferences()
+    const record = loadStoredPreferences(userId)
     if (record) {
       setStored(record)
       setFormState(record.questionnaire)
+    } else {
+      setStored(null)
+      setFormState(DEFAULT_QUESTIONNAIRE)
     }
-  }, [])
+  }, [userId])
 
   const builderUrl = useMemo(() => {
     const params = new URLSearchParams()
@@ -78,8 +81,9 @@ export default function ProfileSchedulingPreferencesCard({
       completedAt: new Date().toISOString(),
       snapshot,
       questionnaire: formState,
+      userId,
     }
-    saveStoredPreferences(record)
+    saveStoredPreferences(record, userId)
     setStored(record)
     setMode("summary")
   }
@@ -90,7 +94,7 @@ export default function ProfileSchedulingPreferencesCard({
   }
 
   const handleClear = () => {
-    clearStoredPreferences()
+    clearStoredPreferences(userId)
     setStored(null)
     setFormState(DEFAULT_QUESTIONNAIRE)
     setMode("summary")
@@ -254,7 +258,7 @@ export default function ProfileSchedulingPreferencesCard({
                   snapshot,
                   questionnaire: state,
                 }
-                saveStoredPreferences(record)
+                saveStoredPreferences(record, userId)
                 setStored(record)
                 setFormState(state)
               }}

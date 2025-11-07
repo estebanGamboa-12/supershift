@@ -746,6 +746,13 @@ export default function Home() {
     setActiveTab(sectionId as MobileTab)
   }, [])
 
+  const handleNavigateLink = useCallback(
+    (href: string) => {
+      router.push(href)
+    },
+    [router],
+  )
+
   const restoreSession = useCallback(() => {
     if (typeof window === "undefined") {
       return
@@ -2279,7 +2286,7 @@ export default function Home() {
   }
 
   return (
-    <div className="no-card-borders relative min-h-screen overflow-hidden bg-slate-950 text-white">
+    <div className="no-card-borders relative min-h-screen overflow-x-hidden bg-slate-950 text-white">
       <div
         className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_10%_0%,rgba(59,130,246,0.18),transparent_55%),_radial-gradient(circle_at_80%_105%,rgba(139,92,246,0.2),transparent_60%),_radial-gradient(circle_at_50%_50%,rgba(59,130,246,0.12),transparent_65%)]"
         aria-hidden
@@ -2352,7 +2359,7 @@ export default function Home() {
           </section>
         </div>
 
-        <main className="flex-1 overflow-y-auto pb-[calc(6rem+env(safe-area-inset-bottom))] lg:pb-0">
+        <main className="flex-1 pb-[calc(6rem+env(safe-area-inset-bottom))] lg:pb-0">
           <div className="mx-auto w-full max-w-[110rem] space-y-12 px-0 py-6 sm:px-2 lg:px-0">
             <div className="hidden lg:flex lg:flex-col lg:gap-10">
               <AnimatePresence mode="wait">
@@ -2770,7 +2777,11 @@ export default function Home() {
         </div>
       </div>
 
-      <MobileNavigation active={activeTab} onChange={setActiveTab} />
+      <MobileNavigation
+        active={activeTab}
+        onChange={handleNavigateTab}
+        onNavigateLink={handleNavigateLink}
+      />
 
       <MobileAddShiftSheet
         open={isMobileAddOpen}

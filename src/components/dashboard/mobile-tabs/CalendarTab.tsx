@@ -18,6 +18,7 @@ type CalendarTabProps = {
   isCommittingPlanner: boolean
   plannerError: string | null
   onSelectEvent: (shift: ShiftEvent) => void
+  userId: string | null
 }
 
 const CalendarTab: FC<CalendarTabProps> = ({
@@ -30,6 +31,7 @@ const CalendarTab: FC<CalendarTabProps> = ({
   isCommittingPlanner,
   plannerError,
   onSelectEvent,
+  userId,
 }) => {
   const today = startOfDay(new Date())
   const upcomingShifts = orderedShifts
@@ -46,6 +48,7 @@ const CalendarTab: FC<CalendarTabProps> = ({
         onCommit={onCommitPlanner}
         isCommitting={isCommittingPlanner}
         errorMessage={plannerError}
+        userId={userId}
       />
 
       <NextShiftCard

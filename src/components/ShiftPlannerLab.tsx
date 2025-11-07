@@ -745,7 +745,7 @@ export default function ShiftPlannerLab({
   return (
     <div className="relative overflow-hidden rounded-3xl border border-white/10 bg-slate-950/70 text-white shadow-[0_40px_90px_-35px_rgba(15,23,42,0.95)]">
       <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_top,_rgba(59,130,246,0.18),transparent_60%),_radial-gradient(circle_at_bottom_right,_rgba(236,72,153,0.14),transparent_55%)]" />
-      <div className="relative flex flex-col gap-6 p-0 sm:p-6">
+      <div className="relative flex flex-col gap-6 p-4 sm:p-6">
         <section className="space-y-4 rounded-2xl border border-white/10 bg-white/5 p-3 sm:p-5 backdrop-blur-xl">
           <header className="border-b border-white/10 pb-4">
             <div className="flex flex-col gap-1 sm:flex-row sm:items-end sm:justify-between">
@@ -765,7 +765,7 @@ export default function ShiftPlannerLab({
             </div>
           </header>
 
-          <div className="grid grid-cols-2 gap-3 rounded-2xl border border-white/10 bg-slate-950/60 p-2 text-xs sm:grid-cols-4 sm:p-4">
+          <div className="grid grid-cols-1 gap-3 rounded-2xl border border-white/10 bg-slate-950/60 p-2 text-xs sm:grid-cols-2 sm:p-4 lg:grid-cols-4">
             <div>
               <p className="uppercase tracking-wide text-white/40">Días trabajados</p>
               <p className="text-2xl font-semibold text-emerald-300">{stats.worked}</p>
@@ -792,7 +792,7 @@ export default function ShiftPlannerLab({
             </div>
           </div>
 
-          <div className="flex flex-wrap gap-2 rounded-2xl border border-white/10 bg-slate-950/50 p-2 text-xs font-semibold uppercase tracking-wider text-white/60 sm:p-3">
+          <div className="flex flex-col gap-2 rounded-2xl border border-white/10 bg-slate-950/50 p-2 text-xs font-semibold uppercase tracking-wider text-white/60 sm:flex-row sm:flex-wrap sm:p-3">
             <button
               type="button"
               onClick={() => setMode("manual")}
@@ -807,7 +807,7 @@ export default function ShiftPlannerLab({
             >
               Modo rotación
             </button>
-            <span className="ml-auto text-[11px] lowercase text-white/40">Cambia de modo en cualquier momento</span>
+            <span className="text-[11px] lowercase text-white/40 sm:ml-auto">Cambia de modo en cualquier momento</span>
           </div>
 
           {mode === "rotation" ? (
@@ -828,7 +828,7 @@ export default function ShiftPlannerLab({
                   No tienes plantillas de rotación todavía. Crea una en la sección de plantillas.
                 </div>
               ) : (
-                <div className="flex flex-wrap gap-2">
+                <div className="flex flex-col gap-2 sm:flex-row sm:flex-wrap">
                   {rotationTemplates.map((template) => {
                     const isSelected = selectedRotationTemplate?.id === template.id
                     const assignedCount = template.assignments.filter(
@@ -866,61 +866,61 @@ export default function ShiftPlannerLab({
                   className="w-full rounded-lg border border-white/10 bg-white/5 px-3 py-2 text-sm text-white focus:border-sky-400 focus:outline-none focus:ring-2 focus:ring-sky-400/40 sm:max-w-[180px]"
                 />
                 {isConfirmingRotation && selectedRotationTemplate ? (
-                  <motion.div
-                    initial={{ opacity: 0, y: 10 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    transition={{ duration: 0.25, ease: "easeOut" }}
-                    className="relative w-full overflow-hidden rounded-2xl border border-white/15 bg-slate-950/75 p-4 text-left text-xs text-white/70 shadow-lg shadow-slate-950/40"
-                  >
-                    <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_top,_rgba(56,189,248,0.18),transparent_55%),_radial-gradient(circle_at_bottom,_rgba(236,72,153,0.16),transparent_60%)]" />
-                    <div className="relative flex flex-col gap-4">
-                      <div className="flex items-start gap-3">
-                        <div className="flex h-10 w-10 items-center justify-center rounded-full bg-sky-500/20 text-sky-200">
-                          <Sparkles className="h-5 w-5" />
-                        </div>
-                        <div className="space-y-1">
-                          <p className="text-sm font-semibold text-white">Aplicar plantilla</p>
-                          <p className="text-xs text-white/70">
-                            {monthHasEntries
-                              ? `Se reemplazarán los turnos configurados en ${rotationTargetMonthLabel} por la plantilla seleccionada.`
-                              : "Confirma si quieres aplicar la plantilla seleccionada sobre el calendario mostrado."}
-                          </p>
-                        </div>
-                      </div>
-
-                      <div className="grid gap-3 rounded-xl border border-white/10 bg-slate-900/70 p-3 sm:grid-cols-2">
+                    <motion.div
+                      initial={{ opacity: 0, y: 10 }}
+                      animate={{ opacity: 1, y: 0 }}
+                      transition={{ duration: 0.25, ease: "easeOut" }}
+                      className="relative w-full overflow-hidden rounded-2xl border border-white/15 bg-slate-950/75 p-4 text-left text-xs text-white/70 shadow-lg shadow-slate-950/40"
+                    >
+                      <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_top,_rgba(56,189,248,0.18),transparent_55%),_radial-gradient(circle_at_bottom,_rgba(236,72,153,0.16),transparent_60%)]" />
+                      <div className="relative flex flex-col gap-4">
                         <div className="flex items-start gap-3">
-                          <Sparkles className="mt-1 h-4 w-4 text-sky-300" />
+                          <div className="flex h-10 w-10 items-center justify-center rounded-full bg-sky-500/20 text-sky-200">
+                            <Sparkles className="h-5 w-5" />
+                          </div>
                           <div className="space-y-1">
-                            <p className="text-[11px] uppercase tracking-wide text-white/40">Plantilla</p>
-                            <p className="text-sm font-semibold text-white">{selectedRotationTemplate.title}</p>
-                            <p className="text-[10px] text-white/50">
-                              {selectedRotationTemplate.daysCount} días · {selectedRotationTemplate.assignments.filter((assignment) => assignment.shiftTemplateId != null).length} turnos asignados
+                            <p className="text-sm font-semibold text-white">Aplicar plantilla</p>
+                            <p className="text-xs text-white/70">
+                              {monthHasEntries
+                                ? `Se reemplazarán los turnos configurados en ${rotationTargetMonthLabel} por la plantilla seleccionada.`
+                                : "Confirma si quieres aplicar la plantilla seleccionada sobre el calendario mostrado."}
                             </p>
                           </div>
                         </div>
-                        <div className="flex items-start gap-3">
-                          <CalendarDays className="mt-1 h-4 w-4 text-fuchsia-300" />
-                          <div className="space-y-1">
-                            <p className="text-[11px] uppercase tracking-wide text-white/40">Inicio</p>
-                            <p className="text-sm font-semibold text-white">{rotationStartLabel}</p>
-                            <p className="text-[10px] text-white/50">Se aplicará al mes de {rotationTargetMonthLabel}.</p>
+
+                        <div className="grid grid-cols-1 gap-3 rounded-xl border border-white/10 bg-slate-900/70 p-3 sm:grid-cols-2">
+                          <div className="flex items-start gap-3">
+                            <Sparkles className="mt-1 h-4 w-4 text-sky-300" />
+                            <div className="space-y-1">
+                              <p className="text-[11px] uppercase tracking-wide text-white/40">Plantilla</p>
+                              <p className="text-sm font-semibold text-white">{selectedRotationTemplate.title}</p>
+                              <p className="text-[10px] text-white/50">
+                                {selectedRotationTemplate.daysCount} días · {selectedRotationTemplate.assignments.filter((assignment) => assignment.shiftTemplateId != null).length} turnos asignados
+                              </p>
+                            </div>
+                          </div>
+                          <div className="flex items-start gap-3">
+                            <CalendarDays className="mt-1 h-4 w-4 text-fuchsia-300" />
+                            <div className="space-y-1">
+                              <p className="text-[11px] uppercase tracking-wide text-white/40">Inicio</p>
+                              <p className="text-sm font-semibold text-white">{rotationStartLabel}</p>
+                              <p className="text-[10px] text-white/50">Se aplicará al mes de {rotationTargetMonthLabel}.</p>
+                            </div>
                           </div>
                         </div>
-                      </div>
 
-                      {monthHasEntries ? (
-                        <p className="text-[10px] text-white/50">
-                          Se sobrescribirán los turnos existentes en {rotationTargetMonthLabel}.
-                        </p>
-                      ) : (
-                        <p className="text-[10px] text-white/50">No se encontraron turnos existentes en el periodo seleccionado.</p>
-                      )}
-                    </div>
-                  </motion.div>
+                        {monthHasEntries ? (
+                          <p className="text-[10px] text-white/50">
+                            Se sobrescribirán los turnos existentes en {rotationTargetMonthLabel}.
+                          </p>
+                        ) : (
+                          <p className="text-[10px] text-white/50">No se encontraron turnos existentes en el periodo seleccionado.</p>
+                        )}
+                      </div>
+                    </motion.div>
                 ) : null}
 
-                <div className="flex flex-wrap gap-2">
+                <div className="flex flex-col gap-2 sm:flex-row sm:flex-wrap">
                   <button
                     type="button"
                     onClick={() => setIsConfirmingRotation((value) => !value)}
@@ -972,8 +972,8 @@ export default function ShiftPlannerLab({
             </div>
           )}
 
-          <div className="flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-white/10 bg-slate-950/50 p-3 text-xs font-semibold text-white/70 sm:p-5">
-            <div className="flex items-center gap-3">
+          <div className="flex flex-col gap-3 rounded-2xl border border-white/10 bg-slate-950/50 p-3 text-xs font-semibold text-white/70 sm:flex-row sm:flex-wrap sm:items-center sm:justify-between sm:p-5">
+            <div className="flex flex-wrap items-center gap-2 sm:gap-3">
               <button
                 type="button"
                 onClick={handlePrevMonth}
@@ -1013,31 +1013,33 @@ export default function ShiftPlannerLab({
           </div>
 
           <div className="overflow-hidden rounded-3xl border border-white/10 bg-slate-950/50">
-            <div className="grid grid-cols-7 gap-2 border-b border-white/5 bg-slate-950/40 px-2 py-2 text-[10px] font-semibold uppercase tracking-wide text-white/60 sm:gap-3 sm:px-6 sm:py-3 sm:text-[11px]">
-              {Array.from({ length: 7 }).map((_, index) => {
-                const reference = addDays(startOfWeek(new Date(), { weekStartsOn: 1 }), index)
-                return (
-                  <div key={index} className="rounded-md bg-slate-950/70 py-1 text-center text-white/70 sm:py-1.5">
-                    {format(reference, "EEE", { locale: es })}
-                  </div>
-                )
-              })}
-            </div>
+            <div className="overflow-x-auto">
+              <div className="min-w-[560px] sm:min-w-0">
+                <div className="grid grid-cols-7 gap-2 border-b border-white/5 bg-slate-950/40 px-2 py-2 text-[10px] font-semibold uppercase tracking-wide text-white/60 sm:gap-3 sm:px-6 sm:py-3 sm:text-[11px]">
+                  {Array.from({ length: 7 }).map((_, index) => {
+                    const reference = addDays(startOfWeek(new Date(), { weekStartsOn: 1 }), index)
+                    return (
+                      <div key={index} className="rounded-md bg-slate-950/70 py-1 text-center text-white/70 sm:py-1.5">
+                        {format(reference, "EEE", { locale: es })}
+                      </div>
+                    )
+                  })}
+                </div>
 
-            <AnimatePresence mode="wait" initial={false}>
-              <motion.div
-                key={monthLabel}
-                initial={{ opacity: 0, y: 12 }}
-                animate={{ opacity: 1, y: 0 }}
-                exit={{ opacity: 0, y: -12 }}
-                transition={{ duration: 0.25, ease: "easeOut" }}
-                className="grid grid-cols-7 gap-2 bg-transparent px-2 pb-2 pt-2 sm:gap-3 sm:px-6 sm:pb-5 sm:pt-3"
-              >
-                {calendarConfig.days.map((day, index) => {
-                  const key = toIsoDate(day)
-                  const entry = entries[key]
-                  const isCurrent = isSameMonth(day, currentMonth)
-                  const isCurrentDay = isToday(day)
+                <AnimatePresence mode="wait" initial={false}>
+                  <motion.div
+                    key={monthLabel}
+                    initial={{ opacity: 0, y: 12 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    exit={{ opacity: 0, y: -12 }}
+                    transition={{ duration: 0.25, ease: "easeOut" }}
+                    className="grid grid-cols-7 gap-2 bg-transparent px-2 pb-2 pt-2 sm:gap-3 sm:px-6 sm:pb-5 sm:pt-3"
+                  >
+                    {calendarConfig.days.map((day, index) => {
+                      const key = toIsoDate(day)
+                      const entry = entries[key]
+                      const isCurrent = isSameMonth(day, currentMonth)
+                      const isCurrentDay = isToday(day)
                   const accentColor = entry
                     ? entry.color ||
                       SHIFT_TYPES.find(({ value }) => value === entry.type)?.defaultColor ||
@@ -1111,10 +1113,12 @@ export default function ShiftPlannerLab({
                     </button>
                   )
                 })}
-              </motion.div>
-            </AnimatePresence>
+                </motion.div>
+              </AnimatePresence>
+            </div>
           </div>
-        </section>
+        </div>
+      </section>
 
         <div className="flex flex-col gap-4 rounded-2xl border border-white/10 bg-slate-950/60 p-4 text-sm text-white/70 sm:p-5 lg:flex-row lg:items-center lg:justify-between">
           <p className="inline-flex items-center justify-center rounded-full border border-emerald-500/40 bg-emerald-500/10 px-4 py-2 text-center text-xs font-semibold uppercase tracking-wide text-emerald-200">
@@ -1292,21 +1296,21 @@ function EditorForm({ defaults, onSave, onRemove }: EditorFormProps) {
       className="mt-6 space-y-6 pb-[calc(6.5rem+env(safe-area-inset-bottom))] sm:pb-6 lg:pb-0"
       onSubmit={(event) => {
         event.preventDefault()
-          onSave({
-            type,
-            note: note.trim(),
-            color,
-            label: label.trim().length > 0 ? label.trim() : SHIFT_LABELS[type],
-            pluses,
+        onSave({
+          type,
+          note: note.trim(),
+          color,
+          label: label.trim().length > 0 ? label.trim() : SHIFT_LABELS[type],
+          pluses,
           startTime: effectiveStartTime,
           endTime: effectiveEndTime,
-          })
-        }}
+        })
+      }}
     >
       <div className="space-y-4">
         <div>
           <p className="text-xs uppercase tracking-wide text-white/40">Tipo de turno</p>
-          <div className="mt-3 grid gap-2 sm:grid-cols-2">
+          <div className="mt-3 grid grid-cols-1 gap-2 sm:grid-cols-2">
             {SHIFT_TYPES.map((option) => (
               <button
                 key={option.value}
@@ -1347,7 +1351,7 @@ function EditorForm({ defaults, onSave, onRemove }: EditorFormProps) {
           />
         </label>
 
-        <div className="grid gap-3 sm:grid-cols-2">
+        <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
           <label className="flex flex-col gap-2 text-xs text-white/70">
             Hora de entrada
             <input
@@ -1403,7 +1407,7 @@ function EditorForm({ defaults, onSave, onRemove }: EditorFormProps) {
           />
         </label>
 
-        <div className="grid gap-3 sm:grid-cols-2">
+        <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
           {(
             [
               ["night", "Nocturnidad"],

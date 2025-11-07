@@ -1,3 +1,4 @@
+import Link from "next/link"
 import CustomCycleBuilder from "@/components/CustomCycleBuilder"
 
 function toPositiveInteger(value: string | string[] | undefined): number | undefined {
@@ -57,14 +58,24 @@ export default async function CustomCycleBuilderPage({
   return (
     <main className="min-h-screen bg-slate-950 py-12 text-white">
       <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
-        <header className="mb-10 space-y-3 text-center">
-          <h1 className="text-3xl font-bold tracking-tight sm:text-4xl">
-            Configura tu ciclo personalizado
-          </h1>
-          <p className="mx-auto max-w-2xl text-sm text-white/70">
-            Ajusta el número de días, los tipos de turno y guarda el resultado directamente en Supabase.
-            Puedes pasar parámetros por URL para precargar el calendario (calendarId), el usuario (userId) o la tabla de destino.
-          </p>
+        <header className="mb-10 space-y-4 text-center">
+          <div className="space-y-3">
+            <h1 className="text-3xl font-bold tracking-tight sm:text-4xl">
+              Configura tu ciclo personalizado
+            </h1>
+            <p className="mx-auto max-w-2xl text-sm text-white/70">
+              Ajusta el número de días, los tipos de turno y guarda el resultado directamente en Supabase.
+              Puedes pasar parámetros por URL para precargar el calendario (calendarId), el usuario (userId) o la tabla de destino.
+            </p>
+          </div>
+          <div className="flex justify-center">
+            <Link
+              href="/templates"
+              className="inline-flex items-center justify-center rounded-full border border-white/15 px-4 py-2 text-xs font-semibold uppercase tracking-wide text-white/80 transition hover:border-sky-400/40 hover:text-white"
+            >
+              Explorar plantillas
+            </Link>
+          </div>
         </header>
 
         <CustomCycleBuilder

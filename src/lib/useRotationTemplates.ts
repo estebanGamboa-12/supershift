@@ -1,7 +1,6 @@
 "use client"
 
 import { useCallback, useEffect, useMemo, useState } from "react"
-import type { PostgrestSingleResponse } from "@supabase/supabase-js"
 import { getSupabaseBrowserClient } from "@/lib/supabase"
 import type {
   RotationTemplate,
@@ -51,6 +50,12 @@ function normaliseAssignment(
     dayIndex,
     shiftTemplateId: typeof row.shift_template_id === "number" ? row.shift_template_id : null,
   }
+}
+
+function isRotationTemplateRowArray(
+  rows: unknown,
+): rows is RotationTemplateRow[] {
+  return Array.isArray(rows) && rows.every((row) => isRotationTemplateRow(row))
 }
 
 function normaliseRotationTemplate(row: RotationTemplateRow): RotationTemplate {
@@ -157,7 +162,7 @@ export function useRotationTemplates(userId: string | null | undefined) {
     setIsLoading(true)
     setError(null)
 
-    const response: PostgrestSingleResponse<RotationTemplateRow[]> = await supabase
+    const response = await supabase
       .from("rotation_template_presets")
       .select(selectProjection)
       .eq("user_id", userId)
@@ -174,7 +179,14 @@ export function useRotationTemplates(userId: string | null | undefined) {
       return
     }
 
-    const rows = response.data ?? []
+    const rows: RotationTemplateRow[] = isRotationTemplateRowArray(response.data)
+      ? response.data
+      : []
+
+    if (response.data && rows.length === 0 && Array.isArray(response.data)) {
+      console.warn("Los datos recibidos no son plantillas de rotación válidas", response.data)
+    }
+
     setTemplates(rows.map((row) => normaliseRotationTemplate(row)))
     setIsLoading(false)
   }, [selectProjection, supabase, userId])

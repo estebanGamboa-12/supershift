@@ -26,6 +26,16 @@ type RotationTemplateAssignmentRow = {
   shift_template_id?: number | null
 }
 
+function isRotationTemplateRow(row: unknown): row is RotationTemplateRow {
+  if (!row || typeof row !== "object") {
+    return false
+  }
+
+  const candidate = row as { id?: unknown; user_id?: unknown }
+
+  return typeof candidate.id === "number" && typeof candidate.user_id === "string"
+}
+
 function normaliseAssignment(
   row: RotationTemplateAssignmentRow,
   index: number,
@@ -129,11 +139,11 @@ export function useRotationTemplates(userId: string | null | undefined) {
         return null
       }
 
-      if (!data) {
+      if (!isRotationTemplateRow(data)) {
         return null
       }
 
-      return normaliseRotationTemplate(data as RotationTemplateRow)
+      return normaliseRotationTemplate(data)
     },
     [selectProjection, supabase, userId],
   )

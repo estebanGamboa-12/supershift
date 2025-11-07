@@ -1,6 +1,7 @@
 "use client"
 
 import { useState, useMemo, useCallback, useEffect, useRef } from "react"
+import Link from "next/link"
 import { useRouter } from "next/navigation"
 import { differenceInCalendarDays, format } from "date-fns"
 import { es } from "date-fns/locale"
@@ -2312,17 +2313,23 @@ export default function Home() {
                 </div>
                 <div className="flex items-center gap-4">
                   <div className="text-right text-xs text-white/50">
-                  <p className="text-sm font-semibold text-white">{currentUser.name}</p>
-                  <p>{currentUser.email}</p>
+                    <p className="text-sm font-semibold text-white">{currentUser.name}</p>
+                    <p>{currentUser.email}</p>
+                  </div>
+                  <Link
+                    href="/templates"
+                    className="rounded-full border border-white/15 px-4 py-2 text-xs font-semibold uppercase tracking-wide text-white/80 transition hover:border-sky-400/40 hover:text-white"
+                  >
+                    Plantillas
+                  </Link>
+                  <button
+                    type="button"
+                    onClick={handleLogout}
+                    className="rounded-full border border-white/15 px-4 py-2 text-xs font-semibold uppercase tracking-wide text-white/80 transition hover:border-red-400/40 hover:text-red-200"
+                  >
+                    Cerrar sesión
+                  </button>
                 </div>
-                <button
-                  type="button"
-                  onClick={handleLogout}
-                  className="rounded-full border border-white/15 px-4 py-2 text-xs font-semibold uppercase tracking-wide text-white/80 transition hover:border-red-400/40 hover:text-red-200"
-                >
-                  Cerrar sesión
-                </button>
-              </div>
             </div>
 
             <div className="mt-6 flex flex-wrap gap-2 text-xs font-semibold uppercase tracking-wide text-white/60">

@@ -26,7 +26,10 @@ type RotationTemplateAssignmentRow = {
   shift_template_id?: number | null
 }
 
-function normaliseAssignment(row: RotationTemplateAssignmentRow, index: number): RotationTemplateAssignment {
+function normaliseAssignment(
+  row: RotationTemplateAssignmentRow,
+  index: number,
+): RotationTemplateAssignment {
   const dayIndex =
     typeof row.day_index === "number"
       ? row.day_index
@@ -42,7 +45,9 @@ function normaliseAssignment(row: RotationTemplateAssignmentRow, index: number):
 
 function normaliseRotationTemplate(row: RotationTemplateRow): RotationTemplate {
   const assignments = Array.isArray(row.assignments)
-    ? row.assignments.map((assignment, index) => normaliseAssignment(assignment, index))
+    ? row.assignments
+        .map((assignment, index) => normaliseAssignment(assignment, index))
+        .sort((a, b) => a.dayIndex - b.dayIndex)
     : []
 
   const daysCount =
@@ -83,6 +88,56 @@ export function useRotationTemplates(userId: string | null | undefined) {
   const [isLoading, setIsLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
 
+  const selectProjection = useMemo(
+    () =>
+      [
+        "id",
+        "user_id",
+        "title",
+        "icon",
+        "description",
+        "days_count",
+        "created_at",
+        "updated_at",
+        "assignments:rotation_template_preset_assignments(day_index,shift_template_id)",
+      ].join(","),
+    [],
+  )
+
+  const readTemplateById = useCallback(
+    async (templateId: number): Promise<RotationTemplate | null> => {
+      if (!supabase || !userId) {
+        return null
+      }
+
+      const { data, error: fetchError } = await supabase
+        .from("rotation_template_presets")
+        .select(selectProjection)
+        .eq("id", templateId)
+        .eq("user_id", userId)
+        .maybeSingle()
+
+      if (fetchError) {
+        console.error(
+          `No se pudo obtener la plantilla de rotación con id ${templateId}`,
+          fetchError,
+        )
+        setError(
+          fetchError.message ??
+            "No se pudo cargar la plantilla de rotación. Inténtalo de nuevo más tarde.",
+        )
+        return null
+      }
+
+      if (!data) {
+        return null
+      }
+
+      return normaliseRotationTemplate(data as RotationTemplateRow)
+    },
+    [selectProjection, supabase, userId],
+  )
+
   const fetchTemplates = useCallback(async () => {
     if (!supabase || !userId) {
       setTemplates([])
@@ -93,10 +148,8 @@ export function useRotationTemplates(userId: string | null | undefined) {
     setError(null)
 
     const response: PostgrestSingleResponse<RotationTemplateRow[]> = await supabase
-      .from("rotation_templates")
-      .select(
-        "id, user_id, title, icon, description, days_count, assignments, created_at, updated_at",
-      )
+      .from("rotation_template_presets")
+      .select(selectProjection)
       .eq("user_id", userId)
       .order("created_at", { ascending: false })
 
@@ -114,7 +167,7 @@ export function useRotationTemplates(userId: string | null | undefined) {
     const rows = response.data ?? []
     setTemplates(rows.map((row) => normaliseRotationTemplate(row)))
     setIsLoading(false)
-  }, [supabase, userId])
+  }, [selectProjection, supabase, userId])
 
   useEffect(() => {
     let isMounted = true
@@ -145,40 +198,70 @@ export function useRotationTemplates(userId: string | null | undefined) {
         return null
       }
 
+      setError(null)
+
       const insertPayload = {
         user_id: userId,
         title: payload.title.trim(),
         icon: payload.icon ?? null,
         description: payload.description?.trim() ?? null,
         days_count: payload.daysCount,
-        assignments: payload.assignments.map((assignment) => ({
-          day_index: assignment.dayIndex,
-          shift_template_id: assignment.shiftTemplateId,
-        })),
       }
 
-      const { data, error: insertError } = await supabase
-        .from("rotation_templates")
+      const { data: insertedRow, error: insertError } = await supabase
+        .from("rotation_template_presets")
         .insert(insertPayload)
-        .select(
-          "id, user_id, title, icon, description, days_count, assignments, created_at, updated_at",
-        )
-        .single()
+        .select("id")
+        .single<{ id: number }>()
 
-      if (insertError) {
+      if (insertError || !insertedRow) {
         console.error("No se pudo crear la plantilla de rotación", insertError)
         setError(
-          insertError.message ??
+          insertError?.message ??
             "No se pudo crear la plantilla de rotación. Inténtalo de nuevo más tarde.",
         )
         return null
       }
 
-      const template = normaliseRotationTemplate(data as RotationTemplateRow)
+      const templateId = insertedRow.id
+
+      if (payload.assignments.length > 0) {
+        const assignmentsPayload = payload.assignments.map((assignment) => ({
+          template_id: templateId,
+          day_index: assignment.dayIndex,
+          shift_template_id: assignment.shiftTemplateId,
+        }))
+
+        const { error: assignmentsError } = await supabase
+          .from("rotation_template_preset_assignments")
+          .upsert(assignmentsPayload, { onConflict: "template_id,day_index" })
+
+        if (assignmentsError) {
+          console.error(
+            "No se pudieron guardar los días de la plantilla de rotación",
+            assignmentsError,
+          )
+          await supabase
+            .from("rotation_template_presets")
+            .delete()
+            .eq("id", templateId)
+          setError(
+            assignmentsError.message ??
+              "No se pudieron guardar los días de la plantilla. Inténtalo de nuevo más tarde.",
+          )
+          return null
+        }
+      }
+
+      const template = await readTemplateById(templateId)
+      if (!template) {
+        return null
+      }
+
       setTemplates((current) => [template, ...current])
       return template
     },
-    [supabase, userId],
+    [readTemplateById, supabase, userId],
   )
 
   const updateRotationTemplate = useCallback(
@@ -191,26 +274,20 @@ export function useRotationTemplates(userId: string | null | undefined) {
         return null
       }
 
+      setError(null)
+
       const updatePayload = {
         title: payload.title.trim(),
         icon: payload.icon ?? null,
         description: payload.description?.trim() ?? null,
         days_count: payload.daysCount,
-        assignments: payload.assignments.map((assignment) => ({
-          day_index: assignment.dayIndex,
-          shift_template_id: assignment.shiftTemplateId,
-        })),
       }
 
-      const { data, error: updateError } = await supabase
-        .from("rotation_templates")
+      const { error: updateError } = await supabase
+        .from("rotation_template_presets")
         .update(updatePayload)
         .eq("id", id)
         .eq("user_id", userId)
-        .select(
-          "id, user_id, title, icon, description, days_count, assignments, created_at, updated_at",
-        )
-        .single()
 
       if (updateError) {
         console.error("No se pudo actualizar la plantilla de rotación", updateError)
@@ -221,11 +298,56 @@ export function useRotationTemplates(userId: string | null | undefined) {
         return null
       }
 
-      const template = normaliseRotationTemplate(data as RotationTemplateRow)
+      const { error: deleteError } = await supabase
+        .from("rotation_template_preset_assignments")
+        .delete()
+        .eq("template_id", id)
+
+      if (deleteError) {
+        console.error(
+          "No se pudieron limpiar los días de la plantilla de rotación",
+          deleteError,
+        )
+        setError(
+          deleteError.message ??
+            "No se pudieron actualizar los días de la plantilla. Inténtalo de nuevo más tarde.",
+        )
+        return null
+      }
+
+      if (payload.assignments.length > 0) {
+        const assignmentsPayload = payload.assignments.map((assignment) => ({
+          template_id: id,
+          day_index: assignment.dayIndex,
+          shift_template_id: assignment.shiftTemplateId,
+        }))
+
+        const { error: assignmentsError } = await supabase
+          .from("rotation_template_preset_assignments")
+          .upsert(assignmentsPayload, { onConflict: "template_id,day_index" })
+
+        if (assignmentsError) {
+          console.error(
+            "No se pudieron guardar los días actualizados de la plantilla",
+            assignmentsError,
+          )
+          setError(
+            assignmentsError.message ??
+              "No se pudieron guardar los días actualizados. Inténtalo de nuevo más tarde.",
+          )
+          return null
+        }
+      }
+
+      const template = await readTemplateById(id)
+      if (!template) {
+        return null
+      }
+
       setTemplates((current) => current.map((item) => (item.id === id ? template : item)))
       return template
     },
-    [supabase, userId],
+    [readTemplateById, supabase, userId],
   )
 
   const deleteRotationTemplate = useCallback(
@@ -236,7 +358,7 @@ export function useRotationTemplates(userId: string | null | undefined) {
       }
 
       const { error: deleteError } = await supabase
-        .from("rotation_templates")
+        .from("rotation_template_presets")
         .delete()
         .eq("id", id)
         .eq("user_id", userId)

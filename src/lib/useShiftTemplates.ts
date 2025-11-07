@@ -19,14 +19,25 @@ type ShiftTemplateRow = {
   updated_at?: string | null
 }
 
+function normaliseTime(value?: string | null): string {
+  if (!value) {
+    return "00:00"
+  }
+
+  const [hours = "00", minutes = "00"] = value.split(":")
+  const normalizedHours = hours.padStart(2, "0").slice(0, 2)
+  const normalizedMinutes = minutes.padStart(2, "0").slice(0, 2)
+  return `${normalizedHours}:${normalizedMinutes}`
+}
+
 function normaliseTemplate(row: ShiftTemplateRow): ShiftTemplate {
   return {
     id: row.id,
     userId: row.user_id,
     title: row.title ?? "Plantilla sin título",
     icon: row.icon ?? null,
-    startTime: row.start_time ?? "09:00",
-    endTime: row.end_time ?? "17:00",
+    startTime: normaliseTime(row.start_time ?? undefined) || "09:00",
+    endTime: normaliseTime(row.end_time ?? undefined) || "17:00",
     breakMinutes: typeof row.break_minutes === "number" ? row.break_minutes : null,
     alertMinutes: typeof row.alert_minutes === "number" ? row.alert_minutes : null,
     location: row.location ?? null,
@@ -63,7 +74,7 @@ export function useShiftTemplates(userId: string | null | undefined) {
     setError(null)
 
     const response: PostgrestSingleResponse<ShiftTemplateRow[]> = await supabase
-      .from("shift_templates")
+      .from("shift_template_presets")
       .select(
         "id, user_id, title, icon, start_time, end_time, break_minutes, alert_minutes, location, created_at, updated_at",
       )
@@ -127,7 +138,7 @@ export function useShiftTemplates(userId: string | null | undefined) {
       }
 
       const { data, error: insertError } = await supabase
-        .from("shift_templates")
+        .from("shift_template_presets")
         .insert(insertPayload)
         .select(
           "id, user_id, title, icon, start_time, end_time, break_minutes, alert_minutes, location, created_at, updated_at",
@@ -168,7 +179,7 @@ export function useShiftTemplates(userId: string | null | undefined) {
       }
 
       const { data, error: updateError } = await supabase
-        .from("shift_templates")
+        .from("shift_template_presets")
         .update(updatePayload)
         .eq("id", id)
         .eq("user_id", userId)
@@ -201,7 +212,7 @@ export function useShiftTemplates(userId: string | null | undefined) {
       }
 
       const { error: deleteError } = await supabase
-        .from("shift_templates")
+        .from("shift_template_presets")
         .delete()
         .eq("id", id)
         .eq("user_id", userId)

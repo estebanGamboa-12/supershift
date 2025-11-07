@@ -177,7 +177,10 @@ export default function TemplatesPage() {
         const sanitized = Array.isArray(data?.users)
           ? data.users
               .map((user: unknown) => sanitizeUserSummary(user))
-              .filter((user): user is UserSummary => Boolean(user))
+              .filter(
+                (user: UserSummary | null | undefined): user is UserSummary =>
+                  Boolean(user),
+              )
           : []
 
         setUsers(sanitized)

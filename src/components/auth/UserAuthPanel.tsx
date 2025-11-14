@@ -5,8 +5,7 @@ import { useMemo, useState } from "react"
 import { motion, AnimatePresence } from "framer-motion"
 import type { UserSummary } from "@/types/users"
 import { getSupabaseBrowserClient } from "@/lib/supabase"
-import { exchangeAccessToken } from "@/lib/auth-client"
-import { buildRecoveryCallbackUrl } from "@/lib/auth-links"
+import { exchangeAccessToken, requestPasswordRecovery } from "@/lib/auth-client"
 
 type UserAuthPanelProps = {
   users: UserSummary[]
@@ -229,35 +228,9 @@ export default function UserAuthPanel({
       return
     }
 
-    if (!supabase) {
-      setResetError(
-        "Supabase no está configurado correctamente. Revisa las variables de entorno.",
-      )
-      return
-    }
-
     try {
       setIsResetting(true)
-      let redirectTo: string | undefined
-
-      try {
-        redirectTo = buildRecoveryCallbackUrl()
-      } catch (error) {
-        setResetError(
-          error instanceof Error
-            ? error.message
-            : "No se pudo generar el enlace de recuperación. Revisa la configuración.",
-        )
-        return
-      }
-
-      const { error } = await supabase.auth.resetPasswordForEmail(email, {
-        redirectTo,
-      })
-
-      if (error) {
-        throw error
-      }
+      await requestPasswordRecovery({ email })
 
       setResetNotice(
         "Si la dirección existe en nuestra base de datos, te enviaremos un correo con instrucciones para restablecer tu contraseña.",

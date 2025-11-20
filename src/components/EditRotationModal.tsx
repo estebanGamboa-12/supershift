@@ -17,6 +17,8 @@ type EditRotationModalProps = {
   shiftTemplates: ShiftTemplate[]
 }
 
+const MAX_ROTATION_DAYS = 18
+
 function buildAssignments(length: number, seed?: RotationTemplateAssignment[]): RotationTemplateAssignment[] {
   const next: RotationTemplateAssignment[] = []
   for (let index = 0; index < length; index += 1) {
@@ -71,8 +73,9 @@ export default function EditRotationModal({
       setName(template.title)
       setIcon(template.icon ?? "🔄")
       setDescription(template.description ?? "")
-      setDaysCount(template.daysCount)
-      setAssignments(buildAssignments(template.daysCount, template.assignments))
+      const clampedDays = Math.min(MAX_ROTATION_DAYS, template.daysCount)
+      setDaysCount(clampedDays)
+      setAssignments(buildAssignments(clampedDays, template.assignments))
       setActiveDay(0)
     } else {
       setName("")
@@ -140,11 +143,12 @@ export default function EditRotationModal({
     setIsSubmitting(true)
 
     try {
+      const clampedDays = Math.min(MAX_ROTATION_DAYS, Math.max(1, daysCount))
       const payload: RotationTemplateInput = {
         title: name.trim(),
         icon: icon.trim() || "🔄",
         description: description.trim() || null,
-        daysCount,
+        daysCount: clampedDays,
         assignments: assignments.map((assignment) => ({
           dayIndex: assignment.dayIndex,
           shiftTemplateId: assignment.shiftTemplateId ?? null,
@@ -237,9 +241,16 @@ export default function EditRotationModal({
                     <input
                       type="number"
                       min={1}
-                      max={31}
+                      max={MAX_ROTATION_DAYS}
                       value={daysCount}
-                      onChange={(event) => setDaysCount(Math.min(31, Math.max(1, Number.parseInt(event.target.value, 10) || 1)))}
+                      onChange={(event) =>
+                        setDaysCount(
+                          Math.min(
+                            MAX_ROTATION_DAYS,
+                            Math.max(1, Number.parseInt(event.target.value, 10) || 1),
+                          ),
+                        )
+                      }
                       className="rounded-2xl border border-white/15 bg-white/5 px-4 py-2 text-sm text-white focus:border-sky-400 focus:outline-none focus:ring-2 focus:ring-sky-400/40"
                     />
                   </label>

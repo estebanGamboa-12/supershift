@@ -43,6 +43,25 @@ export default function EditRotationModal({
   const [error, setError] = useState<string | null>(null)
   const [isSubmitting, setIsSubmitting] = useState(false)
 
+  const circleButtonSize = useMemo(() => {
+    if (assignments.length > 24) return 40
+    if (assignments.length > 14) return 44
+    return 50
+  }, [assignments.length])
+
+  const circleSpacing = 8
+  const circleRadius = useMemo(() => {
+    const estimatedRadius =
+      (assignments.length * (circleButtonSize + circleSpacing)) / (2 * Math.PI)
+    return Math.min(220, Math.max(90, estimatedRadius))
+  }, [assignments.length, circleButtonSize])
+
+  const circleSize = useMemo(
+    () => circleRadius * 2 + circleButtonSize + 24,
+    [circleButtonSize, circleRadius],
+  )
+  const circleCenter = useMemo(() => circleSize / 2, [circleSize])
+
   useEffect(() => {
     if (!open) {
       return
@@ -268,13 +287,19 @@ export default function EditRotationModal({
                     </div>
                   </div>
 
-                  <div className="relative hidden h-72 w-72 max-w-full sm:block">
-                    <div className="absolute inset-[15%] rounded-full border border-sky-400/30 bg-sky-500/10" aria-hidden />
+                  <div
+                    className="relative hidden max-w-full sm:block"
+                    style={{ width: circleSize, height: circleSize }}
+                  >
+                    <div
+                      className="absolute rounded-full border border-sky-400/30 bg-sky-500/10"
+                      style={{ inset: `${Math.max(18, circleButtonSize * 0.9)}px` }}
+                      aria-hidden
+                    />
                     {assignments.map((assignment, index) => {
                       const angle = (index / assignments.length) * Math.PI * 2 - Math.PI / 2
-                      const radius = 115
-                      const x = 120 + Math.cos(angle) * radius
-                      const y = 120 + Math.sin(angle) * radius
+                      const x = circleCenter + Math.cos(angle) * circleRadius
+                      const y = circleCenter + Math.sin(angle) * circleRadius
                       const isActive = activeDay === index
                       const label =
                         assignment.shiftTemplateId != null
@@ -285,12 +310,18 @@ export default function EditRotationModal({
                           key={assignment.dayIndex}
                           type="button"
                           onClick={() => setActiveDay(index)}
-                          className={`absolute flex h-12 w-12 -translate-x-1/2 -translate-y-1/2 items-center justify-center rounded-full border text-xl transition ${
+                          className={`absolute flex -translate-x-1/2 -translate-y-1/2 items-center justify-center rounded-full border text-lg transition ${
                             isActive
                               ? "border-sky-400 bg-sky-500/30 text-white shadow-lg shadow-sky-500/40"
                               : "border-white/10 bg-white/5 text-white/70 hover:border-sky-400/40 hover:text-white"
                           }`}
-                          style={{ left: `${x}px`, top: `${y}px` }}
+                          style={{
+                            left: `${x}px`,
+                            top: `${y}px`,
+                            width: circleButtonSize,
+                            height: circleButtonSize,
+                            fontSize: circleButtonSize > 48 ? "1.25rem" : "1.05rem",
+                          }}
                           aria-label={`Día ${index + 1}`}
                         >
                           {label}
@@ -298,7 +329,10 @@ export default function EditRotationModal({
                       )
                     })}
                     <div className="pointer-events-none absolute inset-0 flex items-center justify-center">
-                      <div className="flex flex-col items-center rounded-full border border-white/10 bg-white/5 px-6 py-6 text-center text-sm text-white/70">
+                      <div
+                        className="flex flex-col items-center rounded-full border border-white/10 bg-white/5 px-6 py-6 text-center text-sm text-white/70"
+                        style={{ minWidth: circleButtonSize * 2.2, minHeight: circleButtonSize * 2 }}
+                      >
                         <span className="text-3xl">{icon}</span>
                         <span>{daysCount} días</span>
                       </div>

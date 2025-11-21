@@ -271,7 +271,7 @@ export default function EditRotationModal({
                 <div className="flex flex-col items-center gap-4">
                   <div className="w-full sm:hidden">
                     <p className="text-xs font-semibold uppercase tracking-[0.3em] text-white/40">Días del ciclo</p>
-                    <div className="mt-2 flex gap-2 overflow-x-auto pb-1">
+                    <div className="mt-2 grid max-h-[50vh] grid-cols-4 gap-2 overflow-y-auto pb-1">
                       {assignments.map((assignment, index) => {
                         const isActive = activeDay === index
                         const template =

@@ -24,6 +24,14 @@ function getCalendarId(): number {
   return Number.isNaN(DEFAULT_CALENDAR_ID) ? 2 : DEFAULT_CALENDAR_ID
 }
 
+function normalizeCalendarId(value: unknown): number | null {
+  const parsed = Number(value)
+  if (Number.isNaN(parsed) || parsed <= 0) {
+    return null
+  }
+  return Math.trunc(parsed)
+}
+
 function normalizeUserId(value: unknown): string | null {
   if (typeof value === "string") {
     const trimmed = value.trim()
@@ -44,11 +52,16 @@ function normalizeUserId(value: unknown): string | null {
 
 export async function GET(request: NextRequest) {
   try {
+    const calendarIdParam = normalizeCalendarId(
+      request.nextUrl.searchParams.get("calendarId"),
+    )
     const userId = normalizeUserId(request.nextUrl.searchParams.get("userId"))
     const limitParam = request.nextUrl.searchParams.get("limit")
     const limit = limitParam ? Number.parseInt(limitParam, 10) : null
 
-    const calendarId = userId
+    const calendarId = calendarIdParam
+      ? calendarIdParam
+      : userId
       ? await getOrCreateCalendarForUser(userId)
       : getCalendarId()
 
@@ -244,9 +257,14 @@ export async function POST(request: Request) {
       userId = parsedUserId
     }
 
-    const calendarId = userId
-      ? await getOrCreateCalendarForUser(userId)
-      : getCalendarId()
+    const providedCalendarId =
+      "calendarId" in payload ? normalizeCalendarId(payload.calendarId) : null
+
+    const calendarId = providedCalendarId
+      ? providedCalendarId
+      : userId
+        ? await getOrCreateCalendarForUser(userId)
+        : getCalendarId()
 
     if (!calendarId) {
       return NextResponse.json(

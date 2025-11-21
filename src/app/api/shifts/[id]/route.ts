@@ -49,6 +49,14 @@ function normalizeUserId(param: string | null): string | null {
   return null
 }
 
+function normalizeCalendarId(value: unknown): number | null {
+  const parsed = Number(value)
+  if (Number.isNaN(parsed) || parsed <= 0) {
+    return null
+  }
+  return Math.trunc(parsed)
+}
+
 export async function PATCH(request: NextRequest, context: Params) {
   const params = await context.params
   const id = parseId(params.id)
@@ -84,9 +92,14 @@ export async function PATCH(request: NextRequest, context: Params) {
     }
 
     const userId = normalizeUserId(request.nextUrl.searchParams.get("userId"))
-    const calendarId = userId
-      ? (await findCalendarIdForUser(userId)) ?? getFallbackCalendarId()
-      : getFallbackCalendarId()
+    const calendarIdParam = normalizeCalendarId(
+      request.nextUrl.searchParams.get("calendarId"),
+    )
+    const calendarId = calendarIdParam
+      ? calendarIdParam
+      : userId
+        ? (await findCalendarIdForUser(userId)) ?? getFallbackCalendarId()
+        : getFallbackCalendarId()
 
     const supabase = getSupabaseClient()
     const existingResult = await supabase
@@ -391,9 +404,14 @@ export async function DELETE(request: NextRequest, context: Params) {
 
   try {
     const userId = normalizeUserId(request.nextUrl.searchParams.get("userId"))
-    const calendarId = userId
-      ? (await findCalendarIdForUser(userId)) ?? getFallbackCalendarId()
-      : getFallbackCalendarId()
+    const calendarIdParam = normalizeCalendarId(
+      request.nextUrl.searchParams.get("calendarId"),
+    )
+    const calendarId = calendarIdParam
+      ? calendarIdParam
+      : userId
+        ? (await findCalendarIdForUser(userId)) ?? getFallbackCalendarId()
+        : getFallbackCalendarId()
 
     const supabase = getSupabaseClient()
     const { data, error } = await supabase

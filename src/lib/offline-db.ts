@@ -112,6 +112,7 @@ export type CachedUser = {
 export type CachedShiftEvent = {
   id: number
   userId: string
+  calendarId?: number | null
   date: string
   type: ShiftType
   start: string
@@ -141,6 +142,7 @@ export type ShiftMutationRequestBody = {
   plusAvailability: number
   plusOther: number
   userId: string
+  calendarId?: number | null
   startTime: string | null
   endTime: string | null
 }

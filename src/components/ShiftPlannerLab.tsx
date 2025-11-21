@@ -1014,7 +1014,7 @@ export default function ShiftPlannerLab({
 
           <div className="overflow-hidden rounded-3xl border border-white/10 bg-slate-950/50">
             <div className="overflow-x-auto">
-              <div className="min-w-[560px] sm:min-w-0">
+              <div className="min-w-0">
                 <div className="grid grid-cols-7 gap-2 border-b border-white/5 bg-slate-950/40 px-2 py-2 text-[10px] font-semibold uppercase tracking-wide text-white/60 sm:gap-3 sm:px-6 sm:py-3 sm:text-[11px]">
                   {Array.from({ length: 7 }).map((_, index) => {
                     const reference = addDays(startOfWeek(new Date(), { weekStartsOn: 1 }), index)

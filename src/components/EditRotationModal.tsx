@@ -260,8 +260,8 @@ export default function EditRotationModal({
                       value={description}
                       onChange={(event) => setDescription(event.target.value)}
                       placeholder="Resumen del patrón o indicaciones para el equipo"
-                      rows={3}
-                      className="resize-none rounded-2xl border border-white/15 bg-white/5 px-4 py-2 text-sm text-white focus:border-sky-400 focus:outline-none focus:ring-2 focus:ring-sky-400/40"
+                      rows={2}
+                      className="resize-none rounded-xl border border-white/15 bg-white/5 px-3 py-2 text-sm text-white focus:border-sky-400 focus:outline-none focus:ring-2 focus:ring-sky-400/40"
                     />
                   </label>
                 </div>
@@ -354,7 +354,7 @@ export default function EditRotationModal({
                   </p>
                 </div>
 
-                <div className="space-y-4 rounded-3xl border border-white/10 bg-white/5 p-5">
+                <div className="space-y-3 rounded-2xl border border-white/10 bg-white/5 p-4">
                   <header className="flex items-center justify-between">
                     <div>
                       <p className="text-xs uppercase tracking-[0.35em] text-white/40">Día seleccionado</p>

@@ -52,6 +52,8 @@ function normaliseAssignment(
   }
 }
 
+// Type guard for runtime validation; kept for potential use.
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
 function isRotationTemplateRowArray(
   rows: unknown,
 ): rows is RotationTemplateRow[] {
@@ -148,7 +150,7 @@ export function useRotationTemplates(userId: string | null | undefined) {
         return null
       }
 
-      return normaliseRotationTemplate(data)
+      return normaliseRotationTemplate(data as unknown as RotationTemplateRow)
     },
     [selectProjection, supabase, userId],
   )
@@ -179,14 +181,7 @@ export function useRotationTemplates(userId: string | null | undefined) {
       return
     }
 
-    const rows: RotationTemplateRow[] = isRotationTemplateRowArray(response.data)
-      ? response.data
-      : []
-
-    if (response.data && rows.length === 0 && Array.isArray(response.data)) {
-      console.warn("Los datos recibidos no son plantillas de rotación válidas", response.data)
-    }
-
+    const rows = (response.data ?? []) as unknown as RotationTemplateRow[]
     setTemplates(rows.map((row) => normaliseRotationTemplate(row)))
     setIsLoading(false)
   }, [selectProjection, supabase, userId])

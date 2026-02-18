@@ -1,6 +1,6 @@
 "use client"
 
-import { useCallback, useEffect, useMemo, useState } from "react"
+import { useCallback, useEffect, useMemo, useRef, useState } from "react"
 import { addDays, format } from "date-fns"
 import { AnimatePresence, motion } from "framer-motion"
 import type { SupabaseClient } from "@supabase/supabase-js"
@@ -88,7 +88,7 @@ const SHIFT_OPTIONS: ShiftOption[] = [
   },
 ]
 
-const CYCLE_LENGTH_PRESETS = [7, 10, 14, 21, 28]
+const CYCLE_LENGTH_PRESETS = [7, 10, 14, 21, 28, 31]
 
 const CELL_VARIANTS = {
   hidden: { opacity: 0, y: 12 },
@@ -328,6 +328,7 @@ function DayCell({
   onTypeChange: (type: ShiftType) => void
   onLabelChange: (value: string) => void
 }) {
+  const selectRef = useRef<HTMLSelectElement>(null)
   const option = SHIFT_OPTIONS.find((item) => item.value === day.type) ?? SHIFT_OPTIONS[0]
 
   return (
@@ -337,9 +338,18 @@ function DayCell({
       initial="hidden"
       animate="visible"
       transition={{ duration: 0.2, ease: "easeOut" }}
-      className={`group flex flex-col gap-3 rounded-2xl border border-white/5 bg-slate-900/70 p-4 shadow-inner shadow-black/20 transition focus-within:border-sky-400/60 focus-within:shadow-sky-500/10 hover:border-slate-500/40`}
+      role="button"
+      tabIndex={0}
+      onClick={() => selectRef.current?.focus()}
+      onKeyDown={(e) => {
+        if (e.key === "Enter" || e.key === " ") {
+          e.preventDefault()
+          selectRef.current?.focus()
+        }
+      }}
+      className={`group flex flex-col items-center justify-center gap-3 rounded-2xl border-2 border-white/10 bg-slate-900/70 p-4 shadow-inner shadow-black/20 transition focus-within:border-sky-400/50 focus-within:shadow-sky-500/15 hover:border-sky-400/30 hover:shadow-sky-500/5 focus:outline-none focus-visible:ring-2 focus-visible:ring-sky-400/50 focus-visible:ring-offset-2 focus-visible:ring-offset-slate-900 cursor-pointer w-full aspect-square min-w-[160px] min-h-[160px]`}
     >
-      <div className="flex items-center justify-between text-xs uppercase tracking-wide text-white/50">
+      <div className="flex w-full flex-shrink-0 items-center justify-between text-xs uppercase tracking-wide text-white/50">
         <span>Día {dayIndex + 1}</span>
         <motion.span
           layout
@@ -349,15 +359,17 @@ function DayCell({
         </motion.span>
       </div>
 
-      <div className="space-y-2">
+      <div className="w-full flex-1 flex flex-col justify-center space-y-2 min-w-0">
         <label className="text-[11px] font-semibold uppercase tracking-wide text-white/40">
           Tipo de turno
         </label>
-        <div className="relative">
+        <div className="relative w-full">
           <select
+            ref={selectRef}
             value={day.type}
             onChange={(event) => onTypeChange(event.target.value as ShiftType)}
-            className="w-full appearance-none rounded-xl border border-white/10 bg-slate-950/70 px-4 py-2 text-sm font-medium text-white/90 outline-none transition focus:border-sky-400/60 focus:ring-2 focus:ring-sky-400/30"
+            onClick={(e) => e.stopPropagation()}
+            className="w-full min-h-[44px] appearance-none rounded-xl border border-white/10 bg-slate-950/70 px-3 py-2 text-sm font-medium text-white/90 outline-none transition focus:border-sky-400/60 focus:ring-2 focus:ring-sky-400/30 cursor-pointer"
           >
             {SHIFT_OPTIONS.map((item) => (
               <option key={item.value} value={item.value}>
@@ -380,7 +392,7 @@ function DayCell({
             </svg>
           </div>
         </div>
-        <p className="text-[11px] leading-relaxed text-white/50">{option.description}</p>
+        <p className="text-[11px] leading-relaxed text-white/50 line-clamp-2">{option.description}</p>
       </div>
 
       {day.type === "CUSTOM" && (
@@ -391,7 +403,8 @@ function DayCell({
             animate={{ opacity: 1, y: 0 }}
             exit={{ opacity: 0, y: -4 }}
             transition={{ duration: 0.2, ease: "easeOut" }}
-            className="space-y-2"
+            className="w-full space-y-2 flex-shrink-0"
+            onClick={(e) => e.stopPropagation()}
           >
             <label className="text-[11px] font-semibold uppercase tracking-wide text-white/40">
               Etiqueta personalizada
@@ -399,8 +412,8 @@ function DayCell({
             <input
               value={day.label ?? ""}
               onChange={(event) => onLabelChange(event.target.value)}
-              placeholder="Ej: Guardia, Formación, Guardia médica"
-              className="w-full rounded-xl border border-fuchsia-400/40 bg-fuchsia-500/10 px-4 py-2 text-sm font-medium text-white/90 placeholder:text-white/40 outline-none transition focus:border-fuchsia-300/70 focus:ring-2 focus:ring-fuchsia-400/30"
+              placeholder="Ej: Guardia, Formación"
+              className="w-full rounded-xl border border-fuchsia-400/40 bg-fuchsia-500/10 px-3 py-2 text-sm font-medium text-white/90 placeholder:text-white/40 outline-none transition focus:border-fuchsia-300/70 focus:ring-2 focus:ring-fuchsia-400/30"
             />
           </motion.div>
         </AnimatePresence>
@@ -1163,7 +1176,12 @@ export function CustomCycleBuilder({
                     )}
                   </div>
 
-                  <div className="grid gap-4 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4">
+                  <div
+                    className="grid gap-4 w-full"
+                    style={{
+                      gridTemplateColumns: "repeat(auto-fill, minmax(min(100%, 180px), 1fr))",
+                    }}
+                  >
                     {pattern.map((day, index) => (
                       <DayCell
                         key={index}

@@ -5,11 +5,11 @@ import { motion } from "framer-motion"
 import type { ShiftType } from "@/types/shifts"
 
 const SHIFT_TYPE_LABELS: Record<ShiftType, string> = {
-  WORK: "tra",
-  REST: "des",
-  NIGHT: "noc",
-  VACATION: "vac",
-  CUSTOM: "per",
+  WORK: "Trabajo",
+  REST: "Descanso",
+  NIGHT: "Nocturno",
+  VACATION: "Vacaciones",
+  CUSTOM: "Personalizado",
 }
 
 type MobileAddShiftSheetProps = {
@@ -23,6 +23,8 @@ type MobileAddShiftSheetProps = {
     endTime: string
   }) => Promise<void>
   selectedDate?: string | null
+  initialStartTime?: string
+  initialEndTime?: string
   onDateConsumed?: () => void
 }
 
@@ -31,6 +33,8 @@ export default function MobileAddShiftSheet({
   onClose,
   onAdd,
   selectedDate,
+  initialStartTime,
+  initialEndTime,
   onDateConsumed,
 }: MobileAddShiftSheetProps) {
   const [date, setDate] = useState("")
@@ -51,7 +55,13 @@ export default function MobileAddShiftSheet({
       setDate(selectedDate)
       onDateConsumed?.()
     }
-  }, [open, selectedDate, onDateConsumed])
+    if (initialStartTime) {
+      setStartTime(initialStartTime)
+    }
+    if (initialEndTime) {
+      setEndTime(initialEndTime)
+    }
+  }, [open, selectedDate, initialStartTime, initialEndTime, onDateConsumed])
 
   useEffect(() => {
     if (!open) {
@@ -117,115 +127,114 @@ export default function MobileAddShiftSheet({
   }
 
   return (
-    <div className="fixed inset-0 z-50 flex flex-col bg-brand-background/90 backdrop-blur-xl">
-      {/* Fondo clickable para cerrar */}
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/80 backdrop-blur-md">
       <button
         type="button"
         onClick={onClose}
-        className="flex-1"
-        aria-label="Cerrar formulario rápido"
+        className="absolute inset-0"
+        aria-label="Cerrar"
       />
-
-      {/* Sheet */}
       <form
         onSubmit={handleSubmit}
-        className="mt-auto flex max-h-[85vh] w-full flex-col gap-4 overflow-y-auto rounded-t-4xl border border-white/10 bg-gradient-to-b from-brand-background/95 via-[#121c30e6] to-[#0b1220f5] p-5 pb-[calc(1.25rem+env(safe-area-inset-bottom))] text-brand-text shadow-[0_-28px_85px_rgba(96,165,250,0.25)] transition-transform duration-300 ease-out"
+        onClick={(e) => e.stopPropagation()}
+        className="relative w-full max-w-md rounded-2xl border border-white/10 bg-slate-900 shadow-2xl shadow-black/50 flex flex-col gap-4 p-5"
       >
-        {/* Drag handle */}
-        <div className="mx-auto mb-1 h-1.5 w-16 rounded-full bg-white/25" />
+        <button
+          type="button"
+          onClick={onClose}
+          className="absolute right-4 top-4 rounded-xl border border-white/10 bg-white/5 p-2 text-white/60 transition hover:bg-white/10 hover:text-white"
+          aria-label="Cerrar"
+        >
+          <svg className="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+          </svg>
+        </button>
 
-        <div className="flex items-start justify-between">
-          <div>
-            <p className="text-[11px] font-semibold uppercase tracking-[0.2em] text-brand-accent/80">
-              Nuevo turno
-            </p>
-            <h2 className="text-2xl font-semibold text-brand-text">Añadir rápidamente</h2>
+        <div>
+          <h2 className="text-xl font-bold text-white pr-10">Nuevo turno</h2>
+          <p className="mt-0.5 text-sm text-white/50">Rellena los datos y guarda</p>
+        </div>
+
+        <div className="grid gap-4">
+          <div className="rounded-xl border border-white/10 bg-white/5 p-3">
+            <p className="mb-1.5 text-xs font-semibold uppercase tracking-wider text-white/50">Fecha</p>
+            <div className="flex items-center gap-2">
+              <input
+                type="date"
+                value={date}
+                onChange={(e) => setDate(e.target.value)}
+                className="input-field flex-1 text-sm"
+              />
+              <span className="rounded-lg bg-sky-500/20 px-2.5 py-1.5 text-xs font-semibold text-sky-200 whitespace-nowrap">
+                {selectedDateLabel}
+              </span>
+            </div>
           </div>
-          <button
-            type="button"
-            onClick={onClose}
-            className="rounded-full border border-white/20 bg-white/5 p-2 text-brand-muted transition hover:border-white/40 hover:text-brand-text focus-visible:border-white/60"
-          >
-            ✕
-          </button>
-        </div>
 
-        <div className="flex items-center gap-3 rounded-2xl border border-brand-accent/40 bg-gradient-to-r from-brand-accent/20 via-brand-primary/25 to-brand-primary/30 px-4 py-3 text-sm text-brand-text">
-          <span aria-hidden className="text-lg">📆</span>
-          <span className="font-semibold text-brand-text">{selectedDateLabel}</span>
-        </div>
+          <div>
+            <label className="mb-1.5 block text-xs font-semibold uppercase tracking-wider text-white/50">Tipo de turno</label>
+            <select
+              value={type}
+              onChange={(e) => setType(e.target.value as ShiftType)}
+              className="input-field w-full text-sm"
+            >
+              {Object.entries(SHIFT_TYPE_LABELS).map(([value, label]) => (
+                <option key={value} value={value}>{label}</option>
+              ))}
+            </select>
+          </div>
 
-        {/* Campos */}
-        <label className="flex flex-col gap-2 text-sm text-brand-muted">
-          Fecha
-          <input
-            type="date"
-            value={date}
-            onChange={(event) => setDate(event.target.value)}
-            className="input-field text-[15px]"
-          />
-        </label>
+          <div className="rounded-xl border border-white/10 bg-white/5 p-3">
+            <p className="mb-2 text-xs font-semibold uppercase tracking-wider text-white/50">Horario</p>
+            <div className="grid grid-cols-2 gap-3">
+              <label className="block">
+                <span className="mb-1 block text-xs text-white/60">Inicio</span>
+                <input
+                  type="time"
+                  value={startTime}
+                  onChange={(e) => setStartTime(e.target.value)}
+                  className="input-field w-full text-sm"
+                  required
+                />
+              </label>
+              <label className="block">
+                <span className="mb-1 block text-xs text-white/60">Fin</span>
+                <input
+                  type="time"
+                  value={endTime}
+                  onChange={(e) => setEndTime(e.target.value)}
+                  className="input-field w-full text-sm"
+                  required
+                />
+              </label>
+            </div>
+          </div>
 
-        <label className="flex flex-col gap-2 text-sm text-brand-muted">
-          Tipo de turno
-          <select
-            value={type}
-            onChange={(event) => setType(event.target.value as ShiftType)}
-            className="input-field text-[15px]"
-          >
-            {Object.entries(SHIFT_TYPE_LABELS).map(([value, label]) => (
-              <option key={value} value={value}>
-                {label}
-              </option>
-            ))}
-          </select>
-        </label>
-
-        <div className="grid grid-cols-2 gap-3">
-          <label className="flex flex-col gap-2 text-sm text-brand-muted">
-            Hora de inicio
-            <input
-              type="time"
-              value={startTime}
-              onChange={(event) => setStartTime(event.target.value)}
-              className="input-field text-[15px]"
-              required
+          <div>
+            <label className="mb-1.5 block text-xs font-semibold uppercase tracking-wider text-white/50">
+              Nota <span className="font-normal normal-case text-white/40">(opcional)</span>
+            </label>
+            <textarea
+              value={note}
+              onChange={(e) => setNote(e.target.value)}
+              rows={2}
+              placeholder="Ej: reunión matinal, cubrir a María..."
+              className="input-field w-full resize-none text-sm placeholder:text-white/40"
             />
-          </label>
-          <label className="flex flex-col gap-2 text-sm text-brand-muted">
-            Hora de finalización
-            <input
-              type="time"
-              value={endTime}
-              onChange={(event) => setEndTime(event.target.value)}
-              className="input-field text-[15px]"
-              required
-            />
-          </label>
+          </div>
+
+          {(error || submitError) && (
+            <p className="text-sm text-rose-400">{error || submitError}</p>
+          )}
         </div>
-
-        <label className="flex flex-col gap-2 text-sm text-brand-muted">
-          Nota (opcional)
-          <textarea
-            value={note}
-            onChange={(event) => setNote(event.target.value)}
-            rows={3}
-            placeholder="Añade recordatorios o detalles clave"
-            className="input-field resize-none text-[15px] placeholder:text-brand-muted/70"
-          />
-        </label>
-
-        {error && <p className="text-sm text-rose-300">{error}</p>}
-        {submitError && <p className="text-sm text-rose-300">{submitError}</p>}
 
         <motion.button
-          whileTap={{ scale: 0.97 }}
-          whileHover={{ scale: 1.01 }}
+          whileTap={{ scale: 0.98 }}
           type="submit"
           disabled={isSubmitting}
-          className="accent-action w-full px-4 py-3.5 text-base disabled:opacity-60"
+          className="w-full rounded-xl bg-gradient-to-r from-sky-500 to-sky-600 py-3 text-base font-bold text-white shadow-lg shadow-sky-500/25 hover:from-sky-400 hover:to-sky-500 disabled:opacity-60"
         >
-          {isSubmitting ? "Guardando..." : "Guardar turno"}
+          {isSubmitting ? "Guardando…" : "Guardar turno"}
         </motion.button>
       </form>
     </div>

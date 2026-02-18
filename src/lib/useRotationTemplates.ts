@@ -25,6 +25,16 @@ type RotationTemplateAssignmentRow = {
   shift_template_id?: number | null
 }
 
+function isRotationTemplateRow(row: unknown): row is RotationTemplateRow {
+  if (!row || typeof row !== "object") {
+    return false
+  }
+
+  const candidate = row as { id?: unknown; user_id?: unknown }
+
+  return typeof candidate.id === "number" && typeof candidate.user_id === "string"
+}
+
 function normaliseAssignment(
   row: RotationTemplateAssignmentRow,
   index: number,
@@ -40,6 +50,12 @@ function normaliseAssignment(
     dayIndex,
     shiftTemplateId: typeof row.shift_template_id === "number" ? row.shift_template_id : null,
   }
+}
+
+function isRotationTemplateRowArray(
+  rows: unknown,
+): rows is RotationTemplateRow[] {
+  return Array.isArray(rows) && rows.every((row) => isRotationTemplateRow(row))
 }
 
 function normaliseRotationTemplate(row: RotationTemplateRow): RotationTemplate {
@@ -128,7 +144,7 @@ export function useRotationTemplates(userId: string | null | undefined) {
         return null
       }
 
-      if (!data) {
+      if (!isRotationTemplateRow(data)) {
         return null
       }
 
@@ -189,6 +205,91 @@ export function useRotationTemplates(userId: string | null | undefined) {
       isMounted = false
     }
   }, [fetchTemplates, supabase, userId])
+
+  useEffect(() => {
+    if (!supabase || !userId) {
+      return
+    }
+
+    const channel = supabase
+      .channel(`rotation-templates-${userId}`)
+      .on(
+        'postgres_changes',
+        {
+          event: '*',
+          schema: 'public',
+          table: 'rotation_template_presets',
+          filter: `user_id=eq.${userId}`,
+        },
+        async (payload) => {
+          const templateId =
+            (payload.new as { id?: number } | null)?.id ??
+            (payload.old as { id?: number } | null)?.id
+
+          if (!templateId) {
+            return
+          }
+
+          if (payload.eventType === 'DELETE') {
+            setTemplates((current) => current.filter((item) => item.id !== templateId))
+            return
+          }
+
+          const template = await readTemplateById(templateId)
+
+          if (!template) {
+            setTemplates((current) => current.filter((item) => item.id !== templateId))
+            return
+          }
+
+          setTemplates((current) => {
+            const exists = current.some((item) => item.id === templateId)
+            if (exists) {
+              return current.map((item) => (item.id === templateId ? template : item))
+            }
+            return [template, ...current]
+          })
+        },
+      )
+      .on(
+        'postgres_changes',
+        {
+          event: '*',
+          schema: 'public',
+          table: 'rotation_template_preset_assignments',
+        },
+        async (payload) => {
+          const templateId =
+            (payload.new as { template_id?: number } | null)?.template_id ??
+            (payload.old as { template_id?: number } | null)?.template_id
+
+          if (!templateId) {
+            return
+          }
+
+          const template = await readTemplateById(templateId)
+
+          if (!template) {
+            setTemplates((current) => current.filter((item) => item.id !== templateId))
+            return
+          }
+
+          setTemplates((current) => {
+            const exists = current.some((item) => item.id === templateId)
+            if (exists) {
+              return current.map((item) => (item.id === templateId ? template : item))
+            }
+            return [template, ...current]
+          })
+        },
+      )
+
+    channel.subscribe()
+
+    return () => {
+      void channel.unsubscribe()
+    }
+  }, [readTemplateById, supabase, userId])
 
   const createRotationTemplate = useCallback(
     async (payload: RotationTemplateInput): Promise<RotationTemplate | null> => {

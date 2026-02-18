@@ -53,6 +53,7 @@ import {
   type ShiftMutationRequestBody,
 } from "@/lib/offline-db"
 import { OfflineStatusBanner } from "@/components/pwa/offline-status-banner"
+import type { CalendarSummary } from "@/types/calendars"
 
 type ApiShift = {
   id: number
@@ -302,6 +303,10 @@ class ApiError extends Error {
 const TEMP_ID_BASE = -1_000_000
 const BACKGROUND_SYNC_TAG = "sync-shifts"
 
+function buildCalendarCacheKey(userId: string, calendarId: number | null): string {
+  return calendarId ? `${userId}#cal-${calendarId}` : userId
+}
+
 function generateTemporaryShiftId(): number {
   const randomOffset = Math.floor(Math.random() * 10_000)
   return TEMP_ID_BASE - randomOffset - Date.now()
@@ -322,10 +327,12 @@ function isLikelyOfflineError(error: unknown): boolean {
 function toCachedShiftEvent(
   shift: ShiftEvent,
   userId: string,
+  calendarId: number | null,
 ): CachedShiftEvent {
   return {
     id: shift.id,
     userId,
+    calendarId,
     date: shift.date,
     type: shift.type,
     start: shift.start.toISOString(),
@@ -394,6 +401,7 @@ function fromCachedShiftEvent(shift: CachedShiftEvent): ShiftEvent {
 
 function buildShiftRequestPayload(
   userId: string,
+  calendarId: number | null,
   {
     date,
     type,
@@ -425,6 +433,7 @@ function buildShiftRequestPayload(
     plusAvailability: pluses?.availability ?? 0,
     plusOther: pluses?.other ?? 0,
     userId,
+    calendarId,
     startTime: startTime ?? null,
     endTime: endTime ?? null,
   }
@@ -462,6 +471,9 @@ export default function Home() {
   const [isMobileAddOpen, setIsMobileAddOpen] = useState(false)
   const [users, setUsers] = useState<UserSummary[]>([])
   const [currentUser, setCurrentUser] = useState<UserSummary | null>(null)
+  const [availableCalendars, setAvailableCalendars] = useState<CalendarSummary[]>([])
+  const [activeCalendarId, setActiveCalendarId] = useState<number | null>(null)
+  const [isLoadingCalendars, setIsLoadingCalendars] = useState(false)
   const [isLoadingUsers, setIsLoadingUsers] = useState(true)
   const [userError, setUserError] = useState<string | null>(null)
   const [isCommittingRotation, setIsCommittingRotation] = useState(false)
@@ -505,6 +517,21 @@ export default function Home() {
       return null
     }
   }, [])
+
+  const calendarCacheKey = useMemo(() => {
+    if (!currentUser) {
+      return null
+    }
+
+    return buildCalendarCacheKey(currentUser.id, activeCalendarId)
+  }, [activeCalendarId, currentUser])
+
+  const activeCalendar = useMemo(
+    () =>
+      availableCalendars.find((calendar) => calendar.id === activeCalendarId) ??
+      null,
+    [activeCalendarId, availableCalendars],
+  )
 
   const {
     email: notificationEmailEnabled,
@@ -703,9 +730,40 @@ export default function Home() {
     return payload as T
   }, [])
 
-  const fetchShiftsFromApi = useCallback(
+  const loadCalendarsForUser = useCallback(
     async (userId: string) => {
-      const response = await fetch(`/api/shifts?userId=${userId}`, {
+      setIsLoadingCalendars(true)
+      try {
+        const response = await fetch(`/api/calendars?userId=${userId}`, {
+          cache: "no-store",
+        })
+        const data = await parseJsonResponse<{ calendars: CalendarSummary[] }>(
+          response,
+        )
+        setAvailableCalendars(data.calendars)
+        setActiveCalendarId((current) => {
+          if (current && data.calendars.some((calendar) => calendar.id === current)) {
+            return current
+          }
+          return data.calendars[0]?.id ?? null
+        })
+      } catch (error) {
+        console.error("No se pudieron cargar los calendarios", error)
+        setUserError(
+          error instanceof Error
+            ? error.message
+            : "No se pudo cargar la lista de calendarios",
+        )
+      } finally {
+        setIsLoadingCalendars(false)
+      }
+    },
+    [parseJsonResponse],
+  )
+
+  const fetchShiftsFromApi = useCallback(
+    async (calendarId: number) => {
+      const response = await fetch(`/api/shifts?calendarId=${calendarId}`, {
         cache: "no-store",
       })
       const data = await parseJsonResponse<{ shifts: ApiShift[] }>(response)
@@ -777,6 +835,13 @@ export default function Home() {
   const handleNavigateTab = useCallback((sectionId: string) => {
     setActiveTab(sectionId as MobileTab)
   }, [])
+
+  const handleNavigateLink = useCallback(
+    (href: string) => {
+      router.push(href)
+    },
+    [router],
+  )
 
   const restoreSession = useCallback(() => {
     if (typeof window === "undefined") {
@@ -856,10 +921,11 @@ export default function Home() {
   }, [])
 
   const persistShiftsSnapshot = useCallback(
-    (userId: string, snapshot: ShiftEvent[]) => {
+    (userId: string, calendarId: number | null, snapshot: ShiftEvent[]) => {
+      const cacheKey = buildCalendarCacheKey(userId, calendarId)
       void cacheShiftsForUser(
-        userId,
-        snapshot.map((shift) => toCachedShiftEvent(shift, userId)),
+        cacheKey,
+        snapshot.map((shift) => toCachedShiftEvent(shift, userId, calendarId)),
       ).catch((error) => {
         console.error("No se pudo guardar la copia local de los turnos", error)
       })
@@ -867,9 +933,9 @@ export default function Home() {
     [],
   )
 
-  const refreshPendingMutations = useCallback(async (userId: string) => {
+  const refreshPendingMutations = useCallback(async (cacheKey: string) => {
     try {
-      const count = await countPendingShiftRequests(userId)
+      const count = await countPendingShiftRequests(cacheKey)
       setPendingShiftMutations(count)
     } catch (error) {
       console.error(
@@ -957,7 +1023,7 @@ export default function Home() {
   }, [])
 
   const synchronizePendingShiftRequests = useCallback(async () => {
-    if (!currentUser) {
+    if (!currentUser || !activeCalendarId) {
       return
     }
 
@@ -971,6 +1037,7 @@ export default function Home() {
     }
 
     const userId = currentUser.id
+    const cacheKey = buildCalendarCacheKey(userId, activeCalendarId)
 
     isSyncingRef.current = true
     setIsSyncingPendingShifts(true)
@@ -979,7 +1046,7 @@ export default function Home() {
     let encounteredError = false
 
     try {
-      const pending = await listPendingShiftRequests(userId)
+      const pending = await listPendingShiftRequests(cacheKey)
       if (!pending.length) {
         setPendingShiftMutations(0)
         return
@@ -1004,7 +1071,7 @@ export default function Home() {
               const filtered =
                 target == null ? current : current.filter((shift) => shift.id !== target)
               const next = sortByDate(filtered)
-              persistShiftsSnapshot(userId, next)
+              persistShiftsSnapshot(userId, activeCalendarId, next)
               return next
             })
           } else if (entry.method === "POST" && entry.body) {
@@ -1022,13 +1089,13 @@ export default function Home() {
                 ? current.filter((shift) => shift.id !== entry.optimisticId)
                 : current
               const next = sortByDate([...filtered, syncedShift])
-              persistShiftsSnapshot(userId, next)
+              persistShiftsSnapshot(userId, activeCalendarId, next)
               return next
             })
 
             if (entry.optimisticId != null) {
               const updatedEntries = await updatePendingRequestsForOptimisticId(
-                userId,
+                cacheKey,
                 entry.optimisticId,
                 syncedShift.id,
               )
@@ -1059,7 +1126,7 @@ export default function Home() {
                 shift.id === syncedShift.id ? syncedShift : shift,
               )
               const next = sortByDate(updated)
-              persistShiftsSnapshot(userId, next)
+              persistShiftsSnapshot(userId, activeCalendarId, next)
               return next
             })
           }
@@ -1084,11 +1151,12 @@ export default function Home() {
         }
       }
     } finally {
-      await refreshPendingMutations(userId)
+      await refreshPendingMutations(cacheKey)
       setIsSyncingPendingShifts(false)
       isSyncingRef.current = false
     }
   }, [
+    activeCalendarId,
     currentUser,
     mapApiShift,
     parseJsonResponse,
@@ -1181,12 +1249,16 @@ export default function Home() {
       startTime?: string | null
       endTime?: string | null
     }) => {
-      if (!currentUser) {
-        throw new Error("Selecciona un usuario antes de crear turnos")
+      if (!currentUser || !activeCalendarId) {
+        throw new Error(
+          "Selecciona un usuario y un calendario antes de crear turnos",
+        )
       }
 
       const userId = currentUser.id
-      const payload = buildShiftRequestPayload(userId, {
+      const calendarId = activeCalendarId
+      const cacheKey = buildCalendarCacheKey(userId, calendarId)
+      const payload = buildShiftRequestPayload(userId, calendarId, {
         date,
         type,
         note,
@@ -1208,7 +1280,7 @@ export default function Home() {
         const newShift = mapApiShift(data.shift)
         setShifts((current) => {
           const next = sortByDate([...current, newShift])
-          persistShiftsSnapshot(userId, next)
+          persistShiftsSnapshot(userId, calendarId, next)
           recordHistoryEntry({
             shiftId: newShift.id,
             action: "create",
@@ -1239,7 +1311,7 @@ export default function Home() {
 
           setShifts((current) => {
             const next = sortByDate([...current, optimisticShift])
-            persistShiftsSnapshot(userId, next)
+            persistShiftsSnapshot(userId, calendarId, next)
             recordHistoryEntry({
               shiftId: optimisticShift.id,
               action: "create",
@@ -1250,7 +1322,7 @@ export default function Home() {
 
           await addPendingShiftRequest({
             id: createPendingRequestId(),
-            userId,
+            userId: cacheKey,
             method: "POST",
             url: "/api/shifts",
             body: payload,
@@ -1258,7 +1330,7 @@ export default function Home() {
             createdAt: Date.now(),
           })
 
-          await refreshPendingMutations(userId)
+          await refreshPendingMutations(cacheKey)
           void requestBackgroundSync()
           setIsOffline(true)
           showActionFeedback("create", { offline: true })
@@ -1273,6 +1345,7 @@ export default function Home() {
       currentUser,
       createSnapshot,
       mapApiShift,
+      activeCalendarId,
       parseJsonResponse,
       persistShiftsSnapshot,
       recordHistoryEntry,
@@ -1305,12 +1378,16 @@ export default function Home() {
       startTime?: string | null
       endTime?: string | null
     }) => {
-      if (!currentUser) {
-        throw new Error("Selecciona un usuario antes de actualizar turnos")
+      if (!currentUser || !activeCalendarId) {
+        throw new Error(
+          "Selecciona un usuario y un calendario antes de actualizar turnos",
+        )
       }
 
       const userId = currentUser.id
-      const payload = buildShiftRequestPayload(userId, {
+      const calendarId = activeCalendarId
+      const cacheKey = buildCalendarCacheKey(userId, calendarId)
+      const payload = buildShiftRequestPayload(userId, calendarId, {
         date,
         type,
         note,
@@ -1322,11 +1399,14 @@ export default function Home() {
       })
 
       try {
-        const response = await fetch(`/api/shifts/${id}?userId=${userId}`, {
-          method: "PATCH",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify(payload),
-        })
+        const response = await fetch(
+          `/api/shifts/${id}?userId=${userId}&calendarId=${calendarId}`,
+          {
+            method: "PATCH",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify(payload),
+          },
+        )
 
         const data = await parseJsonResponse<{ shift: ApiShift }>(response)
         const updatedShift = mapApiShift(data.shift)
@@ -1340,7 +1420,7 @@ export default function Home() {
             return shift
           })
           const next = sortByDate(reordered)
-          persistShiftsSnapshot(userId, next)
+          persistShiftsSnapshot(userId, calendarId, next)
           recordHistoryEntry({
             shiftId: updatedShift.id,
             action: previousSnapshot ? "update" : "create",
@@ -1379,7 +1459,7 @@ export default function Home() {
               return shift
             })
             const next = sortByDate(updatedList)
-            persistShiftsSnapshot(userId, next)
+            persistShiftsSnapshot(userId, calendarId, next)
             recordHistoryEntry({
               shiftId: id,
               action: previousSnapshot ? "update" : "create",
@@ -1392,16 +1472,16 @@ export default function Home() {
           const isOptimisticShift = id < 0
           await addPendingShiftRequest({
             id: createPendingRequestId(),
-            userId,
+            userId: cacheKey,
             method: "PATCH",
-            url: `/api/shifts/${id}?userId=${userId}`,
+            url: `/api/shifts/${id}?userId=${userId}&calendarId=${calendarId}`,
             body: payload,
             shiftId: id,
             ...(isOptimisticShift ? { optimisticId: id } : {}),
             createdAt: Date.now(),
           })
 
-          await refreshPendingMutations(userId)
+          await refreshPendingMutations(cacheKey)
           void requestBackgroundSync()
           setIsOffline(true)
           showActionFeedback("update", { offline: true })
@@ -1412,7 +1492,7 @@ export default function Home() {
           setShifts((current) => {
             const filtered = current.filter((shift) => shift.id !== id)
             const ordered = sortByDate(filtered)
-            persistShiftsSnapshot(userId, ordered)
+            persistShiftsSnapshot(userId, calendarId, ordered)
             return ordered
           })
           setSelectedShift((current) =>
@@ -1433,6 +1513,7 @@ export default function Home() {
     [
       currentUser,
       createSnapshot,
+      activeCalendarId,
       mapApiShift,
       parseJsonResponse,
       persistShiftsSnapshot,
@@ -1445,16 +1526,21 @@ export default function Home() {
   )
   const handleDeleteShift = useCallback(
     async (id: number) => {
-      if (!currentUser) {
-        throw new Error("Selecciona un usuario antes de eliminar turnos")
+      if (!currentUser || !activeCalendarId) {
+        throw new Error("Selecciona un usuario y un calendario antes de eliminar turnos")
       }
 
       const userId = currentUser.id
+      const calendarId = activeCalendarId
+      const cacheKey = buildCalendarCacheKey(userId, calendarId)
 
       try {
-        const response = await fetch(`/api/shifts/${id}?userId=${userId}`, {
-          method: "DELETE",
-        })
+        const response = await fetch(
+          `/api/shifts/${id}?userId=${userId}&calendarId=${calendarId}`,
+          {
+            method: "DELETE",
+          },
+        )
 
         if (!response.ok && response.status !== 204) {
           const payload = (await response.json().catch(() => null)) as
@@ -1470,7 +1556,7 @@ export default function Home() {
         setShifts((current) => {
           const target = current.find((shift) => shift.id === id) ?? null
           const next = sortByDate(current.filter((shift) => shift.id !== id))
-          persistShiftsSnapshot(userId, next)
+          persistShiftsSnapshot(userId, calendarId, next)
           if (target) {
             recordHistoryEntry({
               shiftId: id,
@@ -1488,7 +1574,7 @@ export default function Home() {
           setShifts((current) => {
             const target = current.find((shift) => shift.id === id) ?? null
             const next = sortByDate(current.filter((shift) => shift.id !== id))
-            persistShiftsSnapshot(userId, next)
+            persistShiftsSnapshot(userId, calendarId, next)
             if (target) {
               recordHistoryEntry({
                 shiftId: id,
@@ -1502,15 +1588,15 @@ export default function Home() {
           const isOptimisticShift = id < 0
           await addPendingShiftRequest({
             id: createPendingRequestId(),
-            userId,
+            userId: cacheKey,
             method: "DELETE",
-            url: `/api/shifts/${id}?userId=${userId}`,
+            url: `/api/shifts/${id}?userId=${userId}&calendarId=${calendarId}`,
             shiftId: id,
             ...(isOptimisticShift ? { optimisticId: id } : {}),
             createdAt: Date.now(),
           })
 
-          await refreshPendingMutations(userId)
+          await refreshPendingMutations(cacheKey)
           void requestBackgroundSync()
           setIsOffline(true)
           showActionFeedback("delete", { offline: true })
@@ -1524,6 +1610,7 @@ export default function Home() {
     [
       currentUser,
       createSnapshot,
+      activeCalendarId,
       persistShiftsSnapshot,
       recordHistoryEntry,
       refreshPendingMutations,
@@ -1535,9 +1622,9 @@ export default function Home() {
 
   const handleManualRotationConfirm = useCallback(
     async (days: ManualRotationDay[]) => {
-      if (!currentUser) {
+      if (!currentUser || !activeCalendarId) {
         setRotationError(
-          "Selecciona un usuario antes de crear una rotación manual.",
+          "Selecciona un usuario y un calendario antes de crear una rotación manual.",
         )
         return
       }
@@ -2043,19 +2130,28 @@ export default function Home() {
 
   useEffect(() => {
     if (!currentUser) {
+      setAvailableCalendars([])
+      setActiveCalendarId(null)
+      return
+    }
+
+    void loadCalendarsForUser(currentUser.id)
+  }, [currentUser, loadCalendarsForUser])
+
+  useEffect(() => {
+    if (!currentUser || !activeCalendarId) {
       setShifts([])
       setPendingShiftMutations(0)
       return
     }
 
     let isMounted = true
+    const cacheKey = buildCalendarCacheKey(currentUser.id, activeCalendarId)
 
     const loadShifts = async () => {
-      const userId = currentUser.id
-
       if (typeof window !== "undefined") {
         try {
-          const cached = await readCachedShiftsForUser(userId)
+          const cached = await readCachedShiftsForUser(cacheKey)
           if (isMounted && cached.length > 0) {
             const restored = sortByDate(cached.map((item) => fromCachedShiftEvent(item)))
             setShifts(restored)
@@ -2066,7 +2162,7 @@ export default function Home() {
       }
 
       try {
-        const data = await fetchShiftsFromApi(userId)
+        const data = await fetchShiftsFromApi(activeCalendarId)
         if (!isMounted) {
           return
         }
@@ -2075,7 +2171,7 @@ export default function Home() {
         if (ordered.length === 0) {
           setShiftHistory([])
         }
-        persistShiftsSnapshot(userId, ordered)
+        persistShiftsSnapshot(currentUser.id, activeCalendarId, ordered)
         setIsOffline(false)
         setLastSyncError(null)
       } catch (error) {
@@ -2088,17 +2184,19 @@ export default function Home() {
 
         if (isMounted && isLikelyOfflineError(error)) {
           setIsOffline(true)
+          await refreshPendingMutations(cacheKey)
         }
       }
     }
 
     void loadShifts()
-    void refreshPendingMutations(currentUser.id)
+    void refreshPendingMutations(cacheKey)
 
     return () => {
       isMounted = false
     }
   }, [
+    activeCalendarId,
     clearSession,
     currentUser,
     fetchShiftsFromApi,
@@ -2392,6 +2490,7 @@ export default function Home() {
 
   return (
     <div className="no-card-borders relative min-h-screen bg-slate-950 text-white">
+    <div className="no-card-borders relative min-h-screen overflow-x-hidden bg-slate-950 text-white">
       <div
         className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_10%_0%,rgba(59,130,246,0.18),transparent_55%),_radial-gradient(circle_at_80%_105%,rgba(139,92,246,0.2),transparent_60%),_radial-gradient(circle_at_50%_50%,rgba(59,130,246,0.12),transparent_65%)]"
         aria-hidden
@@ -2473,8 +2572,27 @@ export default function Home() {
               </section>
             </div>
 
-        <main className="pb-[calc(6rem+env(safe-area-inset-bottom))] lg:pb-8">
-          <div className="mx-auto w-full space-y-8 px-0 py-6 sm:px-2 lg:space-y-10 lg:px-0 lg:py-8">
+            <div className="mt-6 flex flex-wrap gap-2 text-xs font-semibold uppercase tracking-wide text-white/60">
+              {[
+                "Calendario",
+                "Estadísticas",
+                "Horas",
+                "Equipo",
+                "Historial",
+                "Configuración",
+              ].map((tab) => (
+                <span
+                  key={tab}
+                  className="rounded-full border border-white/10 bg-white/5 px-4 py-1"
+                >
+                  {tab}
+                </span>
+              ))}
+            </div>
+        </div>
+
+        <main className="flex-1 pb-[calc(6rem+env(safe-area-inset-bottom))] lg:pb-0">
+          <div className="mx-auto w-full max-w-[110rem] space-y-12 px-0 py-6 sm:px-2 lg:px-0">
             <div className="hidden lg:flex lg:flex-col lg:gap-10">
               <AnimatePresence mode="wait">
                 {activeTab === "calendar" && (
@@ -2535,7 +2653,31 @@ export default function Home() {
                         </div>
                       </header>
 
-                      <div className="mt-8 lg:mt-10">
+                      {availableCalendars.length > 0 && (
+                        <div className="mt-2 flex flex-wrap items-center gap-2 text-xs text-white/70">
+                          {availableCalendars.map((calendar) => (
+                            <button
+                              key={calendar.id}
+                              type="button"
+                              onClick={() => setActiveCalendarId(calendar.id)}
+                              className={`rounded-full border px-3 py-1 font-semibold transition ${
+                                activeCalendarId === calendar.id
+                                  ? "border-blue-400/60 bg-blue-500/20 text-white"
+                                  : "border-white/15 bg-white/5 text-white/70 hover:border-blue-300/40 hover:text-white"
+                              }`}
+                            >
+                              {calendar.name}
+                            </button>
+                          ))}
+                          {isLoadingCalendars && (
+                            <span className="rounded-full border border-white/10 px-3 py-1 text-[11px] text-white/60">
+                              Actualizando...
+                            </span>
+                          )}
+                        </div>
+                      )}
+
+                      <div className="mt-6">
                         <CalendarTab
                           nextShift={nextShift ?? null}
                           daysUntilNextShift={daysUntilNextShift}
@@ -2548,9 +2690,9 @@ export default function Home() {
                           onSelectEvent={handleSelectShift}
                           onAddShiftForDate={handleOpenMobileAddForDate}
                           onUpdateShift={handleUpdateShiftTime}
-                          embedSidebar={false}
                           calendarView={calendarView}
                           onCalendarViewChange={setCalendarView}
+                          embedSidebar={false}
                         />
                       </div>
                     </div>
@@ -2828,25 +2970,50 @@ export default function Home() {
                     {activeTab === "calendar" && (
                       <motion.div
                         key="mobile-calendar"
-                        initial={{ opacity: 0, y: 24 }}
-                        animate={{ opacity: 1, y: 0 }}
-                        exit={{ opacity: 0, y: -16 }}
-                        transition={{ duration: 0.18, ease: "easeOut" }}
-                        className="w-full"
-                      >
-                        <CalendarTab
-                          nextShift={nextShift ?? null}
-                          daysUntilNextShift={daysUntilNextShift}
-                          shiftTypeLabels={SHIFT_TYPE_LABELS}
-                          orderedShifts={orderedShifts}
-                          plannerDays={plannerDays}
-                          onCommitPlanner={handleManualRotationConfirm}
-                          isCommittingPlanner={isCommittingRotation}
-                          plannerError={rotationError}
-                          onSelectEvent={handleSelectShift}
-                          onAddShiftForDate={handleOpenMobileAddForDate}
-                          onUpdateShift={handleUpdateShiftTime}
-                        />
+                    initial={{ opacity: 0, y: 24 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    exit={{ opacity: 0, y: -16 }}
+                    transition={{ duration: 0.18, ease: "easeOut" }}
+                    className="w-full"
+                  >
+                    {availableCalendars.length > 0 && (
+                      <div className="mb-4 flex flex-wrap items-center gap-2 text-[11px] font-semibold uppercase tracking-wide text-white/70">
+                        {availableCalendars.map((calendar) => (
+                          <button
+                            key={`mobile-cal-${calendar.id}`}
+                            type="button"
+                            onClick={() => setActiveCalendarId(calendar.id)}
+                            className={`rounded-full border px-3 py-1 transition ${
+                              activeCalendarId === calendar.id
+                                ? "border-blue-400/60 bg-blue-500/20 text-white"
+                                : "border-white/15 bg-white/5 text-white/70 hover:border-blue-300/40 hover:text-white"
+                            }`}
+                          >
+                            {calendar.name}
+                          </button>
+                        ))}
+                        {isLoadingCalendars && (
+                          <span className="rounded-full border border-white/10 px-3 py-1 text-white/60">
+                            Sincronizando...
+                          </span>
+                        )}
+                      </div>
+                    )}
+                    <CalendarTab
+                      nextShift={nextShift ?? null}
+                      daysUntilNextShift={daysUntilNextShift}
+                      shiftTypeLabels={SHIFT_TYPE_LABELS}
+                      orderedShifts={orderedShifts}
+                      plannerDays={plannerDays}
+                      onCommitPlanner={handleManualRotationConfirm}
+                      isCommittingPlanner={isCommittingRotation}
+                      plannerError={rotationError}
+                      onSelectEvent={handleSelectShift}
+                      onAddShiftForDate={handleOpenMobileAddForDate}
+                      onUpdateShift={handleUpdateShiftTime}
+                      calendarView={calendarView}
+                      onCalendarViewChange={setCalendarView}
+                    />
                       </motion.div>
                     )}
 
@@ -2924,7 +3091,11 @@ export default function Home() {
         </div>
       </div>
 
-      <MobileNavigation active={activeTab} onChange={setActiveTab} />
+      <MobileNavigation
+        active={activeTab}
+        onChange={handleNavigateTab}
+        onNavigateLink={handleNavigateLink}
+      />
 
       <MobileAddShiftSheet
         open={isMobileAddOpen}

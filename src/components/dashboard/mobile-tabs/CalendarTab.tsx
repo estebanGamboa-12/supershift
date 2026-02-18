@@ -30,15 +30,11 @@ type CalendarTabProps = CalendarSidebarProps & {
   onCommitPlanner: (days: ManualRotationDay[]) => Promise<void> | void
   isCommittingPlanner: boolean
   plannerError: string | null
-  /** Si false, no se renderiza el sidebar (útil cuando el sidebar va fuera para sticky). */
+  onSelectEvent: (shift: ShiftEvent) => void
   embedSidebar?: boolean
-  /** Abrir formulario para añadir turno en la fecha indicada */
   onAddShiftForDate?: (date: Date, startTime?: string, endTime?: string) => void
-  /** Actualizar turno existente (para drag & drop) */
   onUpdateShift?: (shift: ShiftEvent, updates: { startTime?: string; endTime?: string }) => Promise<void>
-  /** Vista activa: día (calendario) o plan mensual */
   calendarView?: "day" | "monthly"
-  /** Cambiar entre vista día y plan mensual */
   onCalendarViewChange?: (view: "day" | "monthly") => void
 }
 

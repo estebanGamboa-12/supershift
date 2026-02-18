@@ -152,19 +152,17 @@ const DayView: FC<DayViewProps> = ({
         }
       }
 
-      // Crear nuevo turno (solo si no hay turno en el día)
-      if (dayShifts.length === 0) {
-        e.preventDefault()
-        e.stopPropagation()
-        timelineRef.current.setPointerCapture(e.pointerId)
+      // Crear nuevo turno (arrastrar en la escala horaria)
+      e.preventDefault()
+      e.stopPropagation()
+      timelineRef.current.setPointerCapture(e.pointerId)
 
-        const startMin = snapToInterval(yToMinutes(e.clientY))
-        setIsSelecting(true)
-        setSelectionStart(startMin)
-        setSelectionEnd(startMin)
-      }
+      const startMin = snapToInterval(yToMinutes(e.clientY))
+      setIsSelecting(true)
+      setSelectionStart(startMin)
+      setSelectionEnd(startMin)
     },
-    [yToMinutes, dayShifts, onUpdateShift, onSelectEvent],
+    [yToMinutes, onUpdateShift, onSelectEvent],
   )
 
   const handlePointerMove = useCallback(
@@ -327,7 +325,7 @@ const DayView: FC<DayViewProps> = ({
       const endMin = Math.max(selectionStart, selectionEnd)
       const duration = endMin - startMin
 
-      if (duration >= MIN_EVENT_DURATION && onAddSlot && dayShifts.length === 0) {
+      if (duration >= MIN_EVENT_DURATION && onAddSlot) {
         const startTime = minutesToTime(startMin)
         const endTime = minutesToTime(endMin)
         onAddSlot(date, startTime, endTime)
@@ -337,7 +335,7 @@ const DayView: FC<DayViewProps> = ({
       setSelectionStart(null)
       setSelectionEnd(null)
     },
-    [isSelecting, selectionStart, selectionEnd, editingShift, dragStartMinutes, draggingShift, dragStartY, dragPreviewMinutes, date, onAddSlot, onUpdateShift, onSelectEvent, dayShifts.length, yToMinutes, stopAutoScroll],
+    [isSelecting, selectionStart, selectionEnd, editingShift, dragStartMinutes, draggingShift, dragStartY, dragPreviewMinutes, date, onAddSlot, onUpdateShift, onSelectEvent, yToMinutes, stopAutoScroll],
   )
 
   useEffect(() => {

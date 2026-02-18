@@ -292,7 +292,7 @@ body {
 
 @layer utilities {
   .dashboard-section {
-    @apply relative overflow-hidden rounded-3xl bg-[rgba(13,18,32,0.8)] p-5 shadow-[0_55px_140px_-70px_rgba(59,130,246,0.55)] transition-all duration-150 ease-out sm:p-6;
+    @apply relative overflow-hidden rounded-3xl bg-[rgba(13,18,32,0.82)] p-5 shadow-[0_55px_140px_-70px_rgba(59,130,246,0.5)] transition-all duration-150 ease-out sm:p-6 lg:rounded-3xl lg:p-8 lg:shadow-[0_60px_160px_-72px_rgba(59,130,246,0.45),0_0_0_1px_rgba(255,255,255,0.04)] xl:p-10;
   }
 }
 
@@ -301,6 +301,19 @@ body {
   .no-card-borders [class*="border-"] {
     border-width: 0 !important;
     border-color: transparent !important;
+  }
+}
+
+/* Sidebar calendario desktop: sticky que se activa cuando el Panel principal llega arriba */
+@media (min-width: 1024px) {
+  .calendar-page-sidebar {
+    max-height: calc(100vh - 3rem);
+    overflow-y: auto;
+  }
+}
+@media (min-width: 1280px) {
+  .calendar-page-sidebar {
+    max-height: calc(100vh - 3rem);
   }
 }
 

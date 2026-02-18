@@ -32,6 +32,7 @@ import {
 import { calculateWeeklyShiftSummaries } from "@/lib/shiftStatistics"
 import {
   CalendarTab,
+  CalendarSidebar,
   HistoryTab,
   HoursTab,
   SettingsTab,
@@ -429,6 +430,17 @@ function buildShiftRequestPayload(
   }
 }
 
+/** Normaliza hora a HH:MM para la API (ej: "9:00" -> "09:00"). */
+function toHHMM(value: string | null | undefined): string | null {
+  if (value == null || typeof value !== "string") return null
+  const trimmed = value.trim()
+  const parts = trimmed.split(":")
+  const h = parseInt(parts[0], 10)
+  const m = parts[1] != null ? parseInt(parts[1], 10) : 0
+  if (Number.isNaN(h) || Number.isNaN(m) || h < 0 || h > 23 || m < 0 || m > 59) return null
+  return `${String(h).padStart(2, "0")}:${String(m).padStart(2, "0")}`
+}
+
 function createPendingRequestId(): string {
   if (typeof crypto !== "undefined" && typeof crypto.randomUUID === "function") {
     return crypto.randomUUID()
@@ -443,7 +455,10 @@ export default function Home() {
   const [selectedShift, setSelectedShift] = useState<ShiftEvent | null>(null)
   const [selectedDateFromCalendar, setSelectedDateFromCalendar] =
     useState<string | null>(null)
+  const [initialStartTime, setInitialStartTime] = useState<string | undefined>(undefined)
+  const [initialEndTime, setInitialEndTime] = useState<string | undefined>(undefined)
   const [activeTab, setActiveTab] = useState<MobileTab>("calendar")
+  const [calendarView, setCalendarView] = useState<"day" | "monthly">("day")
   const [isMobileAddOpen, setIsMobileAddOpen] = useState(false)
   const [users, setUsers] = useState<UserSummary[]>([])
   const [currentUser, setCurrentUser] = useState<UserSummary | null>(null)
@@ -466,6 +481,9 @@ export default function Home() {
     return !navigator.onLine
   })
   const [isSyncingPendingShifts, setIsSyncingPendingShifts] = useState(false)
+  const [hasMounted, setHasMounted] = useState(false)
+  const [headerHeightPx, setHeaderHeightPx] = useState(0)
+  const headerRef = useRef<HTMLDivElement>(null)
   const [pendingShiftMutations, setPendingShiftMutations] = useState(0)
   const [lastSyncError, setLastSyncError] = useState<string | null>(null)
   const isSyncingRef = useRef(false)
@@ -556,6 +574,20 @@ export default function Home() {
     notificationPushEnabled,
     notificationRemindersEnabled,
   ])
+
+  useEffect(() => {
+    setHasMounted(true)
+  }, [])
+
+  useEffect(() => {
+    if (typeof window === "undefined" || !headerRef.current) return
+    const el = headerRef.current
+    const updateHeight = () => setHeaderHeightPx(el.getBoundingClientRect().height)
+    updateHeight()
+    const ro = new ResizeObserver(updateHeight)
+    ro.observe(el)
+    return () => ro.disconnect()
+  }, [hasMounted])
 
   useEffect(() => {
     if (typeof window === "undefined") {
@@ -2230,15 +2262,69 @@ export default function Home() {
     setSelectedDateFromCalendar(format(new Date(), "yyyy-MM-dd"))
   }, [])
 
+  const handleOpenMobileAddForDate = useCallback(
+    (date: Date, startTime?: string, endTime?: string) => {
+      setActiveTab("calendar")
+      setSelectedDateFromCalendar(format(date, "yyyy-MM-dd"))
+      setInitialStartTime(startTime)
+      setInitialEndTime(endTime)
+      setIsMobileAddOpen(true)
+    },
+    [],
+  )
+
   const handleCloseMobileAdd = useCallback(() => {
     setIsMobileAddOpen(false)
     setSelectedDateFromCalendar(null)
+    setInitialStartTime(undefined)
+    setInitialEndTime(undefined)
   }, [])
 
   const handleSelectShift = useCallback((shift: ShiftEvent) => {
     setSelectedShift(shift)
     setIsMobileAddOpen(false)
   }, [])
+
+  const handleUpdateShiftTime = useCallback(
+    async (shift: ShiftEvent, updates: { startTime?: string; endTime?: string }) => {
+      const rawStart = updates.startTime !== undefined ? updates.startTime : shift.startTime ?? null
+      const rawEnd = updates.endTime !== undefined ? updates.endTime : shift.endTime ?? null
+      const newStartTime = toHHMM(rawStart)
+      const newEndTime = toHHMM(rawEnd)
+
+      if (newStartTime == null || newEndTime == null) return
+
+      await handleUpdateShift({
+        id: shift.id,
+        date: shift.date,
+        type: shift.type,
+        note: shift.note,
+        label: shift.label,
+        color: shift.color,
+        pluses: shift.pluses,
+        startTime: newStartTime,
+        endTime: newEndTime,
+      })
+    },
+    [handleUpdateShift],
+  )
+
+  // Mismo HTML en servidor y cliente hasta montar, para evitar hydration mismatch
+  if (!hasMounted) {
+    return (
+      <div className="no-card-borders min-h-screen bg-slate-950 text-white">
+        <main className="mx-auto flex min-h-screen w-full max-w-4xl items-center justify-center px-4 py-16">
+          <div className="flex w-full flex-col gap-6">
+            <div className="rounded-3xl border border-white/10 bg-slate-950/70 p-6 shadow-[0_30px_80px_-48px_rgba(59,130,246,0.6)]">
+              <div className="flex items-center justify-center py-12">
+                <FloatingParticlesLoader />
+              </div>
+            </div>
+          </div>
+        </main>
+      </div>
+    )
+  }
 
   if (!currentUser) {
     return (
@@ -2279,13 +2365,13 @@ export default function Home() {
   }
 
   return (
-    <div className="no-card-borders relative min-h-screen overflow-hidden bg-slate-950 text-white">
+    <div className="no-card-borders relative min-h-screen bg-slate-950 text-white">
       <div
         className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_10%_0%,rgba(59,130,246,0.18),transparent_55%),_radial-gradient(circle_at_80%_105%,rgba(139,92,246,0.2),transparent_60%),_radial-gradient(circle_at_50%_50%,rgba(59,130,246,0.12),transparent_65%)]"
         aria-hidden
       />
-      <div className="relative z-10 mx-auto min-h-screen w-full max-w-[120rem] px-4 py-6 lg:px-8 lg:py-10">
-        <div className="flex min-h-full w-full flex-col gap-7 lg:gap-8">
+      <div className="relative z-10 mx-auto min-h-screen w-full px-4 py-6 lg:max-w-[160rem] lg:px-10 lg:py-8 xl:px-12">
+        <div className="flex min-h-full w-full flex-col gap-6 lg:gap-8">
           <OfflineStatusBanner
             isOffline={isOffline}
             pendingCount={pendingShiftMutations}
@@ -2293,100 +2379,137 @@ export default function Home() {
             lastError={lastSyncError}
             onRetry={synchronizePendingShiftRequests}
           />
-          <ResponsiveNav
-            items={navItems}
-            activeId={activeTab}
-            onNavigate={handleNavigateTab}
-          />
-          <div className="hidden lg:block">
-            <section className="dashboard-section px-6 py-6">
-              <div className="pointer-events-none absolute inset-0 opacity-80" aria-hidden>
-                <div className="absolute inset-0 bg-[radial-gradient(circle_at_left_top,rgba(59,130,246,0.18),transparent_62%),_radial-gradient(circle_at_bottom_right,rgba(139,92,246,0.16),transparent_60%)]" />
+          {/* Solo esta barra es sticky: nav (Calendario, etc.) + Plantillas + Cerrar sesión */}
+          <div
+            ref={headerRef}
+            className="sticky top-0 z-20 hidden shrink-0 lg:flex lg:flex-row lg:items-center lg:justify-between lg:gap-4 lg:rounded-xl lg:border lg:border-white/10 lg:bg-slate-950/95 lg:px-3 lg:py-2 lg:shadow-lg"
+          >
+            <ResponsiveNav
+              items={navItems}
+              activeId={activeTab}
+              onNavigate={handleNavigateTab}
+            />
+            <div className="flex flex-shrink-0 items-center gap-4">
+              <div className="hidden text-right xl:block">
+                <p className="text-sm font-semibold text-white">{currentUser.name}</p>
+                <p className="text-xs text-white/50">{currentUser.email}</p>
               </div>
-              <div className="relative flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
-                <div>
-                  <p className="text-sm text-white/60">Hola, {mobileGreeting}</p>
-                  <h1 className="text-3xl font-semibold">Panel principal</h1>
-                  <p className="mt-1 text-sm text-white/50">
+              <Link
+                href="/templates"
+                className="inline-flex items-center gap-2 rounded-lg border border-white/15 bg-white/5 px-3 py-2 text-sm font-semibold text-white/90 transition hover:border-sky-400/50 hover:bg-sky-500/15 hover:text-white"
+              >
+                Plantillas
+              </Link>
+              <button
+                type="button"
+                onClick={handleLogout}
+                className="inline-flex items-center gap-2 rounded-lg border border-white/15 bg-white/5 px-3 py-2 text-sm font-semibold text-white/80 transition hover:border-red-400/40 hover:bg-red-500/10 hover:text-red-200"
+              >
+                Cerrar sesión
+              </button>
+            </div>
+          </div>
+
+          {/* Contenido sin scroll propio: solo scroll de la ventana (derecha) */}
+          <div className="flex-1 min-h-0">
+            <div className="hidden lg:block" id="panel-principal">
+              <section className="dashboard-section px-6 py-6 lg:px-8 lg:py-7 xl:px-10 xl:py-8">
+                <div className="pointer-events-none absolute inset-0 opacity-80" aria-hidden>
+                  <div className="absolute inset-0 bg-[radial-gradient(circle_at_left_top,rgba(59,130,246,0.18),transparent_62%),_radial-gradient(circle_at_bottom_right,rgba(139,92,246,0.16),transparent_60%)]" />
+                </div>
+                <div className="relative">
+                  <p className="text-sm font-medium text-sky-200/90 lg:text-base">Hola, {mobileGreeting}</p>
+                  <h1 className="mt-1 text-3xl font-bold tracking-tight text-white lg:text-4xl xl:text-[2.5rem]">
+                    Panel principal
+                  </h1>
+                  <p className="mt-2 max-w-xl text-sm leading-relaxed text-white/60 lg:text-base">
                     Supervisa tus turnos y el pulso de tu equipo desde un único lugar.
                   </p>
-                </div>
-                <div className="flex items-center gap-4">
-                  <div className="text-right text-xs text-white/50">
-                    <p className="text-sm font-semibold text-white">{currentUser.name}</p>
-                    <p>{currentUser.email}</p>
+                  <div className="relative mt-6 flex flex-wrap items-center gap-2 border-t border-white/10 pt-5 lg:gap-3 lg:pt-6">
+                    <span className="mr-1 text-[11px] font-semibold uppercase tracking-wider text-white/40 lg:text-xs">Secciones:</span>
+                    {[
+                      "Calendario",
+                      "Estadísticas",
+                      "Horas",
+                      "Equipo",
+                      "Historial",
+                      "Configuración",
+                    ].map((tab) => (
+                      <span
+                        key={tab}
+                        className="rounded-full border border-white/10 bg-white/5 px-3 py-1.5 text-xs font-medium text-white/70 lg:px-4 lg:py-2 lg:text-sm"
+                      >
+                        {tab}
+                      </span>
+                    ))}
                   </div>
-                  <Link
-                    href="/templates"
-                    className="rounded-full border border-white/15 px-4 py-2 text-xs font-semibold uppercase tracking-wide text-white/80 transition hover:border-sky-400/40 hover:text-white"
-                  >
-                    Plantillas
-                  </Link>
-                  <button
-                    type="button"
-                    onClick={handleLogout}
-                    className="rounded-full border border-white/15 px-4 py-2 text-xs font-semibold uppercase tracking-wide text-white/80 transition hover:border-red-400/40 hover:text-red-200"
-                  >
-                    Cerrar sesión
-                  </button>
                 </div>
+              </section>
             </div>
 
-            <div className="mt-6 flex flex-wrap gap-2 text-xs font-semibold uppercase tracking-wide text-white/60">
-              {[
-                "Calendario",
-                "Estadísticas",
-                "Horas",
-                "Equipo",
-                "Historial",
-                "Configuración",
-              ].map((tab) => (
-                <span
-                  key={tab}
-                  className="rounded-full border border-white/10 bg-white/5 px-4 py-1"
-                >
-                  {tab}
-                </span>
-              ))}
-            </div>
-          </section>
-        </div>
-
-        <main className="flex-1 overflow-y-auto pb-[calc(6rem+env(safe-area-inset-bottom))] lg:pb-0">
-          <div className="mx-auto w-full max-w-[110rem] space-y-12 px-0 py-6 sm:px-2 lg:px-0">
+        <main className="pb-[calc(6rem+env(safe-area-inset-bottom))] lg:pb-8">
+          <div className="mx-auto w-full space-y-8 px-0 py-6 sm:px-2 lg:space-y-10 lg:px-0 lg:py-8">
             <div className="hidden lg:flex lg:flex-col lg:gap-10">
               <AnimatePresence mode="wait">
                 {activeTab === "calendar" && (
                   <motion.section
-                    key="desktop-calendar"
+                    key="desktop-calendar-content"
                     initial={{ opacity: 0, y: 24 }}
                     animate={{ opacity: 1, y: 0 }}
                     exit={{ opacity: 0, y: -16 }}
                     transition={{ duration: 0.18, ease: "easeOut" }}
-                    className="dashboard-section"
+                    className="dashboard-section calendar-page-with-sidebar min-w-0 flex-1"
                   >
                     <div className="pointer-events-none absolute inset-0 opacity-75" aria-hidden>
                       <div className="absolute inset-0 bg-[radial-gradient(circle_at_top_left,rgba(59,130,246,0.16),transparent_60%),_radial-gradient(circle_at_bottom_right,rgba(139,92,246,0.18),transparent_60%)]" />
                     </div>
                     <div className="relative">
-                      <header className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
+                      <header className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between lg:gap-6">
                         <div>
-                          <h2 className="text-2xl font-semibold">Calendario</h2>
-                          <p className="text-sm text-white/60">
-                            Visualiza y organiza tus turnos directamente en el calendario.
+                          <h2 className="text-2xl font-bold tracking-tight text-white lg:text-3xl">
+                            Calendario
+                          </h2>
+                          <p className="mt-1 text-sm text-white/60 lg:text-base">
+                            Visualiza y organiza tus turnos como en Google Calendar.
                           </p>
                         </div>
-                        <button
-                          type="button"
-                          onClick={handleOpenMobileAdd}
-                          className="inline-flex items-center gap-2 rounded-full border border-white/15 px-4 py-2 text-xs font-bold uppercase tracking-wide text-white/80 transition hover:border-blue-400/40 hover:text-white"
-                        >
-                          <span aria-hidden className="text-base">＋</span>
-                          Añadir turno
-                        </button>
+                        <div className="flex flex-wrap items-center gap-2 sm:gap-3">
+                          <button
+                            type="button"
+                            onClick={() => setCalendarView("day")}
+                            className={`inline-flex shrink-0 items-center gap-2 rounded-xl px-4 py-2.5 text-sm font-semibold transition ${
+                              calendarView === "day"
+                                ? "border border-sky-400/40 bg-sky-500/20 text-sky-100"
+                                : "border border-white/20 bg-white/10 text-white/80 hover:border-sky-400/50 hover:bg-sky-500/15 hover:text-sky-200"
+                            }`}
+                          >
+                            <span aria-hidden>📆</span>
+                            Vista día
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => setCalendarView("monthly")}
+                            className={`inline-flex shrink-0 items-center gap-2 rounded-xl px-4 py-2.5 text-sm font-semibold transition ${
+                              calendarView === "monthly"
+                                ? "border border-sky-400/40 bg-sky-500/20 text-sky-100"
+                                : "border border-white/20 bg-white/10 text-white/80 hover:border-sky-400/50 hover:bg-sky-500/15 hover:text-sky-200"
+                            }`}
+                          >
+                            <span aria-hidden>📅</span>
+                            Plan mensual
+                          </button>
+                          <button
+                            type="button"
+                            onClick={handleOpenMobileAdd}
+                            className="inline-flex shrink-0 items-center gap-2 rounded-xl border border-sky-400/40 bg-sky-500/20 px-5 py-2.5 text-sm font-semibold text-sky-100 transition hover:border-sky-400/60 hover:bg-sky-500/30 hover:text-white"
+                          >
+                            <span aria-hidden className="text-lg leading-none">＋</span>
+                            Añadir turno
+                          </button>
+                        </div>
                       </header>
 
-                      <div className="mt-6">
+                      <div className="mt-8 lg:mt-10">
                         <CalendarTab
                           nextShift={nextShift ?? null}
                           daysUntilNextShift={daysUntilNextShift}
@@ -2397,6 +2520,11 @@ export default function Home() {
                           isCommittingPlanner={isCommittingRotation}
                           plannerError={rotationError}
                           onSelectEvent={handleSelectShift}
+                          onAddShiftForDate={handleOpenMobileAddForDate}
+                          onUpdateShift={handleUpdateShiftTime}
+                          embedSidebar={false}
+                          calendarView={calendarView}
+                          onCalendarViewChange={setCalendarView}
                         />
                       </div>
                     </div>
@@ -2690,6 +2818,8 @@ export default function Home() {
                           isCommittingPlanner={isCommittingRotation}
                           plannerError={rotationError}
                           onSelectEvent={handleSelectShift}
+                          onAddShiftForDate={handleOpenMobileAddForDate}
+                          onUpdateShift={handleUpdateShiftTime}
                         />
                       </motion.div>
                     )}
@@ -2775,6 +2905,8 @@ export default function Home() {
         onClose={handleCloseMobileAdd}
         onAdd={handleAddShift}
         selectedDate={selectedDateFromCalendar}
+        initialStartTime={initialStartTime}
+        initialEndTime={initialEndTime}
         onDateConsumed={() => setSelectedDateFromCalendar(null)}
       />
 
@@ -2797,6 +2929,7 @@ export default function Home() {
         feedback={actionFeedback}
         onDismiss={dismissActionFeedback}
       />
+      </div>
     </div>
   )
 }

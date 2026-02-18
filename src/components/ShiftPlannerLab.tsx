@@ -301,18 +301,19 @@ export default function ShiftPlannerLab({
     setIsConfirmingRotation(false)
   }, [rotationPattern, rotationStart])
 
-  const calendarConfig = useMemo(() => {
-    const monthStart = startOfMonth(currentMonth)
-    const daysInMonth = getDaysInMonth(currentMonth)
+  const getCalendarConfigForMonth = useCallback((month: Date) => {
+    const monthStart = startOfMonth(month)
+    const daysInMonth = getDaysInMonth(month)
     const days = Array.from({ length: daysInMonth }, (_, index) => addDays(monthStart, index))
     const weekday = getDay(monthStart)
     const firstColumn = ((weekday + 6) % 7) + 1
+    return { days, firstColumn }
+  }, [])
 
-    return {
-      days,
-      firstColumn,
-    }
-  }, [currentMonth])
+  const calendarConfig = useMemo(
+    () => getCalendarConfigForMonth(currentMonth),
+    [currentMonth, getCalendarConfigForMonth],
+  )
 
   const monthDays = useMemo(
     () =>
@@ -675,12 +676,36 @@ export default function ShiftPlannerLab({
     }
   }, [selectedDate, activeEntry])
   return (
-    <div className="relative overflow-hidden rounded-3xl border border-white/10 bg-slate-950/70 text-white shadow-[0_40px_90px_-35px_rgba(15,23,42,0.95)]">
-      <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_top,_rgba(59,130,246,0.18),transparent_60%),_radial-gradient(circle_at_bottom_right,_rgba(236,72,153,0.14),transparent_55%)]" />
-      <div className="relative flex flex-col gap-6 p-0 sm:p-6">
-        <section className="space-y-4 rounded-2xl border border-white/10 bg-white/5 p-3 sm:p-5 backdrop-blur-xl">
-          <header className="border-b border-white/10 pb-4">
-            <div className="flex flex-col gap-1 sm:flex-row sm:items-end sm:justify-between">
+    <div className="relative overflow-hidden rounded-3xl border border-white/10 bg-slate-950/70 text-white shadow-[0_40px_90px_-35px_rgba(15,23,42,0.95)] lg:rounded-3xl lg:border-white/15 lg:shadow-[0_50px_120px_-40px_rgba(59,130,246,0.25),0_0_0_1px_rgba(255,255,255,0.06)]">
+      <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_top,_rgba(59,130,246,0.18),transparent_60%),_radial-gradient(circle_at_bottom_right,_rgba(236,72,153,0.14),transparent_55%)] lg:bg-[radial-gradient(circle_at_20%_0%,rgba(59,130,246,0.22),transparent_50%),_radial-gradient(circle_at_80%_100%,rgba(139,92,246,0.18),transparent_50%)]" />
+      <div className="relative flex flex-col gap-6 p-0 sm:p-6 lg:gap-8 lg:p-8">
+        <section className="space-y-3 rounded-2xl border border-white/10 bg-white/5 p-3 sm:p-4 backdrop-blur-xl lg:space-y-4 lg:rounded-3xl lg:border-white/10 lg:bg-white/[0.07] lg:p-5">
+          <header className="border-b border-white/10 pb-3">
+            <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+              <div className="flex flex-wrap items-center gap-2">
+                <p className="text-[11px] uppercase tracking-[0.35em] text-white/40">Plan mensual</p>
+                <span className="hidden text-white/30 sm:inline">·</span>
+                <div className="flex items-center gap-2">
+                  <button
+                    type="button"
+                    onClick={handlePrevMonth}
+                    className="inline-flex items-center gap-1.5 rounded-xl border border-white/20 bg-white/10 px-3 py-2 text-xs font-semibold text-white/80 transition hover:border-sky-400/60 hover:bg-sky-500/15 hover:text-sky-200"
+                    aria-label="Mes anterior"
+                  >
+                    <span className="text-base leading-none">‹</span>
+                    <span className="hidden sm:inline">Anterior</span>
+                  </button>
+                  <button
+                    type="button"
+                    onClick={handleNextMonth}
+                    className="inline-flex items-center gap-1.5 rounded-xl border border-white/20 bg-white/10 px-3 py-2 text-xs font-semibold text-white/80 transition hover:border-sky-400/60 hover:bg-sky-500/15 hover:text-sky-200"
+                    aria-label="Mes siguiente"
+                  >
+                    <span className="hidden sm:inline">Siguiente</span>
+                    <span className="text-base leading-none">›</span>
+                  </button>
+                </div>
+              </div>
               <AnimatePresence mode="wait" initial={false}>
                 <motion.p
                   key={monthLabel}
@@ -693,38 +718,37 @@ export default function ShiftPlannerLab({
                   {monthLabel}
                 </motion.p>
               </AnimatePresence>
-              <p className="text-[11px] uppercase tracking-[0.35em] text-white/40">Plan mensual</p>
             </div>
           </header>
 
-          <div className="grid grid-cols-2 gap-3 rounded-2xl border border-white/10 bg-slate-950/60 p-2 text-xs sm:grid-cols-4 sm:p-4">
+          <div className="grid grid-cols-2 gap-2 rounded-xl border border-white/10 bg-slate-950/60 p-2 text-xs sm:grid-cols-4 sm:p-3">
             <div>
-              <p className="uppercase tracking-wide text-white/40">Días trabajados</p>
-              <p className="text-2xl font-semibold text-emerald-300">{stats.worked}</p>
-              <div className="mt-2 h-2 rounded-full bg-white/10">
-                <div className="h-2 rounded-full bg-emerald-400" style={{ width: `${progressWorked}%` }} />
+              <p className="uppercase tracking-wide text-[10px] text-white/40">Días trabajados</p>
+              <p className="text-lg font-semibold text-emerald-300 sm:text-xl">{stats.worked}</p>
+              <div className="mt-1.5 h-1.5 rounded-full bg-white/10">
+                <div className="h-1.5 rounded-full bg-emerald-400" style={{ width: `${progressWorked}%` }} />
               </div>
             </div>
             <div>
-              <p className="uppercase tracking-wide text-white/40">Días descanso</p>
-              <p className="text-2xl font-semibold text-sky-300">{stats.rested}</p>
-              <div className="mt-2 h-2 rounded-full bg-white/10">
-                <div className="h-2 rounded-full bg-sky-400" style={{ width: `${progressRested}%` }} />
+              <p className="uppercase tracking-wide text-[10px] text-white/40">Días descanso</p>
+              <p className="text-lg font-semibold text-sky-300 sm:text-xl">{stats.rested}</p>
+              <div className="mt-1.5 h-1.5 rounded-full bg-white/10">
+                <div className="h-1.5 rounded-full bg-sky-400" style={{ width: `${progressRested}%` }} />
               </div>
             </div>
             <div>
-              <p className="uppercase tracking-wide text-white/40">Total pluses (niveles)</p>
-              <p className="text-2xl font-semibold text-fuchsia-300">{stats.totalPluses}</p>
-              <p className="text-[10px] uppercase tracking-[0.3em] text-white/30">Equivale a {stats.totalPluses * 12} niveles anuales</p>
+              <p className="uppercase tracking-wide text-[10px] text-white/40">Total pluses (niveles)</p>
+              <p className="text-lg font-semibold text-fuchsia-300 sm:text-xl">{stats.totalPluses}</p>
+              <p className="text-[9px] uppercase tracking-wider text-white/30">{stats.totalPluses * 12} niv. anuales</p>
             </div>
             <div>
-              <p className="uppercase tracking-wide text-white/40">Plan actual</p>
-              <p className="text-sm text-white/70">{orderedEntries.length} días configurados</p>
-              <p className="text-[10px] uppercase tracking-[0.3em] text-white/30">Puedes combinar rotación + ajustes</p>
+              <p className="uppercase tracking-wide text-[10px] text-white/40">Plan actual</p>
+              <p className="text-sm text-white/70">{orderedEntries.length} días</p>
+              <p className="text-[9px] text-white/30">Rotación + ajustes</p>
             </div>
           </div>
 
-          <div className="flex flex-wrap gap-2 rounded-2xl border border-white/10 bg-slate-950/50 p-2 text-xs font-semibold uppercase tracking-wider text-white/60 sm:p-3">
+          <div className="flex flex-wrap gap-2 rounded-xl border border-white/10 bg-slate-950/50 p-2 text-xs font-semibold uppercase tracking-wider text-white/60 sm:p-2.5">
             <button
               type="button"
               onClick={() => setMode("manual")}
@@ -859,147 +883,168 @@ export default function ShiftPlannerLab({
             </div>
           )}
 
-          <div className="flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-white/10 bg-slate-950/50 p-3 text-xs font-semibold text-white/70 sm:p-5">
-            <div className="flex items-center gap-3">
+          <div className="flex items-center gap-1.5 rounded-xl border border-white/10 bg-slate-950/50 p-1.5 sm:p-2 lg:bg-slate-950/60 lg:px-3 lg:py-2">
+            <button
+              type="button"
+              onClick={handlePrevMonth}
+              className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg border border-white/20 bg-white/10 text-white/80 transition hover:border-sky-400/60 hover:bg-sky-500/15 hover:text-sky-200 sm:h-9 sm:w-9"
+              aria-label="Mes anterior"
+            >
+              <span className="text-lg font-bold leading-none">‹</span>
+            </button>
+            <div className="flex min-w-0 flex-1 flex-wrap items-center justify-center gap-1.5 sm:gap-2">
               <button
                 type="button"
                 onClick={handlePrevMonth}
-                className="inline-flex items-center gap-1 rounded-full border border-white/20 bg-white/10 px-3 py-1 text-xs font-semibold text-white/70 transition duration-200 hover:border-sky-400/60 hover:text-sky-200"
+                className="hidden rounded-full border border-white/20 bg-white/10 px-2 py-1 text-[11px] font-semibold text-white/70 transition hover:border-sky-400/60 hover:bg-sky-500/15 sm:inline-flex"
               >
-                <span aria-hidden="true" className="text-base leading-none">‹</span>
                 Ant.
               </button>
               <button
                 type="button"
                 onClick={handleGoToday}
-                className="rounded-full border border-sky-500/70 bg-sky-500 px-3 py-1 text-xs font-semibold text-white shadow transition duration-200 hover:bg-sky-400"
+                className="rounded-full border border-sky-500/70 bg-sky-500 px-2.5 py-1 text-[11px] font-semibold text-white shadow-md shadow-sky-500/25 transition hover:bg-sky-400 sm:px-3 sm:py-1.5 sm:text-xs"
               >
                 Hoy
               </button>
               <button
                 type="button"
                 onClick={handleNextMonth}
-                className="inline-flex items-center gap-1 rounded-full border border-white/20 bg-white/10 px-3 py-1 text-xs font-semibold text-white/70 transition duration-200 hover:border-sky-400/60 hover:text-sky-200"
+                className="hidden rounded-full border border-white/20 bg-white/10 px-2 py-1 text-[11px] font-semibold text-white/70 transition hover:border-sky-400/60 hover:bg-sky-500/15 sm:inline-flex"
               >
                 Sig.
-                <span aria-hidden="true" className="text-base leading-none">›</span>
               </button>
+              <AnimatePresence mode="wait" initial={false}>
+                <motion.p
+                  key={`calendar-${monthLabel}`}
+                  initial={{ opacity: 0, y: 4 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  exit={{ opacity: 0, y: -4 }}
+                  transition={{ duration: 0.2, ease: "easeOut" }}
+                  className="text-xs font-semibold text-sky-200 sm:text-sm lg:text-base"
+                >
+                  {monthLabel}
+                </motion.p>
+              </AnimatePresence>
             </div>
-            <AnimatePresence mode="wait" initial={false}>
-              <motion.p
-                key={`calendar-${monthLabel}`}
-                initial={{ opacity: 0, y: 6 }}
-                animate={{ opacity: 1, y: 0 }}
-                exit={{ opacity: 0, y: -6 }}
-                transition={{ duration: 0.2, ease: "easeOut" }}
-                className="text-base font-semibold text-sky-200"
-              >
-                {monthLabel}
-              </motion.p>
-            </AnimatePresence>
+            <button
+              type="button"
+              onClick={handleNextMonth}
+              className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg border border-white/20 bg-white/10 text-white/80 transition hover:border-sky-400/60 hover:bg-sky-500/15 hover:text-sky-200 sm:h-9 sm:w-9"
+              aria-label="Mes siguiente"
+            >
+              <span className="text-lg font-bold leading-none">›</span>
+            </button>
           </div>
 
-          <div className="overflow-hidden rounded-3xl border border-white/10 bg-slate-950/50">
-            <div className="grid grid-cols-7 gap-2 border-b border-white/5 bg-slate-950/40 px-2 py-2 text-[10px] font-semibold uppercase tracking-wide text-white/60 sm:gap-3 sm:px-6 sm:py-3 sm:text-[11px]">
-              {Array.from({ length: 7 }).map((_, index) => {
-                const reference = addDays(startOfWeek(new Date(), { weekStartsOn: 1 }), index)
-                return (
-                  <div key={index} className="rounded-md bg-slate-950/70 py-1 text-center text-white/70 sm:py-1.5">
-                    {format(reference, "EEE", { locale: es })}
-                  </div>
-                )
-              })}
-            </div>
-
-            <AnimatePresence mode="wait" initial={false}>
-              <motion.div
-                key={monthLabel}
-                initial={{ opacity: 0, y: 12 }}
-                animate={{ opacity: 1, y: 0 }}
-                exit={{ opacity: 0, y: -12 }}
-                transition={{ duration: 0.25, ease: "easeOut" }}
-                className="grid grid-cols-7 gap-2 bg-transparent px-2 pb-2 pt-2 sm:gap-3 sm:px-6 sm:pb-5 sm:pt-3"
-              >
-                {calendarConfig.days.map((day, index) => {
-                  const key = toIsoDate(day)
-                  const entry = entries[key]
-                  const isCurrent = isSameMonth(day, currentMonth)
-                  const isCurrentDay = isToday(day)
-                  const accentColor = entry
-                    ? entry.color ||
-                      SHIFT_TYPES.find(({ value }) => value === entry.type)?.defaultColor ||
-                      "#2563eb"
-                    : "#2563eb"
-                  const fullLabel = entry
-                    ? entry.label || SHIFT_LABELS[entry.type]
-                    : ""
-                  const compactLabel = entry
-                    ? (entry.label
-                        ? entry.label.slice(0, 3)
-                        : SHIFT_ABBREVIATIONS[entry.type])
-                    : ""
-
-                  const style: CSSProperties | undefined =
-                    index === 0 ? { gridColumnStart: calendarConfig.firstColumn } : undefined
-
+          <div className="overflow-x-auto overflow-y-hidden rounded-2xl border border-white/10 bg-slate-950/50 lg:rounded-3xl lg:border-white/15 lg:bg-slate-950/60 lg:shadow-inner lg:shadow-black/20">
+            <div className="min-w-[280px] sm:min-w-[340px]">
+              <div className="grid grid-cols-7 gap-1 border-b border-white/5 bg-slate-950/40 px-1.5 py-1.5 text-[9px] font-semibold uppercase tracking-wide text-white/60 sm:gap-1.5 sm:px-2 sm:py-2 sm:text-[10px]">
+                {Array.from({ length: 7 }).map((_, index) => {
+                  const reference = addDays(startOfWeek(new Date(), { weekStartsOn: 1 }), index)
                   return (
-                    <button
-                      key={key}
-                      type="button"
-                      onClick={() => openEditor(day)}
-                      style={style}
-                      className={`group relative flex min-h-[86px] flex-col gap-1.5 rounded-xl border border-transparent p-2 text-left transition duration-200 ease-out focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sky-400/70 sm:min-h-[120px] sm:gap-2.5 sm:p-3 ${
-                        isCurrent ? "text-white/90" : "text-white/40"
-                      } ${
-                        entry
-                          ? "bg-slate-950/80 hover:-translate-y-0.5 hover:scale-[1.01] hover:border-sky-400/40 hover:ring-1 hover:ring-sky-400/30 active:-translate-y-0.5 active:scale-[0.99] active:border-sky-400/50"
-                          : "bg-slate-950/40 hover:-translate-y-0.5 hover:scale-[1.01] hover:bg-slate-900/60 hover:ring-1 hover:ring-sky-400/20 active:-translate-y-0.5 active:scale-[0.99] active:bg-slate-900/70"
-                      }`}
-                    >
-                      <span
-                        className={`flex h-7 w-7 items-center justify-center rounded-full text-[11px] font-medium transition-colors sm:h-8 sm:w-8 sm:text-sm ${
-                          isCurrentDay
-                            ? "bg-sky-500 text-white shadow shadow-sky-500/40"
-                            : "bg-white/10 text-white/60"
-                        } group-active:bg-sky-500/80 group-active:text-white`}
-                      >
-                        {format(day, "d")}
-                      </span>
-                      {entry ? (
-                        <motion.span
-                          whileHover={{ scale: 1.05, boxShadow: `0 0 16px ${accentColor}55` }}
-                          whileTap={{ scale: 0.98, boxShadow: `0 0 16px ${accentColor}55` }}
-                          transition={{ type: "spring", stiffness: 320, damping: 20 }}
-                          className="mt-1.5 inline-flex min-h-[1.5rem] w-full items-center justify-center rounded-lg border border-white/10 px-2.5 py-1 text-center text-[10px] font-semibold capitalize leading-tight text-white transition-colors sm:mt-2 sm:text-xs"
-                          style={{
-                            backgroundColor: `${accentColor}22`,
-                            color: accentColor,
-                            boxShadow: `0 0 0 0 ${accentColor}00`,
-                            transformOrigin: "center",
-                          }}
-                        >
-                          <span className="whitespace-nowrap capitalize sm:hidden">{compactLabel}</span>
-                          <span className="hidden whitespace-nowrap sm:inline">{fullLabel}</span>
-                        </motion.span>
-                      ) : (
-                        <>
-                          <span className="sr-only">Añadir turno</span>
-                          <span className="pointer-events-none absolute right-2 top-2 inline-flex h-6 w-6 items-center justify-center rounded-full border border-dashed border-white/15 bg-white/5 text-xs font-semibold text-white/40 opacity-0 transition group-hover:border-sky-400/40 group-hover:opacity-100 group-hover:text-sky-200 group-active:opacity-100 group-active:text-sky-200 group-focus-visible:opacity-100 sm:right-3 sm:top-3">
-                            +
-                          </span>
-                        </>
-                      )}
-                      {entry?.note ? (
-                        <span className="mt-1 line-clamp-2 text-[9px] text-white/50 sm:mt-1.5 sm:text-[10px]">{entry.note}</span>
-                      ) : null}
-                      {entry && sumPluses(entry.pluses) > 0 ? (
-                        <span className="mt-0.5 text-[9px] font-medium text-emerald-200 sm:mt-1 sm:text-[10px]">{sumPluses(entry.pluses)} niveles</span>
-                      ) : null}
-                    </button>
+                    <div key={index} className="rounded bg-slate-900/50 py-1 text-center text-white/70 sm:py-1.5">
+                      {format(reference, "EEE", { locale: es })}
+                    </div>
                   )
                 })}
-              </motion.div>
-            </AnimatePresence>
+              </div>
+              <AnimatePresence mode="wait" initial={false}>
+                <motion.div
+                  key={monthLabel}
+                  initial={{ opacity: 0, y: 8 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  exit={{ opacity: 0, y: -8 }}
+                  transition={{ duration: 0.25, ease: "easeOut" }}
+                  className="grid grid-cols-7 gap-1 bg-transparent px-1.5 pb-1.5 pt-1.5 sm:gap-1.5 sm:px-2 sm:pb-2 sm:pt-2"
+                >
+                  {calendarConfig.days.map((day, index) => {
+                    const key = toIsoDate(day)
+                    const entry = entries[key]
+                    const isCurrent = isSameMonth(day, currentMonth)
+                    const isCurrentDay = isToday(day)
+                    const accentColor = entry
+                      ? entry.color ||
+                        SHIFT_TYPES.find(({ value }) => value === entry.type)?.defaultColor ||
+                        "#2563eb"
+                      : "#2563eb"
+                    const fullLabel = entry ? entry.label || SHIFT_LABELS[entry.type] : ""
+                    const compactLabel = entry
+                      ? (entry.label ? entry.label.slice(0, 3) : SHIFT_ABBREVIATIONS[entry.type])
+                      : ""
+                    const style: CSSProperties | undefined =
+                      index === 0 ? { gridColumnStart: calendarConfig.firstColumn } : undefined
+                    return (
+                      <button
+                        key={key}
+                        type="button"
+                        onClick={() => openEditor(day)}
+                        style={style}
+                        className={`group relative flex min-h-[52px] flex-col gap-0.5 rounded-lg border border-transparent p-1.5 text-left transition duration-200 ease-out focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sky-400/70 sm:min-h-[56px] sm:p-2 ${
+                          isCurrent ? "text-white/90" : "text-white/40"
+                        } ${
+                          entry
+                            ? "bg-slate-950/80 hover:-translate-y-0.5 hover:scale-[1.02] hover:border-sky-400/50 hover:ring-1 hover:ring-sky-400/30 hover:shadow-md hover:shadow-sky-500/10 active:scale-[0.99]"
+                            : "bg-slate-950/40 hover:-translate-y-0.5 hover:scale-[1.02] hover:bg-slate-900/70 hover:border-white/10 hover:ring-1 hover:ring-sky-400/20 hover:shadow-sm active:scale-[0.99]"
+                        }`}
+                      >
+                        <span
+                          className={`flex h-5 w-5 shrink-0 items-center justify-center rounded-full text-[10px] font-medium transition-colors sm:h-6 sm:w-6 sm:text-xs ${
+                            isCurrentDay
+                              ? "bg-sky-500 text-white shadow-md shadow-sky-500/50 ring-2 ring-sky-400/40"
+                              : "bg-white/10 text-white/60 group-hover:bg-white/15"
+                          } group-active:bg-sky-500/80 group-active:text-white`}
+                        >
+                          {format(day, "d")}
+                        </span>
+                        {entry ? (
+                          <motion.span
+                            whileHover={{ scale: 1.03, boxShadow: `0 0 12px ${accentColor}44` }}
+                            whileTap={{ scale: 0.98 }}
+                            transition={{ type: "spring", stiffness: 320, damping: 20 }}
+                            className="mt-0.5 inline-flex min-h-[1.25rem] w-full items-center justify-center rounded border border-white/10 px-1.5 py-0.5 text-center text-[9px] font-semibold capitalize leading-tight text-white sm:min-h-[1.375rem] sm:text-[10px]"
+                            style={{
+                              backgroundColor: `${accentColor}28`,
+                              color: accentColor,
+                              transformOrigin: "center",
+                            }}
+                          >
+                            <span className="whitespace-nowrap capitalize sm:hidden">{compactLabel}</span>
+                            <span className="hidden whitespace-nowrap sm:inline">{fullLabel}</span>
+                          </motion.span>
+                        ) : (
+                          <>
+                            <span className="sr-only">Añadir turno</span>
+                            <span className="pointer-events-none absolute right-1 top-1 inline-flex h-4 w-4 items-center justify-center rounded-full border border-dashed border-white/15 bg-white/5 text-[9px] font-semibold text-white/40 opacity-0 transition group-hover:border-sky-400/50 group-hover:opacity-100 group-hover:text-sky-200 group-hover:bg-sky-500/20 group-active:opacity-100 sm:right-1.5 sm:top-1.5 sm:h-5 sm:w-5">
+                              +
+                            </span>
+                          </>
+                        )}
+                        {entry?.note ? (
+                          <span className="mt-0.5 line-clamp-1 text-[8px] text-white/50 sm:text-[9px]">{entry.note}</span>
+                        ) : null}
+                        {entry && sumPluses(entry.pluses) > 0 ? (
+                          <span className="mt-0.5 text-[8px] font-medium text-emerald-200 sm:text-[9px]">{sumPluses(entry.pluses)} niv.</span>
+                        ) : null}
+                      </button>
+                    )
+                  })}
+                </motion.div>
+              </AnimatePresence>
+              <div className="hidden border-t border-white/5 bg-slate-950/50 px-2 py-2 lg:flex lg:flex-wrap lg:items-center lg:justify-center lg:gap-3 lg:px-4 lg:py-3">
+                <span className="text-[9px] font-semibold uppercase tracking-wider text-white/40">Tipos:</span>
+                {SHIFT_TYPES.map(({ value, label, defaultColor }) => (
+                  <span
+                    key={value}
+                    className="inline-flex items-center gap-1.5 rounded-full border border-white/10 px-2 py-1 text-[10px] font-medium text-white/80"
+                    style={{ backgroundColor: `${defaultColor}18`, color: defaultColor }}
+                  >
+                    <span className="h-1.5 w-1.5 rounded-full" style={{ backgroundColor: defaultColor }} />
+                    {label}
+                  </span>
+                ))}
+              </div>
+            </div>
           </div>
         </section>
 
@@ -1064,22 +1109,22 @@ export default function ShiftPlannerLab({
             aria-modal="true"
           >
             <motion.div
-              initial={{ opacity: 0, y: 30 }}
+              initial={{ opacity: 0, y: 20 }}
               animate={{ opacity: 1, y: 0 }}
-              exit={{ opacity: 0, y: 30 }}
+              exit={{ opacity: 0, y: 20 }}
               transition={{ type: "spring", stiffness: 200, damping: 24 }}
-              className="mx-4 flex w-full max-w-md flex-col overflow-y-auto rounded-3xl border border-white/10 bg-gradient-to-br from-slate-900 via-slate-950 to-slate-950 p-4 text-white shadow-[0_50px_90px_-40px_rgba(14,165,233,0.5)] sm:max-w-xl sm:p-6"
-              style={{ maxHeight: "calc(100vh - 2rem)" }}
+              className="mx-3 flex w-full max-w-sm flex-col overflow-y-auto rounded-2xl border border-white/10 bg-gradient-to-br from-slate-900 via-slate-950 to-slate-950 p-3 text-white shadow-[0_40px_70px_-30px_rgba(14,165,233,0.5)] sm:max-w-md sm:p-4"
+              style={{ maxHeight: "min(90vh, 520px)" }}
             >
-              <div className="flex items-start justify-between">
-                <div>
-                  <p className="text-xs uppercase tracking-[0.3em] text-white/50">Editar turno</p>
-                  <h3 className="mt-2 text-2xl font-semibold">{editorDefaults.display}</h3>
+              <div className="flex items-start justify-between gap-2">
+                <div className="min-w-0">
+                  <p className="text-[10px] uppercase tracking-[0.25em] text-white/50">Editar turno</p>
+                  <h3 className="mt-1 text-lg font-semibold truncate">{editorDefaults.display}</h3>
                 </div>
                 <button
                   type="button"
                   onClick={closeEditor}
-                  className="rounded-full border border-white/10 bg-white/5 p-2 text-white/60 transition hover:border-sky-400/40 hover:text-sky-200"
+                  className="shrink-0 rounded-full border border-white/10 bg-white/5 p-1.5 text-white/60 transition hover:border-sky-400/40 hover:text-sky-200"
                   aria-label="Cerrar"
                 >
                   ✕
@@ -1176,7 +1221,7 @@ function EditorForm({ defaults, onSave, onRemove }: EditorFormProps) {
 
   return (
     <form
-      className="mt-6 space-y-6 pb-[calc(6.5rem+env(safe-area-inset-bottom))] sm:pb-6 lg:pb-0"
+      className="mt-3 space-y-3 pb-2"
       onSubmit={(event) => {
         event.preventDefault()
           onSave({
@@ -1190,10 +1235,10 @@ function EditorForm({ defaults, onSave, onRemove }: EditorFormProps) {
           })
         }}
     >
-      <div className="space-y-4">
+      <div className="space-y-3">
         <div>
-          <p className="text-xs uppercase tracking-wide text-white/40">Tipo de turno</p>
-          <div className="mt-3 grid gap-2 sm:grid-cols-2">
+          <p className="text-[10px] uppercase tracking-wide text-white/40">Tipo de turno</p>
+          <div className="mt-1.5 grid grid-cols-2 gap-1.5 sm:grid-cols-3">
             {SHIFT_TYPES.map((option) => (
               <button
                 key={option.value}
@@ -1214,7 +1259,7 @@ function EditorForm({ defaults, onSave, onRemove }: EditorFormProps) {
                     setLabel(SHIFT_LABELS[option.value])
                   }
                 }}
-                className={`rounded-2xl border px-3 py-2 text-left text-sm font-semibold transition ${type === option.value ? "border-white/80 bg-white/10" : "border-white/10 bg-white/5 hover:border-sky-400/40"}`}
+                className={`rounded-xl border px-2 py-1.5 text-left text-xs font-semibold transition ${type === option.value ? "border-white/80 bg-white/10" : "border-white/10 bg-white/5 hover:border-sky-400/40"}`}
                 style={{ color: option.defaultColor }}
               >
                 {SHIFT_LABELS[option.value]}
@@ -1223,84 +1268,84 @@ function EditorForm({ defaults, onSave, onRemove }: EditorFormProps) {
           </div>
         </div>
 
-        <label className="flex flex-col gap-2 text-xs text-white/70">
-          Texto del turno
-          <input
-            type="text"
-            value={label}
-            onChange={(event) => setLabel(event.target.value)}
-            className="w-full rounded-2xl border border-white/10 bg-white/5 px-3 py-2 text-sm text-white placeholder:text-white/40 focus:border-sky-400 focus:outline-none focus:ring-2 focus:ring-sky-400/40"
-            placeholder="Etiqueta que verás en el calendario"
-          />
-        </label>
-
-        <div className="grid gap-3 sm:grid-cols-2">
-          <label className="flex flex-col gap-2 text-xs text-white/70">
-            Hora de entrada
+        <div className="grid grid-cols-1 gap-2 sm:grid-cols-2 sm:gap-2">
+          <label className="flex flex-col gap-1 text-[11px] text-white/70">
+            Texto del turno
             <input
-              type="time"
-              value={startTime}
-              onChange={(event) => setStartTime(event.target.value)}
-              className="w-full rounded-2xl border border-white/10 bg-white/5 px-3 py-2 text-sm text-white focus:border-sky-400 focus:outline-none focus:ring-2 focus:ring-sky-400/40"
+              type="text"
+              value={label}
+              onChange={(event) => setLabel(event.target.value)}
+              className="w-full rounded-xl border border-white/10 bg-white/5 px-2.5 py-1.5 text-xs text-white placeholder:text-white/40 focus:border-sky-400 focus:outline-none focus:ring-1 focus:ring-sky-400/40"
+              placeholder="Etiqueta en calendario"
             />
           </label>
-          <label className="flex flex-col gap-2 text-xs text-white/70">
-            Hora de salida
-            <input
-              type="time"
-              value={endTime}
-              onChange={(event) => setEndTime(event.target.value)}
-              className="w-full rounded-2xl border border-white/10 bg-white/5 px-3 py-2 text-sm text-white focus:border-sky-400 focus:outline-none focus:ring-2 focus:ring-sky-400/40"
-            />
-          </label>
+          <div className="flex items-end gap-2">
+            <label className="flex flex-1 flex-col gap-1 text-[11px] text-white/70">
+              Entrada
+              <input
+                type="time"
+                value={startTime}
+                onChange={(event) => setStartTime(event.target.value)}
+                className="w-full rounded-xl border border-white/10 bg-white/5 px-2.5 py-1.5 text-xs text-white focus:border-sky-400 focus:outline-none focus:ring-1 focus:ring-sky-400/40"
+              />
+            </label>
+            <label className="flex flex-1 flex-col gap-1 text-[11px] text-white/70">
+              Salida
+              <input
+                type="time"
+                value={endTime}
+                onChange={(event) => setEndTime(event.target.value)}
+                className="w-full rounded-xl border border-white/10 bg-white/5 px-2.5 py-1.5 text-xs text-white focus:border-sky-400 focus:outline-none focus:ring-1 focus:ring-sky-400/40"
+              />
+            </label>
+          </div>
         </div>
 
-        <div className="rounded-2xl border border-white/10 bg-white/5 px-4 py-3">
-          <p className="text-[11px] uppercase tracking-[0.3em] text-white/40">Horas totales</p>
-          <p className="mt-2 text-xl font-semibold text-white sm:text-2xl">
-            {formattedDuration}
-          </p>
-          <p className="text-[11px] text-white/50 sm:text-xs">
+        <div className="flex flex-wrap items-center gap-3 rounded-xl border border-white/10 bg-white/5 px-2.5 py-2">
+          <div>
+            <p className="text-[9px] uppercase tracking-wider text-white/40">Horas</p>
+            <p className="text-base font-semibold text-white">{formattedDuration}</p>
+          </div>
+          <p className="text-[10px] text-white/50">
             {usingFallbackTimes
-              ? `Se aplicarán los valores predeterminados (${DEFAULT_PLANNER_START_TIME} - ${DEFAULT_PLANNER_END_TIME}).`
+              ? `Por defecto ${DEFAULT_PLANNER_START_TIME}-${DEFAULT_PLANNER_END_TIME}`
               : crossesMidnight
-                ? "El turno finaliza al día siguiente."
-                : "El turno comienza y termina el mismo día."}
+                ? "Termina al día siguiente."
+                : "Mismo día."}
           </p>
+          <label className="ml-auto flex items-center gap-2 text-[11px] text-white/70">
+            Color
+            <input
+              type="color"
+              value={color}
+              onChange={(event) => setColor(event.target.value)}
+              className="h-7 w-12 rounded-lg border border-white/20 bg-transparent"
+            />
+          </label>
         </div>
 
-        <label className="flex flex-col gap-2 text-xs text-white/70">
-          Color del turno
-          <input
-            type="color"
-            value={color}
-            onChange={(event) => setColor(event.target.value)}
-            className="h-10 w-20 rounded-xl border border-white/20 bg-transparent"
-          />
-        </label>
-
-        <label className="flex flex-col gap-2 text-xs text-white/70">
+        <label className="flex flex-col gap-1 text-[11px] text-white/70">
           Nota
           <textarea
             value={note}
             onChange={(event) => setNote(event.target.value)}
-            rows={3}
-            className="w-full resize-none rounded-2xl border border-white/10 bg-white/5 px-3 py-2 text-sm text-white placeholder:text-white/40 focus:border-sky-400 focus:outline-none focus:ring-2 focus:ring-sky-400/40"
-            placeholder="Anota incidencias, guardias o recordatorios"
+            rows={2}
+            className="w-full resize-none rounded-xl border border-white/10 bg-white/5 px-2.5 py-1.5 text-xs text-white placeholder:text-white/40 focus:border-sky-400 focus:outline-none focus:ring-1 focus:ring-sky-400/40"
+            placeholder="Incidencias, guardias, recordatorios"
           />
         </label>
 
-        <div className="grid gap-3 sm:grid-cols-2">
+        <div className="grid grid-cols-4 gap-2">
           {(
             [
-              ["night", "Nocturnidad"],
-              ["holiday", "Festivo"],
-              ["availability", "Disponibilidad"],
-              ["other", "Horas extra"],
+              ["night", "Noct."],
+              ["holiday", "Fest."],
+              ["availability", "Disp."],
+              ["other", "Extra"],
             ] as const
-          ).map(([key, label]) => (
-            <label key={key} className="flex flex-col gap-2 text-xs text-white/70">
-              {label}
+          ).map(([key, shortLabel]) => (
+            <label key={key} className="flex flex-col gap-0.5 text-[10px] text-white/70">
+              {shortLabel}
               <input
                 type="number"
                 inputMode="numeric"
@@ -1314,22 +1359,22 @@ function EditorForm({ defaults, onSave, onRemove }: EditorFormProps) {
                     [key]: ensureNumber(event.target.value),
                   }))
                 }
-                className="rounded-2xl border border-white/10 bg-white/5 px-3 py-2 text-sm text-white focus:border-sky-400 focus:outline-none focus:ring-2 focus:ring-sky-400/40"
+                className="w-full rounded-lg border border-white/10 bg-white/5 px-1.5 py-1 text-xs text-white focus:border-sky-400 focus:outline-none focus:ring-1 focus:ring-sky-400/40"
               />
             </label>
           ))}
         </div>
       </div>
 
-      <div className="flex flex-col-reverse gap-3 sm:flex-row sm:items-center sm:justify-between">
+      <div className="flex flex-wrap items-center justify-between gap-2 pt-1">
         <button
           type="button"
           onClick={onRemove}
-          className="inline-flex items-center justify-center rounded-full border border-rose-400/40 bg-rose-500/10 px-4 py-2 text-xs font-semibold uppercase tracking-wide text-rose-200 transition hover:border-rose-400 hover:bg-rose-500/20"
+          className="inline-flex items-center justify-center rounded-full border border-rose-400/40 bg-rose-500/10 px-3 py-1.5 text-[11px] font-semibold uppercase tracking-wide text-rose-200 transition hover:border-rose-400 hover:bg-rose-500/20"
         >
           Borrar día
         </button>
-        <div className="flex flex-col gap-3 sm:flex-row">
+        <div className="flex flex-wrap gap-2">
           <button
             type="button"
             onClick={() => {
@@ -1341,13 +1386,13 @@ function EditorForm({ defaults, onSave, onRemove }: EditorFormProps) {
               setEndTime(defaults.endTime ?? "")
               setPluses({ ...defaults.pluses })
             }}
-            className="inline-flex items-center justify-center rounded-full border border-white/10 bg-white/5 px-4 py-2 text-xs font-semibold uppercase tracking-wide text-white/70 transition hover:bg-white/10"
+            className="inline-flex items-center justify-center rounded-full border border-white/10 bg-white/5 px-3 py-1.5 text-[11px] font-semibold uppercase tracking-wide text-white/70 transition hover:bg-white/10"
           >
             Restablecer
           </button>
           <button
             type="submit"
-            className="inline-flex items-center justify-center rounded-full bg-gradient-to-r from-sky-500 to-fuchsia-500 px-5 py-2 text-sm font-semibold uppercase tracking-wide text-white shadow shadow-sky-500/30 transition hover:brightness-110"
+            className="inline-flex items-center justify-center rounded-full bg-gradient-to-r from-sky-500 to-fuchsia-500 px-4 py-1.5 text-xs font-semibold uppercase tracking-wide text-white shadow shadow-sky-500/30 transition hover:brightness-110"
           >
             Guardar turno
           </button>

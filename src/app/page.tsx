@@ -2167,6 +2167,18 @@ export default function Home() {
           handleLoginSuccess(user)
         }
       } catch (error) {
+        const message = error instanceof Error ? error.message : ""
+        const isNetworkError =
+          message.includes("conectar") ||
+          message.includes("conexión") ||
+          message === "Failed to fetch" ||
+          message === "Error de red"
+        if (isNetworkError) {
+          if (!currentUser) {
+            restoreSession()
+          }
+          return
+        }
         console.error("No se pudo validar la sesión de Supabase", error)
         clearSession(
           "No se pudo validar tu sesión actual. Vuelve a iniciar sesión.",
@@ -2289,8 +2301,22 @@ export default function Home() {
     async (shift: ShiftEvent, updates: { startTime?: string; endTime?: string }) => {
       const rawStart = updates.startTime !== undefined ? updates.startTime : shift.startTime ?? null
       const rawEnd = updates.endTime !== undefined ? updates.endTime : shift.endTime ?? null
-      const newStartTime = toHHMM(rawStart)
-      const newEndTime = toHHMM(rawEnd)
+      let newStartTime = toHHMM(rawStart)
+      let newEndTime = toHHMM(rawEnd)
+
+      const durationMinutes = shift.durationMinutes ?? 60
+      const dayEndM = 23 * 60 + 59
+      if (newStartTime != null && newEndTime == null) {
+        const [h, m] = newStartTime.split(":").map(Number)
+        const startM = h * 60 + m
+        const endM = Math.min(dayEndM, startM + durationMinutes)
+        newEndTime = `${String(Math.floor(endM / 60)).padStart(2, "0")}:${String(endM % 60).padStart(2, "0")}`
+      } else if (newStartTime == null && newEndTime != null) {
+        const [h, m] = newEndTime.split(":").map(Number)
+        const endM = h * 60 + m
+        const startM = Math.max(0, endM - durationMinutes)
+        newStartTime = `${String(Math.floor(startM / 60)).padStart(2, "0")}:${String(startM % 60).padStart(2, "0")}`
+      }
 
       if (newStartTime == null || newEndTime == null) return
 

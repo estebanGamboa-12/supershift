@@ -1,7 +1,6 @@
 "use client"
 
 import { useCallback, useEffect, useMemo, useState } from "react"
-import type { PostgrestSingleResponse } from "@supabase/supabase-js"
 import { getSupabaseBrowserClient } from "@/lib/supabase"
 import type {
   RotationTemplate,
@@ -133,7 +132,7 @@ export function useRotationTemplates(userId: string | null | undefined) {
         return null
       }
 
-      return normaliseRotationTemplate(data as RotationTemplateRow)
+      return normaliseRotationTemplate(data as unknown as RotationTemplateRow)
     },
     [selectProjection, supabase, userId],
   )
@@ -147,7 +146,7 @@ export function useRotationTemplates(userId: string | null | undefined) {
     setIsLoading(true)
     setError(null)
 
-    const response: PostgrestSingleResponse<RotationTemplateRow[]> = await supabase
+    const response = await supabase
       .from("rotation_template_presets")
       .select(selectProjection)
       .eq("user_id", userId)
@@ -164,7 +163,7 @@ export function useRotationTemplates(userId: string | null | undefined) {
       return
     }
 
-    const rows = response.data ?? []
+    const rows = (response.data ?? []) as unknown as RotationTemplateRow[]
     setTemplates(rows.map((row) => normaliseRotationTemplate(row)))
     setIsLoading(false)
   }, [selectProjection, supabase, userId])

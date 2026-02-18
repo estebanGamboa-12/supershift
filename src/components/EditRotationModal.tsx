@@ -81,6 +81,10 @@ export default function EditRotationModal({
     return shiftTemplates.find((item) => item.id === activeAssignment.shiftTemplateId) ?? null
   }, [activeAssignment.shiftTemplateId, shiftTemplates])
 
+  const circleSize = useMemo(() => {
+    return Math.min(380, 240 + Math.min(daysCount * 5, 120))
+  }, [daysCount])
+
   const handleSelectTemplate = (templateId: number | null) => {
     setAssignments((current) =>
       current.map((assignment) =>
@@ -160,9 +164,9 @@ export default function EditRotationModal({
             animate={{ opacity: 1, scale: 1, y: 0 }}
             exit={{ opacity: 0, scale: 0.95, y: 16 }}
             transition={{ duration: 0.25, ease: "easeOut" }}
-            className="relative w-full max-w-4xl rounded-[2rem] border border-white/15 bg-gradient-to-br from-slate-950/95 via-slate-950/80 to-slate-900/80 p-6 text-white shadow-[0_40px_100px_-60px_rgba(56,189,248,0.65)]"
+            className="relative w-full max-w-4xl max-h-[calc(100vh-2rem)] overflow-y-auto rounded-2xl border border-white/15 bg-gradient-to-br from-slate-950/95 via-slate-950/80 to-slate-900/80 p-4 sm:p-5 text-white shadow-[0_40px_100px_-60px_rgba(56,189,248,0.65)]"
           >
-            <header className="mb-6 flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
+            <header className="mb-4 flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
               <div>
                 <p className="text-xs uppercase tracking-[0.35em] text-white/40">Rotaciones</p>
                 <h2 className="text-2xl font-semibold tracking-tight">
@@ -182,7 +186,7 @@ export default function EditRotationModal({
               </button>
             </header>
 
-            <form onSubmit={handleSubmit} className="space-y-6">
+            <form onSubmit={handleSubmit} className="space-y-4">
               <div className="grid gap-4 sm:grid-cols-[auto_1fr] sm:items-center">
                 <label className="flex h-16 w-16 items-center justify-center rounded-2xl border border-white/10 bg-white/5 text-3xl shadow-inner shadow-black/30">
                   <span className="sr-only">Icono</span>
@@ -223,57 +227,77 @@ export default function EditRotationModal({
                       value={description}
                       onChange={(event) => setDescription(event.target.value)}
                       placeholder="Resumen del patrón o indicaciones para el equipo"
-                      rows={3}
-                      className="resize-none rounded-2xl border border-white/15 bg-white/5 px-4 py-2 text-sm text-white focus:border-sky-400 focus:outline-none focus:ring-2 focus:ring-sky-400/40"
+                      rows={2}
+                      className="resize-none rounded-xl border border-white/15 bg-white/5 px-3 py-2 text-sm text-white focus:border-sky-400 focus:outline-none focus:ring-2 focus:ring-sky-400/40"
                     />
                   </label>
                 </div>
               </div>
 
               <div className="grid gap-6 lg:grid-cols-[minmax(0,1fr)_minmax(0,1.2fr)]">
-                <div className="flex flex-col items-center gap-4">
-                  <div className="relative h-72 w-72 max-w-full">
-                    <div className="absolute inset-[15%] rounded-full border border-sky-400/30 bg-sky-500/10" aria-hidden />
-                    {assignments.map((assignment, index) => {
-                      const angle = (index / assignments.length) * Math.PI * 2 - Math.PI / 2
-                      const radius = 115
-                      const x = 120 + Math.cos(angle) * radius
-                      const y = 120 + Math.sin(angle) * radius
-                      const isActive = activeDay === index
-                      const label =
-                        assignment.shiftTemplateId != null
-                          ? shiftTemplates.find((item) => item.id === assignment.shiftTemplateId)?.icon ?? "🗓️"
-                          : "○"
-                      return (
-                        <button
-                          key={assignment.dayIndex}
-                          type="button"
-                          onClick={() => setActiveDay(index)}
-                          className={`absolute flex h-12 w-12 -translate-x-1/2 -translate-y-1/2 items-center justify-center rounded-full border text-xl transition ${
-                            isActive
-                              ? "border-sky-400 bg-sky-500/30 text-white shadow-lg shadow-sky-500/40"
-                              : "border-white/10 bg-white/5 text-white/70 hover:border-sky-400/40 hover:text-white"
-                          }`}
-                          style={{ left: `${x}px`, top: `${y}px` }}
-                          aria-label={`Día ${index + 1}`}
-                        >
-                          {label}
-                        </button>
-                      )
-                    })}
-                    <div className="absolute inset-0 flex items-center justify-center">
-                      <div className="flex flex-col items-center rounded-full border border-white/10 bg-white/5 px-6 py-6 text-center text-sm text-white/70">
-                        <span className="text-3xl">{icon}</span>
-                        <span>{daysCount} días</span>
+                <div className="flex flex-col items-center gap-3">
+                  {/* Contenedor cuadrado con el círculo centrado */}
+                  <div className="relative mx-auto flex aspect-square w-full max-w-full items-center justify-center" style={{ maxWidth: circleSize }}>
+                    <div className="relative flex-shrink-0" style={{ width: circleSize, height: circleSize }}>
+                      <div
+                        className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 rounded-full border-2 border-sky-400/30 bg-sky-500/10"
+                        style={{ width: "70%", height: "70%", minWidth: 120, minHeight: 120 }}
+                        aria-hidden
+                      />
+                      {assignments.map((assignment, index) => {
+                        const angle = (index / assignments.length) * Math.PI * 2 - Math.PI / 2
+                        const radius = circleSize * 0.38
+                        const cx = circleSize / 2
+                        const cy = circleSize / 2
+                        const x = cx + Math.cos(angle) * radius
+                        const y = cy + Math.sin(angle) * radius
+                        const isActive = activeDay === index
+                        const label =
+                          assignment.shiftTemplateId != null
+                            ? shiftTemplates.find((item) => item.id === assignment.shiftTemplateId)?.icon ?? "🗓️"
+                            : "○"
+                        const btnSize = daysCount > 20 ? 36 : 44
+                        return (
+                          <button
+                            key={assignment.dayIndex}
+                            type="button"
+                            onClick={() => setActiveDay(index)}
+                            className={`absolute flex -translate-x-1/2 -translate-y-1/2 items-center justify-center rounded-full border-2 text-base transition select-none touch-manipulation ${
+                              isActive
+                                ? "border-sky-400 bg-sky-500/40 text-white shadow-lg shadow-sky-500/40 z-10"
+                                : "border-white/20 bg-slate-800/80 text-white/80 hover:border-sky-400/50 hover:bg-sky-500/20 hover:text-white hover:z-10"
+                            }`}
+                            style={{
+                              left: x,
+                              top: y,
+                              width: btnSize,
+                              height: btnSize,
+                              minWidth: 44,
+                              minHeight: 44,
+                              padding: Math.max(0, (44 - btnSize) / 2),
+                            }}
+                            aria-label={`Día ${index + 1}`}
+                            aria-pressed={isActive}
+                          >
+                            {label}
+                          </button>
+                        )
+                      })}
+                      {/* Centro: overlay sin pointer-events para que los días reciban clic */}
+                      <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
+                        <div className="pointer-events-auto flex flex-col items-center justify-center rounded-full border-2 border-white/10 bg-slate-900/90 px-4 py-3 text-center text-sm text-white/80 shadow-inner">
+                          <span className="text-2xl">{icon}</span>
+                          <span className="font-semibold">{daysCount} días</span>
+                        </div>
                       </div>
                     </div>
                   </div>
-                  <p className="text-xs text-white/50">
+                  <p className="text-xs text-white/50 text-center">
                     Selecciona un día para asignar o cambiar su plantilla de turno.
                   </p>
                 </div>
 
-                <div className="space-y-4 rounded-3xl border border-white/10 bg-white/5 p-5">
+                <div className="space-y-3 rounded-2xl border border-white/10 bg-white/5 p-4">
                   <header className="flex items-center justify-between">
                     <div>
                       <p className="text-xs uppercase tracking-[0.35em] text-white/40">Día seleccionado</p>

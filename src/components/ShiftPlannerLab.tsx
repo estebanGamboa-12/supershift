@@ -3,7 +3,7 @@
 import type { CSSProperties } from "react"
 import { useCallback, useEffect, useMemo, useRef, useState } from "react"
 import { AnimatePresence, motion } from "framer-motion"
-import { AlertTriangle, CalendarDays, Check, Sparkles, X } from "lucide-react"
+import { CalendarDays, Check, Loader2, Sparkles } from "lucide-react"
 import {
   addDays,
   addMonths,
@@ -24,6 +24,9 @@ import { es } from "date-fns/locale"
 import type { ManualRotationDay } from "@/components/ManualRotationBuilder"
 import type { ShiftType } from "@/types/shifts"
 import { formatCompactDate, formatCompactMonth } from "@/lib/formatDate"
+import { useShiftTemplates } from "@/lib/useShiftTemplates"
+import { useRotationTemplates } from "@/lib/useRotationTemplates"
+import type { RotationTemplate, ShiftTemplate } from "@/types/templates"
 
 type PlannerPluses = {
   night: number
@@ -80,13 +83,6 @@ const INITIAL_PLUSES: PlannerPluses = {
   other: 0,
 }
 
-const ROTATION_PATTERNS: { label: string; cycle: [number, number] }[] = [
-  { label: "4x2", cycle: [4, 2] },
-  { label: "5x3", cycle: [5, 3] },
-  { label: "6x3", cycle: [6, 3] },
-  { label: "7x7", cycle: [7, 7] },
-]
-
 type Mode = "manual" | "rotation"
 
 type ToastType = "success" | "error"
@@ -103,6 +99,7 @@ type ShiftPlannerLabProps = {
   isCommitting?: boolean
   errorMessage?: string | null
   resetSignal?: number
+  userId?: string | null
 }
 
 function toIsoDate(date: Date) {
@@ -197,6 +194,7 @@ export default function ShiftPlannerLab({
   isCommitting = false,
   errorMessage = null,
   resetSignal,
+  userId = null,
 }: ShiftPlannerLabProps) {
   const stableInitialEntries = useMemo(
     () => initialEntries ?? [],
@@ -208,13 +206,49 @@ export default function ShiftPlannerLab({
   )
   const [mode, setMode] = useState<Mode>("manual")
   const [selectedDate, setSelectedDate] = useState<string | null>(null)
-  const [rotationPattern, setRotationPattern] = useState<[number, number]>(
-    ROTATION_PATTERNS[0]?.cycle ?? [4, 2],
-  )
+  const [selectedRotationId, setSelectedRotationId] = useState<number | null>(null)
   const [rotationStart, setRotationStart] = useState(() => toIsoDate(new Date()))
   const [isConfirmingRotation, setIsConfirmingRotation] = useState(false)
   const [toasts, setToasts] = useState<ToastMessage[]>([])
   const toastTimeoutsRef = useRef<Map<number, number>>(new Map())
+
+  const {
+    templates: shiftTemplates,
+    isLoading: isLoadingShiftTemplates,
+  } = useShiftTemplates(userId)
+  const {
+    templates: rotationTemplates,
+    isLoading: isLoadingRotationTemplates,
+    error: rotationTemplatesError,
+  } = useRotationTemplates(userId)
+
+  useEffect(() => {
+    if (
+      selectedRotationId != null &&
+      !rotationTemplates.some((template) => template.id === selectedRotationId)
+    ) {
+      setSelectedRotationId(null)
+    }
+  }, [rotationTemplates, selectedRotationId])
+
+  const activeRotationId = useMemo(() => {
+    if (selectedRotationId != null) {
+      return selectedRotationId
+    }
+    return rotationTemplates[0]?.id ?? null
+  }, [rotationTemplates, selectedRotationId])
+
+  const shiftTemplatesById = useMemo(
+    () => new Map<number, ShiftTemplate>(shiftTemplates.map((item) => [item.id, item])),
+    [shiftTemplates],
+  )
+
+  const selectedRotationTemplate = useMemo<RotationTemplate | null>(() => {
+    if (activeRotationId == null) {
+      return null
+    }
+    return rotationTemplates.find((template) => template.id === activeRotationId) ?? null
+  }, [activeRotationId, rotationTemplates])
 
   useEffect(() => {
     setEntries(buildEntriesMap(stableInitialEntries))
@@ -299,7 +333,7 @@ export default function ShiftPlannerLab({
 
   useEffect(() => {
     setIsConfirmingRotation(false)
-  }, [rotationPattern, rotationStart])
+  }, [activeRotationId, rotationStart])
 
   const getCalendarConfigForMonth = useCallback((month: Date) => {
     const monthStart = startOfMonth(month)
@@ -386,11 +420,6 @@ export default function ShiftPlannerLab({
     })
   }, [entries, rotationTargetMonth])
 
-  const rotationPatternLabel = useMemo(
-    () => `${rotationPattern[0]}×${rotationPattern[1]}`,
-    [rotationPattern],
-  )
-
   const rotationStartLabel = useMemo(() => {
     const parsed = parseISO(rotationStart)
     if (Number.isNaN(parsed.getTime())) {
@@ -446,15 +475,32 @@ export default function ShiftPlannerLab({
   }
 
   const handleApplyRotation = useCallback(() => {
-    if (!rotationPattern?.length || rotationPattern.some((value) => value <= 0)) {
-      pushToast("error", "Selecciona un patrón de rotación válido antes de aplicarlo.")
+    if (!selectedRotationTemplate) {
+      pushToast("error", "Selecciona una plantilla de rotación antes de aplicarla.")
       return false
     }
 
-    const [workLength, restLength] = rotationPattern
     const parsedStart = parseISO(rotationStart)
     if (Number.isNaN(parsedStart.getTime())) {
       pushToast("error", "Introduce una fecha de inicio válida para la rotación.")
+      return false
+    }
+
+    const cycleLength = selectedRotationTemplate.daysCount
+    if (!cycleLength || cycleLength <= 0) {
+      pushToast("error", "La plantilla seleccionada no tiene una duración válida.")
+      return false
+    }
+
+    const missingTemplates = selectedRotationTemplate.assignments
+      .filter((assignment) => assignment.shiftTemplateId != null)
+      .filter((assignment) => !shiftTemplatesById.has(assignment.shiftTemplateId ?? -1))
+
+    if (missingTemplates.length > 0) {
+      pushToast(
+        "error",
+        "Faltan plantillas de turno necesarias para esta rotación. Crea o recupera las plantillas antes de aplicarla.",
+      )
       return false
     }
 
@@ -462,30 +508,46 @@ export default function ShiftPlannerLab({
     const monthStart = startOfMonth(targetMonth)
     const monthEnd = endOfMonth(targetMonth)
 
+    const assignmentsByDay = new Map(
+      selectedRotationTemplate.assignments.map((assignment) => [assignment.dayIndex, assignment]),
+    )
+
     updateEntries((prev) => {
       const updates: Record<string, PlannerEntry> = {}
-      const cycleLength = workLength + restLength
       let pointer = monthStart
 
       while (pointer <= monthEnd) {
         const iso = toIsoDate(pointer)
         const diff = differenceInCalendarDays(pointer, parsedStart)
         const normalized = ((diff % cycleLength) + cycleLength) % cycleLength
-        const shiftType: ShiftType = normalized < workLength ? "WORK" : "REST"
+        const assignment = assignmentsByDay.get(normalized)
+        const template = assignment?.shiftTemplateId
+          ? shiftTemplatesById.get(assignment.shiftTemplateId)
+          : null
         const existing = prev[iso]
-        const palette =
-          SHIFT_TYPES.find(({ value }) => value === shiftType)?.defaultColor ??
-          (shiftType === "REST" ? "#64748b" : "#2563eb")
 
-        updates[iso] = {
-          date: iso,
-          type: shiftType,
-          note: "",
-          color: palette,
-          label: SHIFT_LABELS[shiftType],
-          pluses: { ...INITIAL_PLUSES },
-          startTime: existing?.startTime ?? DEFAULT_PLANNER_START_TIME,
-          endTime: existing?.endTime ?? DEFAULT_PLANNER_END_TIME,
+        if (!assignment || !template) {
+          updates[iso] = {
+            date: iso,
+            type: "REST",
+            note: "",
+            color: SHIFT_TYPES.find(({ value }) => value === "REST")?.defaultColor ?? "#64748b",
+            label: SHIFT_LABELS.REST,
+            pluses: { ...INITIAL_PLUSES },
+            startTime: existing?.startTime ?? DEFAULT_PLANNER_START_TIME,
+            endTime: existing?.endTime ?? DEFAULT_PLANNER_END_TIME,
+          }
+        } else {
+          updates[iso] = {
+            date: iso,
+            type: "WORK",
+            note: "",
+            color: SHIFT_TYPES.find(({ value }) => value === "WORK")?.defaultColor ?? "#2563eb",
+            label: template.title,
+            pluses: { ...INITIAL_PLUSES },
+            startTime: template.startTime || existing?.startTime || DEFAULT_PLANNER_START_TIME,
+            endTime: template.endTime || existing?.endTime || DEFAULT_PLANNER_END_TIME,
+          }
         }
 
         pointer = addDays(pointer, 1)
@@ -501,24 +563,30 @@ export default function ShiftPlannerLab({
     pushToast(
       "success",
       monthHasEntries
-        ? `La rotación anterior se reemplazó con el nuevo patrón en ${rotationTargetMonthLabel}.`
-        : `La rotación se aplicó correctamente en ${rotationTargetMonthLabel}.`,
+        ? `La rotación anterior se reemplazó con "${selectedRotationTemplate.title}" en ${rotationTargetMonthLabel}.`
+        : `La rotación "${selectedRotationTemplate.title}" se aplicó correctamente en ${rotationTargetMonthLabel}.`,
     )
     return true
   }, [
     monthHasEntries,
     pushToast,
-    rotationPattern,
     rotationStart,
     rotationTargetMonth,
     rotationTargetMonthLabel,
+    selectedRotationTemplate,
+    shiftTemplatesById,
     updateEntries,
   ])
 
   function confirmApplyRotation() {
+    if (!selectedRotationTemplate) {
+      pushToast("error", "Selecciona una plantilla de rotación antes de aplicarla.")
+      return
+    }
+
     if (monthHasEntries && typeof window !== "undefined") {
       const shouldOverwrite = window.confirm(
-        `Ya existe una rotación aplicada en ${rotationTargetMonthLabel}. ¿Quieres reemplazarla con el nuevo patrón?`,
+        `Ya existe una rotación aplicada en ${rotationTargetMonthLabel}. ¿Quieres reemplazarla con "${selectedRotationTemplate.title}"?`,
       )
 
       if (!shouldOverwrite) {
@@ -676,36 +744,12 @@ export default function ShiftPlannerLab({
     }
   }, [selectedDate, activeEntry])
   return (
-    <div className="relative overflow-hidden rounded-3xl border border-white/10 bg-slate-950/70 text-white shadow-[0_40px_90px_-35px_rgba(15,23,42,0.95)] lg:rounded-3xl lg:border-white/15 lg:shadow-[0_50px_120px_-40px_rgba(59,130,246,0.25),0_0_0_1px_rgba(255,255,255,0.06)]">
-      <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_top,_rgba(59,130,246,0.18),transparent_60%),_radial-gradient(circle_at_bottom_right,_rgba(236,72,153,0.14),transparent_55%)] lg:bg-[radial-gradient(circle_at_20%_0%,rgba(59,130,246,0.22),transparent_50%),_radial-gradient(circle_at_80%_100%,rgba(139,92,246,0.18),transparent_50%)]" />
-      <div className="relative flex flex-col gap-6 p-0 sm:p-6 lg:gap-8 lg:p-8">
-        <section className="space-y-3 rounded-2xl border border-white/10 bg-white/5 p-3 sm:p-4 backdrop-blur-xl lg:space-y-4 lg:rounded-3xl lg:border-white/10 lg:bg-white/[0.07] lg:p-5">
-          <header className="border-b border-white/10 pb-3">
-            <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-              <div className="flex flex-wrap items-center gap-2">
-                <p className="text-[11px] uppercase tracking-[0.35em] text-white/40">Plan mensual</p>
-                <span className="hidden text-white/30 sm:inline">·</span>
-                <div className="flex items-center gap-2">
-                  <button
-                    type="button"
-                    onClick={handlePrevMonth}
-                    className="inline-flex items-center gap-1.5 rounded-xl border border-white/20 bg-white/10 px-3 py-2 text-xs font-semibold text-white/80 transition hover:border-sky-400/60 hover:bg-sky-500/15 hover:text-sky-200"
-                    aria-label="Mes anterior"
-                  >
-                    <span className="text-base leading-none">‹</span>
-                    <span className="hidden sm:inline">Anterior</span>
-                  </button>
-                  <button
-                    type="button"
-                    onClick={handleNextMonth}
-                    className="inline-flex items-center gap-1.5 rounded-xl border border-white/20 bg-white/10 px-3 py-2 text-xs font-semibold text-white/80 transition hover:border-sky-400/60 hover:bg-sky-500/15 hover:text-sky-200"
-                    aria-label="Mes siguiente"
-                  >
-                    <span className="hidden sm:inline">Siguiente</span>
-                    <span className="text-base leading-none">›</span>
-                  </button>
-                </div>
-              </div>
+    <div className="relative overflow-hidden rounded-3xl border border-white/10 bg-slate-950/70 text-white shadow-[0_40px_90px_-35px_rgba(15,23,42,0.95)]">
+      <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_top,_rgba(59,130,246,0.18),transparent_60%),_radial-gradient(circle_at_bottom_right,_rgba(236,72,153,0.14),transparent_55%)]" />
+      <div className="relative flex flex-col gap-6 p-4 sm:p-6">
+        <section className="space-y-4 rounded-2xl border border-white/10 bg-white/5 p-3 sm:p-5 backdrop-blur-xl">
+          <header className="border-b border-white/10 pb-4">
+            <div className="flex flex-col gap-1 sm:flex-row sm:items-end sm:justify-between">
               <AnimatePresence mode="wait" initial={false}>
                 <motion.p
                   key={monthLabel}
@@ -721,7 +765,7 @@ export default function ShiftPlannerLab({
             </div>
           </header>
 
-          <div className="grid grid-cols-2 gap-2 rounded-xl border border-white/10 bg-slate-950/60 p-2 text-xs sm:grid-cols-4 sm:p-3">
+          <div className="grid grid-cols-1 gap-3 rounded-2xl border border-white/10 bg-slate-950/60 p-2 text-xs sm:grid-cols-2 sm:p-4 lg:grid-cols-4">
             <div>
               <p className="uppercase tracking-wide text-[10px] text-white/40">Días trabajados</p>
               <p className="text-lg font-semibold text-emerald-300 sm:text-xl">{stats.worked}</p>
@@ -748,7 +792,7 @@ export default function ShiftPlannerLab({
             </div>
           </div>
 
-          <div className="flex flex-wrap gap-2 rounded-xl border border-white/10 bg-slate-950/50 p-2 text-xs font-semibold uppercase tracking-wider text-white/60 sm:p-2.5">
+          <div className="flex flex-col gap-2 rounded-2xl border border-white/10 bg-slate-950/50 p-2 text-xs font-semibold uppercase tracking-wider text-white/60 sm:flex-row sm:flex-wrap sm:p-3">
             <button
               type="button"
               onClick={() => setMode("manual")}
@@ -763,24 +807,56 @@ export default function ShiftPlannerLab({
             >
               Modo rotación
             </button>
-            <span className="ml-auto text-[11px] lowercase text-white/40">Cambia de modo en cualquier momento</span>
+            <span className="text-[11px] lowercase text-white/40 sm:ml-auto">Cambia de modo en cualquier momento</span>
           </div>
 
           {mode === "rotation" ? (
             <div className="space-y-3 rounded-2xl border border-white/10 bg-slate-950/40 p-3 text-xs text-white/70 sm:p-4">
-              <p className="text-[11px] uppercase tracking-[0.3em] text-white/40">Patrón automático</p>
-              <div className="flex flex-wrap items-center gap-3">
-                {ROTATION_PATTERNS.map((pattern) => (
-                  <button
-                    key={pattern.label}
-                    type="button"
-                    onClick={() => setRotationPattern(pattern.cycle)}
-                    className={`rounded-full border px-3 py-1 font-semibold uppercase tracking-wide transition ${rotationPattern[0] === pattern.cycle[0] && rotationPattern[1] === pattern.cycle[1] ? "border-sky-400/70 bg-sky-500/20 text-sky-200" : "border-white/10 bg-white/5 hover:border-sky-400/40 hover:text-sky-200"}`}
-                  >
-                    {pattern.label}
-                  </button>
-                ))}
-              </div>
+              <p className="text-[11px] uppercase tracking-[0.3em] text-white/40">Plantilla de rotación</p>
+              {rotationTemplatesError ? (
+                <div className="rounded-xl border border-red-400/50 bg-red-500/10 px-3 py-2 text-sm text-red-200">
+                  {rotationTemplatesError}
+                </div>
+              ) : null}
+              {isLoadingRotationTemplates ? (
+                <div className="flex items-center gap-2 rounded-xl border border-white/10 bg-white/5 px-4 py-3 text-sm">
+                  <Loader2 className="h-4 w-4 animate-spin text-white/60" />
+                  Cargando plantillas de rotación...
+                </div>
+              ) : rotationTemplates.length === 0 ? (
+                <div className="rounded-xl border border-dashed border-white/15 bg-white/5 px-4 py-4 text-sm text-white/60">
+                  No tienes plantillas de rotación todavía. Crea una en la sección de plantillas.
+                </div>
+              ) : (
+                <div className="flex flex-col gap-2 sm:flex-row sm:flex-wrap">
+                  {rotationTemplates.map((template) => {
+                    const isSelected = selectedRotationTemplate?.id === template.id
+                    const assignedCount = template.assignments.filter(
+                      (assignment) => assignment.shiftTemplateId != null,
+                    ).length
+                    return (
+                      <button
+                        key={template.id}
+                        type="button"
+                        onClick={() => setSelectedRotationId(template.id)}
+                        className={`flex items-center gap-3 rounded-2xl border px-4 py-3 text-left transition ${
+                          isSelected
+                            ? "border-sky-400/60 bg-sky-500/20 text-sky-100 shadow shadow-sky-500/30"
+                            : "border-white/10 bg-white/5 text-white/70 hover:border-sky-400/40 hover:text-white"
+                        }`}
+                      >
+                        <span className="text-xl">{template.icon ?? "🔄"}</span>
+                        <span className="text-sm font-semibold">
+                          {template.title}
+                          <span className="block text-[11px] font-normal uppercase tracking-[0.3em] text-white/40">
+                            {template.daysCount} días · {assignedCount} turnos asignados
+                          </span>
+                        </span>
+                      </button>
+                    )
+                  })}
+                </div>
+              )}
               <label className="flex flex-col gap-2 text-xs text-white/70 sm:flex-row sm:items-center">
                 <span className="uppercase tracking-wide text-white/40">Inicio</span>
                 <input
@@ -789,91 +865,104 @@ export default function ShiftPlannerLab({
                   onChange={(event) => setRotationStart(event.target.value)}
                   className="w-full rounded-lg border border-white/10 bg-white/5 px-3 py-2 text-sm text-white focus:border-sky-400 focus:outline-none focus:ring-2 focus:ring-sky-400/40 sm:max-w-[180px]"
                 />
-                {isConfirmingRotation ? (
-                  <motion.div
-                    initial={{ opacity: 0, y: 10 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    transition={{ duration: 0.25, ease: "easeOut" }}
-                    className="relative w-full overflow-hidden rounded-2xl border border-white/15 bg-slate-950/75 p-4 text-left text-xs text-white/70 shadow-lg shadow-slate-950/40"
-                  >
-                    <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_top,_rgba(56,189,248,0.18),transparent_55%),_radial-gradient(circle_at_bottom,_rgba(236,72,153,0.16),transparent_60%)]" />
-                    <div className="relative flex flex-col gap-4">
-                      <div className="flex items-start gap-3">
-                        <div className="flex h-10 w-10 items-center justify-center rounded-full bg-sky-500/20 text-sky-200">
-                          <Sparkles className="h-5 w-5" />
-                        </div>
-                        <div className="space-y-1">
-                          <p className="text-sm font-semibold text-white">Aplicar nueva rotación</p>
-                          <p className="text-xs text-white/70">
-                            {monthHasEntries
-                              ? `Se reemplazarán los turnos configurados en ${rotationTargetMonthLabel} por el nuevo patrón seleccionado.`
-                              : "Confirma si quieres aplicar el patrón seleccionado sobre el calendario mostrado."}
-                          </p>
-                        </div>
-                      </div>
-
-                      <div className="grid gap-3 rounded-xl border border-white/10 bg-slate-900/70 p-3 sm:grid-cols-2">
+                {isConfirmingRotation && selectedRotationTemplate ? (
+                    <motion.div
+                      initial={{ opacity: 0, y: 10 }}
+                      animate={{ opacity: 1, y: 0 }}
+                      transition={{ duration: 0.25, ease: "easeOut" }}
+                      className="relative w-full overflow-hidden rounded-2xl border border-white/15 bg-slate-950/75 p-4 text-left text-xs text-white/70 shadow-lg shadow-slate-950/40"
+                    >
+                      <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_top,_rgba(56,189,248,0.18),transparent_55%),_radial-gradient(circle_at_bottom,_rgba(236,72,153,0.16),transparent_60%)]" />
+                      <div className="relative flex flex-col gap-4">
                         <div className="flex items-start gap-3">
-                          <Sparkles className="mt-1 h-4 w-4 text-sky-300" />
+                          <div className="flex h-10 w-10 items-center justify-center rounded-full bg-sky-500/20 text-sky-200">
+                            <Sparkles className="h-5 w-5" />
+                          </div>
                           <div className="space-y-1">
-                            <p className="text-[11px] uppercase tracking-wide text-white/40">Patrón</p>
-                            <p className="text-sm font-semibold text-white">{rotationPatternLabel}</p>
-                            <p className="text-[10px] text-white/50">
-                              {rotationPattern[0]} días de trabajo · {rotationPattern[1]} de descanso
+                            <p className="text-sm font-semibold text-white">Aplicar plantilla</p>
+                            <p className="text-xs text-white/70">
+                              {monthHasEntries
+                                ? `Se reemplazarán los turnos configurados en ${rotationTargetMonthLabel} por la plantilla seleccionada.`
+                                : "Confirma si quieres aplicar la plantilla seleccionada sobre el calendario mostrado."}
                             </p>
                           </div>
                         </div>
-                        <div className="flex items-start gap-3">
-                          <CalendarDays className="mt-1 h-4 w-4 text-fuchsia-300" />
-                          <div className="space-y-1">
-                            <p className="text-[11px] uppercase tracking-wide text-white/40">Inicio</p>
-                            <p className="text-sm font-semibold text-white">{rotationStartLabel}</p>
-                            <p className="text-[10px] text-white/50">Se aplicará al mes de {rotationTargetMonthLabel}.</p>
+
+                        <div className="grid grid-cols-1 gap-3 rounded-xl border border-white/10 bg-slate-900/70 p-3 sm:grid-cols-2">
+                          <div className="flex items-start gap-3">
+                            <Sparkles className="mt-1 h-4 w-4 text-sky-300" />
+                            <div className="space-y-1">
+                              <p className="text-[11px] uppercase tracking-wide text-white/40">Plantilla</p>
+                              <p className="text-sm font-semibold text-white">{selectedRotationTemplate.title}</p>
+                              <p className="text-[10px] text-white/50">
+                                {selectedRotationTemplate.daysCount} días · {selectedRotationTemplate.assignments.filter((assignment) => assignment.shiftTemplateId != null).length} turnos asignados
+                              </p>
+                            </div>
+                          </div>
+                          <div className="flex items-start gap-3">
+                            <CalendarDays className="mt-1 h-4 w-4 text-fuchsia-300" />
+                            <div className="space-y-1">
+                              <p className="text-[11px] uppercase tracking-wide text-white/40">Inicio</p>
+                              <p className="text-sm font-semibold text-white">{rotationStartLabel}</p>
+                              <p className="text-[10px] text-white/50">Se aplicará al mes de {rotationTargetMonthLabel}.</p>
+                            </div>
                           </div>
                         </div>
-                      </div>
 
-                      {monthHasEntries ? (
-                        <div className="flex items-center gap-2 rounded-xl border border-amber-400/40 bg-amber-500/10 p-3 text-[11px] text-amber-200">
-                          <AlertTriangle className="h-4 w-4" />
-                          <span>
-                            Se sustituirán los turnos existentes en {rotationTargetMonthLabel}.
-                          </span>
-                        </div>
-                      ) : null}
-
-                        <div className="flex flex-col gap-2 sm:flex-row sm:justify-end">
-                        <button
-                          type="button"
-                          onClick={confirmApplyRotation}
-                          className="inline-flex items-center justify-center gap-2 rounded-full bg-gradient-to-r from-emerald-400 to-emerald-500 px-4 py-2 text-xs font-semibold uppercase tracking-wide text-emerald-950 shadow shadow-emerald-500/30 transition hover:brightness-110 focus:outline-none focus:ring-2 focus:ring-emerald-400/40 focus:ring-offset-2 focus:ring-offset-slate-950"
-                        >
-                          <Check className="h-4 w-4" />
-                          Confirmar
-                        </button>
-                        <button
-                          type="button"
-                          onClick={() => setIsConfirmingRotation(false)}
-                          className="inline-flex items-center justify-center gap-2 rounded-full border border-white/20 px-4 py-2 text-xs font-semibold uppercase tracking-wide text-white/70 transition hover:border-white/40 hover:text-white focus:outline-none focus:ring-2 focus:ring-white/30 focus:ring-offset-2 focus:ring-offset-slate-950"
-                        >
-                          <X className="h-4 w-4" />
-                          Cancelar
-                        </button>
+                        {monthHasEntries ? (
+                          <p className="text-[10px] text-white/50">
+                            Se sobrescribirán los turnos existentes en {rotationTargetMonthLabel}.
+                          </p>
+                        ) : (
+                          <p className="text-[10px] text-white/50">No se encontraron turnos existentes en el periodo seleccionado.</p>
+                        )}
                       </div>
-                    </div>
-                  </motion.div>
-                ) : (
+                    </motion.div>
+                ) : null}
+
+                <div className="flex flex-col gap-2 sm:flex-row sm:flex-wrap">
                   <button
                     type="button"
-                    onClick={() => setIsConfirmingRotation(true)}
-                    className="inline-flex items-center justify-center gap-2 rounded-full bg-gradient-to-r from-sky-500 via-sky-400 to-fuchsia-500 px-4 py-2 text-xs font-semibold uppercase tracking-wide text-white shadow-lg shadow-sky-500/30 transition hover:scale-[1.02] hover:brightness-110 focus:outline-none focus:ring-2 focus:ring-sky-400/40 focus:ring-offset-2 focus:ring-offset-slate-950"
+                    onClick={() => setIsConfirmingRotation((value) => !value)}
+                    disabled={
+                      isCommitting ||
+                      isLoadingRotationTemplates ||
+                      rotationTemplates.length === 0 ||
+                      !selectedRotationTemplate ||
+                      isLoadingShiftTemplates
+                    }
+                    className={`inline-flex items-center gap-2 rounded-full border px-4 py-2 text-[11px] font-semibold uppercase tracking-wide transition ${
+                      isConfirmingRotation
+                        ? "border-sky-400/60 bg-sky-500/20 text-sky-100"
+                        : "border-white/10 bg-white/5 text-white/70 hover:border-sky-400/40 hover:text-white"
+                    } ${isCommitting ? "opacity-50" : ""}`}
                   >
                     <Sparkles className="h-4 w-4" />
-                    Aplicar patrón
+                    {isConfirmingRotation ? "Cancelar" : "Previsualizar"}
                   </button>
-                )}
+                  <button
+                    type="button"
+                    onClick={confirmApplyRotation}
+                    disabled={
+                      isCommitting ||
+                      isLoadingRotationTemplates ||
+                      rotationTemplates.length === 0 ||
+                      !selectedRotationTemplate ||
+                      isLoadingShiftTemplates
+                    }
+                    className="inline-flex items-center gap-2 rounded-full border border-sky-400/60 bg-sky-500/20 px-4 py-2 text-[11px] font-semibold uppercase tracking-wide text-sky-100 transition hover:bg-sky-500/30 disabled:opacity-50"
+                  >
+                    <Check className="h-4 w-4" />
+                    Aplicar rotación
+                  </button>
+                  <a
+                    href="/templates"
+                    className="inline-flex items-center gap-2 rounded-full border border-white/10 bg-white/5 px-4 py-2 text-[11px] font-semibold uppercase tracking-wide text-white/70 transition hover:border-sky-400/40 hover:text-white"
+                  >
+                    Gestionar plantillas
+                  </a>
+                </div>
               </label>
-              <p className="text-[11px] text-white/50">Usa el patrón como base y edita manualmente los días que necesites.</p>
             </div>
           ) : (
             <div className="rounded-2xl border border-white/10 bg-slate-950/40 p-3 text-sm text-white/70 sm:p-4">
@@ -883,16 +972,8 @@ export default function ShiftPlannerLab({
             </div>
           )}
 
-          <div className="flex items-center gap-1.5 rounded-xl border border-white/10 bg-slate-950/50 p-1.5 sm:p-2 lg:bg-slate-950/60 lg:px-3 lg:py-2">
-            <button
-              type="button"
-              onClick={handlePrevMonth}
-              className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg border border-white/20 bg-white/10 text-white/80 transition hover:border-sky-400/60 hover:bg-sky-500/15 hover:text-sky-200 sm:h-9 sm:w-9"
-              aria-label="Mes anterior"
-            >
-              <span className="text-lg font-bold leading-none">‹</span>
-            </button>
-            <div className="flex min-w-0 flex-1 flex-wrap items-center justify-center gap-1.5 sm:gap-2">
+          <div className="flex flex-col gap-3 rounded-2xl border border-white/10 bg-slate-950/50 p-3 text-xs font-semibold text-white/70 sm:flex-row sm:flex-wrap sm:items-center sm:justify-between sm:p-5">
+            <div className="flex flex-wrap items-center gap-2 sm:gap-3">
               <button
                 type="button"
                 onClick={handlePrevMonth}
@@ -937,116 +1018,63 @@ export default function ShiftPlannerLab({
             </button>
           </div>
 
-          <div className="overflow-x-auto overflow-y-hidden rounded-2xl border border-white/10 bg-slate-950/50 lg:rounded-3xl lg:border-white/15 lg:bg-slate-950/60 lg:shadow-inner lg:shadow-black/20">
-            <div className="min-w-[280px] sm:min-w-[340px]">
-              <div className="grid grid-cols-7 gap-1 border-b border-white/5 bg-slate-950/40 px-1.5 py-1.5 text-[9px] font-semibold uppercase tracking-wide text-white/60 sm:gap-1.5 sm:px-2 sm:py-2 sm:text-[10px]">
-                {Array.from({ length: 7 }).map((_, index) => {
-                  const reference = addDays(startOfWeek(new Date(), { weekStartsOn: 1 }), index)
+          <div className="overflow-hidden rounded-3xl border border-white/10 bg-slate-950/50">
+            <div className="overflow-x-auto">
+              <div className="min-w-0">
+                <div className="grid grid-cols-7 gap-2 border-b border-white/5 bg-slate-950/40 px-2 py-2 text-[10px] font-semibold uppercase tracking-wide text-white/60 sm:gap-3 sm:px-6 sm:py-3 sm:text-[11px]">
+                  {Array.from({ length: 7 }).map((_, index) => {
+                    const reference = addDays(startOfWeek(new Date(), { weekStartsOn: 1 }), index)
+                    return (
+                      <div key={index} className="rounded-md bg-slate-950/70 py-1 text-center text-white/70 sm:py-1.5">
+                        {format(reference, "EEE", { locale: es })}
+                      </div>
+                    )
+                  })}
+                </div>
+
+                <AnimatePresence mode="wait" initial={false}>
+                  <motion.div
+                    key={monthLabel}
+                    initial={{ opacity: 0, y: 12 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    exit={{ opacity: 0, y: -12 }}
+                    transition={{ duration: 0.25, ease: "easeOut" }}
+                    className="grid grid-cols-7 gap-2 bg-transparent px-2 pb-2 pt-2 sm:gap-3 sm:px-6 sm:pb-5 sm:pt-3"
+                  >
+                    {calendarConfig.days.map((day, index) => {
+                      const key = toIsoDate(day)
+                      const entry = entries[key]
+                      const isCurrent = isSameMonth(day, currentMonth)
+                      const isCurrentDay = isToday(day)
+                  const accentColor = entry
+                    ? entry.color ||
+                      SHIFT_TYPES.find(({ value }) => value === entry.type)?.defaultColor ||
+                      "#2563eb"
+                    : "#2563eb"
+                  const fullLabel = entry
+                    ? entry.label || SHIFT_LABELS[entry.type]
+                    : ""
+                  const compactLabel = entry
+                    ? (entry.label
+                        ? entry.label.slice(0, 3)
+                        : SHIFT_ABBREVIATIONS[entry.type])
+                    : ""
+
+                  const style: CSSProperties | undefined =
+                    index === 0 ? { gridColumnStart: calendarConfig.firstColumn } : undefined
+
                   return (
                     <div key={index} className="rounded bg-slate-900/50 py-1 text-center text-white/70 sm:py-1.5">
                       {format(reference, "EEE", { locale: es })}
                     </div>
                   )
                 })}
-              </div>
-              <AnimatePresence mode="wait" initial={false}>
-                <motion.div
-                  key={monthLabel}
-                  initial={{ opacity: 0, y: 8 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  exit={{ opacity: 0, y: -8 }}
-                  transition={{ duration: 0.25, ease: "easeOut" }}
-                  className="grid grid-cols-7 gap-1 bg-transparent px-1.5 pb-1.5 pt-1.5 sm:gap-1.5 sm:px-2 sm:pb-2 sm:pt-2"
-                >
-                  {calendarConfig.days.map((day, index) => {
-                    const key = toIsoDate(day)
-                    const entry = entries[key]
-                    const isCurrent = isSameMonth(day, currentMonth)
-                    const isCurrentDay = isToday(day)
-                    const accentColor = entry
-                      ? entry.color ||
-                        SHIFT_TYPES.find(({ value }) => value === entry.type)?.defaultColor ||
-                        "#2563eb"
-                      : "#2563eb"
-                    const fullLabel = entry ? entry.label || SHIFT_LABELS[entry.type] : ""
-                    const compactLabel = entry
-                      ? (entry.label ? entry.label.slice(0, 3) : SHIFT_ABBREVIATIONS[entry.type])
-                      : ""
-                    const style: CSSProperties | undefined =
-                      index === 0 ? { gridColumnStart: calendarConfig.firstColumn } : undefined
-                    return (
-                      <button
-                        key={key}
-                        type="button"
-                        onClick={() => openEditor(day)}
-                        style={style}
-                        className={`group relative flex min-h-[52px] flex-col gap-0.5 rounded-lg border border-transparent p-1.5 text-left transition duration-200 ease-out focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sky-400/70 sm:min-h-[56px] sm:p-2 ${
-                          isCurrent ? "text-white/90" : "text-white/40"
-                        } ${
-                          entry
-                            ? "bg-slate-950/80 hover:-translate-y-0.5 hover:scale-[1.02] hover:border-sky-400/50 hover:ring-1 hover:ring-sky-400/30 hover:shadow-md hover:shadow-sky-500/10 active:scale-[0.99]"
-                            : "bg-slate-950/40 hover:-translate-y-0.5 hover:scale-[1.02] hover:bg-slate-900/70 hover:border-white/10 hover:ring-1 hover:ring-sky-400/20 hover:shadow-sm active:scale-[0.99]"
-                        }`}
-                      >
-                        <span
-                          className={`flex h-5 w-5 shrink-0 items-center justify-center rounded-full text-[10px] font-medium transition-colors sm:h-6 sm:w-6 sm:text-xs ${
-                            isCurrentDay
-                              ? "bg-sky-500 text-white shadow-md shadow-sky-500/50 ring-2 ring-sky-400/40"
-                              : "bg-white/10 text-white/60 group-hover:bg-white/15"
-                          } group-active:bg-sky-500/80 group-active:text-white`}
-                        >
-                          {format(day, "d")}
-                        </span>
-                        {entry ? (
-                          <motion.span
-                            whileHover={{ scale: 1.03, boxShadow: `0 0 12px ${accentColor}44` }}
-                            whileTap={{ scale: 0.98 }}
-                            transition={{ type: "spring", stiffness: 320, damping: 20 }}
-                            className="mt-0.5 inline-flex min-h-[1.25rem] w-full items-center justify-center rounded border border-white/10 px-1.5 py-0.5 text-center text-[9px] font-semibold capitalize leading-tight text-white sm:min-h-[1.375rem] sm:text-[10px]"
-                            style={{
-                              backgroundColor: `${accentColor}28`,
-                              color: accentColor,
-                              transformOrigin: "center",
-                            }}
-                          >
-                            <span className="whitespace-nowrap capitalize sm:hidden">{compactLabel}</span>
-                            <span className="hidden whitespace-nowrap sm:inline">{fullLabel}</span>
-                          </motion.span>
-                        ) : (
-                          <>
-                            <span className="sr-only">Añadir turno</span>
-                            <span className="pointer-events-none absolute right-1 top-1 inline-flex h-4 w-4 items-center justify-center rounded-full border border-dashed border-white/15 bg-white/5 text-[9px] font-semibold text-white/40 opacity-0 transition group-hover:border-sky-400/50 group-hover:opacity-100 group-hover:text-sky-200 group-hover:bg-sky-500/20 group-active:opacity-100 sm:right-1.5 sm:top-1.5 sm:h-5 sm:w-5">
-                              +
-                            </span>
-                          </>
-                        )}
-                        {entry?.note ? (
-                          <span className="mt-0.5 line-clamp-1 text-[8px] text-white/50 sm:text-[9px]">{entry.note}</span>
-                        ) : null}
-                        {entry && sumPluses(entry.pluses) > 0 ? (
-                          <span className="mt-0.5 text-[8px] font-medium text-emerald-200 sm:text-[9px]">{sumPluses(entry.pluses)} niv.</span>
-                        ) : null}
-                      </button>
-                    )
-                  })}
                 </motion.div>
               </AnimatePresence>
-              <div className="hidden border-t border-white/5 bg-slate-950/50 px-2 py-2 lg:flex lg:flex-wrap lg:items-center lg:justify-center lg:gap-3 lg:px-4 lg:py-3">
-                <span className="text-[9px] font-semibold uppercase tracking-wider text-white/40">Tipos:</span>
-                {SHIFT_TYPES.map(({ value, label, defaultColor }) => (
-                  <span
-                    key={value}
-                    className="inline-flex items-center gap-1.5 rounded-full border border-white/10 px-2 py-1 text-[10px] font-medium text-white/80"
-                    style={{ backgroundColor: `${defaultColor}18`, color: defaultColor }}
-                  >
-                    <span className="h-1.5 w-1.5 rounded-full" style={{ backgroundColor: defaultColor }} />
-                    {label}
-                  </span>
-                ))}
-              </div>
             </div>
           </div>
-        </section>
+        </div>
+      </section>
 
         <div className="flex flex-col gap-4 rounded-2xl border border-white/10 bg-slate-950/60 p-4 text-sm text-white/70 sm:p-5 lg:flex-row lg:items-center lg:justify-between">
           <p className="inline-flex items-center justify-center rounded-full border border-emerald-500/40 bg-emerald-500/10 px-4 py-2 text-center text-xs font-semibold uppercase tracking-wide text-emerald-200">
@@ -1224,21 +1252,21 @@ function EditorForm({ defaults, onSave, onRemove }: EditorFormProps) {
       className="mt-3 space-y-3 pb-2"
       onSubmit={(event) => {
         event.preventDefault()
-          onSave({
-            type,
-            note: note.trim(),
-            color,
-            label: label.trim().length > 0 ? label.trim() : SHIFT_LABELS[type],
-            pluses,
+        onSave({
+          type,
+          note: note.trim(),
+          color,
+          label: label.trim().length > 0 ? label.trim() : SHIFT_LABELS[type],
+          pluses,
           startTime: effectiveStartTime,
           endTime: effectiveEndTime,
-          })
-        }}
+        })
+      }}
     >
       <div className="space-y-3">
         <div>
-          <p className="text-[10px] uppercase tracking-wide text-white/40">Tipo de turno</p>
-          <div className="mt-1.5 grid grid-cols-2 gap-1.5 sm:grid-cols-3">
+          <p className="text-xs uppercase tracking-wide text-white/40">Tipo de turno</p>
+          <div className="mt-3 grid grid-cols-1 gap-2 sm:grid-cols-2">
             {SHIFT_TYPES.map((option) => (
               <button
                 key={option.value}
@@ -1268,9 +1296,29 @@ function EditorForm({ defaults, onSave, onRemove }: EditorFormProps) {
           </div>
         </div>
 
-        <div className="grid grid-cols-1 gap-2 sm:grid-cols-2 sm:gap-2">
-          <label className="flex flex-col gap-1 text-[11px] text-white/70">
-            Texto del turno
+        <label className="flex flex-col gap-2 text-xs text-white/70">
+          Texto del turno
+          <input
+            type="text"
+            value={label}
+            onChange={(event) => setLabel(event.target.value)}
+            className="w-full rounded-2xl border border-white/10 bg-white/5 px-3 py-2 text-sm text-white placeholder:text-white/40 focus:border-sky-400 focus:outline-none focus:ring-2 focus:ring-sky-400/40"
+            placeholder="Etiqueta que verás en el calendario"
+          />
+        </label>
+
+        <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+          <label className="flex flex-col gap-2 text-xs text-white/70">
+            Hora de entrada
+            <input
+              type="time"
+              value={startTime}
+              onChange={(event) => setStartTime(event.target.value)}
+              className="w-full rounded-2xl border border-white/10 bg-white/5 px-3 py-2 text-sm text-white focus:border-sky-400 focus:outline-none focus:ring-2 focus:ring-sky-400/40"
+            />
+          </label>
+          <label className="flex flex-col gap-2 text-xs text-white/70">
+            Hora de salida
             <input
               type="text"
               value={label}
@@ -1335,7 +1383,7 @@ function EditorForm({ defaults, onSave, onRemove }: EditorFormProps) {
           />
         </label>
 
-        <div className="grid grid-cols-4 gap-2">
+        <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
           {(
             [
               ["night", "Noct."],

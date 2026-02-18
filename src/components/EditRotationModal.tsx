@@ -17,6 +17,8 @@ type EditRotationModalProps = {
   shiftTemplates: ShiftTemplate[]
 }
 
+const MAX_ROTATION_DAYS = 18
+
 function buildAssignments(length: number, seed?: RotationTemplateAssignment[]): RotationTemplateAssignment[] {
   const next: RotationTemplateAssignment[] = []
   for (let index = 0; index < length; index += 1) {
@@ -43,6 +45,25 @@ export default function EditRotationModal({
   const [error, setError] = useState<string | null>(null)
   const [isSubmitting, setIsSubmitting] = useState(false)
 
+  const circleButtonSize = useMemo(() => {
+    if (assignments.length > 24) return 40
+    if (assignments.length > 14) return 44
+    return 50
+  }, [assignments.length])
+
+  const circleSpacing = 8
+  const circleRadius = useMemo(() => {
+    const estimatedRadius =
+      (assignments.length * (circleButtonSize + circleSpacing)) / (2 * Math.PI)
+    return Math.min(220, Math.max(90, estimatedRadius))
+  }, [assignments.length, circleButtonSize])
+
+  const circleSize = useMemo(
+    () => circleRadius * 2 + circleButtonSize + 24,
+    [circleButtonSize, circleRadius],
+  )
+  const circleCenter = useMemo(() => circleSize / 2, [circleSize])
+
   useEffect(() => {
     if (!open) {
       return
@@ -52,8 +73,9 @@ export default function EditRotationModal({
       setName(template.title)
       setIcon(template.icon ?? "🔄")
       setDescription(template.description ?? "")
-      setDaysCount(template.daysCount)
-      setAssignments(buildAssignments(template.daysCount, template.assignments))
+      const clampedDays = Math.min(MAX_ROTATION_DAYS, template.daysCount)
+      setDaysCount(clampedDays)
+      setAssignments(buildAssignments(clampedDays, template.assignments))
       setActiveDay(0)
     } else {
       setName("")
@@ -72,14 +94,20 @@ export default function EditRotationModal({
     setActiveDay((current) => (current >= daysCount ? 0 : current))
   }, [daysCount])
 
+  const shiftTemplateMap = useMemo(() => {
+    const map = new Map<number, ShiftTemplate>()
+    shiftTemplates.forEach((template) => {
+      map.set(template.id, template)
+    })
+    return map
+  }, [shiftTemplates])
+
   const activeAssignment = assignments[activeDay] ?? { dayIndex: activeDay, shiftTemplateId: null }
 
-  const activeTemplate = useMemo(() => {
-    if (activeAssignment.shiftTemplateId == null) {
-      return null
-    }
-    return shiftTemplates.find((item) => item.id === activeAssignment.shiftTemplateId) ?? null
-  }, [activeAssignment.shiftTemplateId, shiftTemplates])
+  const activeTemplate =
+    activeAssignment.shiftTemplateId != null
+      ? shiftTemplateMap.get(activeAssignment.shiftTemplateId) ?? null
+      : null
 
   const handleSelectTemplate = (templateId: number | null) => {
     setAssignments((current) =>
@@ -115,11 +143,12 @@ export default function EditRotationModal({
     setIsSubmitting(true)
 
     try {
+      const clampedDays = Math.min(MAX_ROTATION_DAYS, Math.max(1, daysCount))
       const payload: RotationTemplateInput = {
         title: name.trim(),
         icon: icon.trim() || "🔄",
         description: description.trim() || null,
-        daysCount,
+        daysCount: clampedDays,
         assignments: assignments.map((assignment) => ({
           dayIndex: assignment.dayIndex,
           shiftTemplateId: assignment.shiftTemplateId ?? null,
@@ -143,7 +172,7 @@ export default function EditRotationModal({
     <AnimatePresence>
       {open ? (
         <motion.div
-          className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/85 backdrop-blur-2xl px-3"
+          className="fixed inset-0 z-50 flex items-start justify-center overflow-y-auto bg-slate-950/85 px-3 py-6 backdrop-blur-2xl sm:py-10"
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
           exit={{ opacity: 0 }}
@@ -160,9 +189,10 @@ export default function EditRotationModal({
             animate={{ opacity: 1, scale: 1, y: 0 }}
             exit={{ opacity: 0, scale: 0.95, y: 16 }}
             transition={{ duration: 0.25, ease: "easeOut" }}
-            className="relative w-full max-w-4xl rounded-[2rem] border border-white/15 bg-gradient-to-br from-slate-950/95 via-slate-950/80 to-slate-900/80 p-6 text-white shadow-[0_40px_100px_-60px_rgba(56,189,248,0.65)]"
+            className="relative w-full max-w-4xl overflow-y-auto rounded-[2rem] border border-white/15 bg-gradient-to-br from-slate-950/95 via-slate-950/80 to-slate-900/80 p-6 text-white shadow-[0_40px_100px_-60px_rgba(56,189,248,0.65)] sm:p-8"
+            style={{ maxHeight: "min(900px, calc(100vh - 3rem))" }}
           >
-            <header className="mb-6 flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
+            <header className="sticky top-0 z-10 -mx-6 -mt-6 flex flex-col gap-4 border-b border-white/10 bg-slate-950/90 px-6 pb-5 pt-6 backdrop-blur sm:-mx-8 sm:-mt-8 sm:flex-row sm:items-start sm:justify-between sm:px-8">
               <div>
                 <p className="text-xs uppercase tracking-[0.35em] text-white/40">Rotaciones</p>
                 <h2 className="text-2xl font-semibold tracking-tight">
@@ -175,14 +205,14 @@ export default function EditRotationModal({
               <button
                 type="button"
                 onClick={onClose}
-                className="self-start rounded-full border border-white/10 bg-white/5 p-2 text-white/70 transition hover:text-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/70"
+                className="self-end rounded-full border border-white/10 bg-white/5 p-2 text-white/70 transition hover:text-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/70 sm:self-start"
                 aria-label="Cerrar"
               >
                 ×
               </button>
             </header>
 
-            <form onSubmit={handleSubmit} className="space-y-6">
+            <form onSubmit={handleSubmit} className="space-y-6 pt-6 sm:pt-8">
               <div className="grid gap-4 sm:grid-cols-[auto_1fr] sm:items-center">
                 <label className="flex h-16 w-16 items-center justify-center rounded-2xl border border-white/10 bg-white/5 text-3xl shadow-inner shadow-black/30">
                   <span className="sr-only">Icono</span>
@@ -211,9 +241,16 @@ export default function EditRotationModal({
                     <input
                       type="number"
                       min={1}
-                      max={31}
+                      max={MAX_ROTATION_DAYS}
                       value={daysCount}
-                      onChange={(event) => setDaysCount(Math.min(31, Math.max(1, Number.parseInt(event.target.value, 10) || 1)))}
+                      onChange={(event) =>
+                        setDaysCount(
+                          Math.min(
+                            MAX_ROTATION_DAYS,
+                            Math.max(1, Number.parseInt(event.target.value, 10) || 1),
+                          ),
+                        )
+                      }
                       className="rounded-2xl border border-white/15 bg-white/5 px-4 py-2 text-sm text-white focus:border-sky-400 focus:outline-none focus:ring-2 focus:ring-sky-400/40"
                     />
                   </label>
@@ -232,43 +269,87 @@ export default function EditRotationModal({
 
               <div className="grid gap-6 lg:grid-cols-[minmax(0,1fr)_minmax(0,1.2fr)]">
                 <div className="flex flex-col items-center gap-4">
-                  <div className="relative h-72 w-72 max-w-full">
-                    <div className="absolute inset-[15%] rounded-full border border-sky-400/30 bg-sky-500/10" aria-hidden />
+                  <div className="w-full sm:hidden">
+                    <p className="text-xs font-semibold uppercase tracking-[0.3em] text-white/40">Días del ciclo</p>
+                    <div className="mt-2 grid max-h-[50vh] grid-cols-4 gap-2 overflow-y-auto pb-1">
+                      {assignments.map((assignment, index) => {
+                        const isActive = activeDay === index
+                        const template =
+                          assignment.shiftTemplateId != null
+                            ? shiftTemplateMap.get(assignment.shiftTemplateId)
+                            : null
+                        return (
+                          <button
+                            key={assignment.dayIndex}
+                            type="button"
+                            onClick={() => setActiveDay(index)}
+                            className={`flex min-w-[3.25rem] flex-col items-center justify-center gap-1 rounded-2xl border px-3 py-2 text-[11px] font-medium transition ${
+                              isActive
+                                ? "border-sky-400 bg-sky-500/30 text-white shadow-lg shadow-sky-500/40"
+                                : "border-white/10 bg-white/5 text-white/70 hover:border-sky-400/40 hover:text-white"
+                            }`}
+                            aria-label={`Día ${index + 1}`}
+                          >
+                            <span className="text-base">{template?.icon ?? "○"}</span>
+                            Día {index + 1}
+                          </button>
+                        )
+                      })}
+                    </div>
+                  </div>
+
+                  <div
+                    className="relative hidden max-w-full sm:block"
+                    style={{ width: circleSize, height: circleSize }}
+                  >
+                    <div
+                      className="absolute rounded-full border border-sky-400/30 bg-sky-500/10"
+                      style={{ inset: `${Math.max(18, circleButtonSize * 0.9)}px` }}
+                      aria-hidden
+                    />
                     {assignments.map((assignment, index) => {
                       const angle = (index / assignments.length) * Math.PI * 2 - Math.PI / 2
-                      const radius = 115
-                      const x = 120 + Math.cos(angle) * radius
-                      const y = 120 + Math.sin(angle) * radius
+                      const x = circleCenter + Math.cos(angle) * circleRadius
+                      const y = circleCenter + Math.sin(angle) * circleRadius
                       const isActive = activeDay === index
                       const label =
                         assignment.shiftTemplateId != null
-                          ? shiftTemplates.find((item) => item.id === assignment.shiftTemplateId)?.icon ?? "🗓️"
+                          ? shiftTemplateMap.get(assignment.shiftTemplateId)?.icon ?? "🗓️"
                           : "○"
                       return (
                         <button
                           key={assignment.dayIndex}
                           type="button"
                           onClick={() => setActiveDay(index)}
-                          className={`absolute flex h-12 w-12 -translate-x-1/2 -translate-y-1/2 items-center justify-center rounded-full border text-xl transition ${
+                          className={`absolute flex -translate-x-1/2 -translate-y-1/2 items-center justify-center rounded-full border text-lg transition ${
                             isActive
                               ? "border-sky-400 bg-sky-500/30 text-white shadow-lg shadow-sky-500/40"
                               : "border-white/10 bg-white/5 text-white/70 hover:border-sky-400/40 hover:text-white"
                           }`}
-                          style={{ left: `${x}px`, top: `${y}px` }}
+                          style={{
+                            left: `${x}px`,
+                            top: `${y}px`,
+                            width: circleButtonSize,
+                            height: circleButtonSize,
+                            fontSize: circleButtonSize > 48 ? "1.25rem" : "1.05rem",
+                          }}
                           aria-label={`Día ${index + 1}`}
                         >
                           {label}
                         </button>
                       )
                     })}
-                    <div className="absolute inset-0 flex items-center justify-center">
-                      <div className="flex flex-col items-center rounded-full border border-white/10 bg-white/5 px-6 py-6 text-center text-sm text-white/70">
+                    <div className="pointer-events-none absolute inset-0 flex items-center justify-center">
+                      <div
+                        className="flex flex-col items-center rounded-full border border-white/10 bg-white/5 px-6 py-6 text-center text-sm text-white/70"
+                        style={{ minWidth: circleButtonSize * 2.2, minHeight: circleButtonSize * 2 }}
+                      >
                         <span className="text-3xl">{icon}</span>
                         <span>{daysCount} días</span>
                       </div>
                     </div>
                   </div>
-                  <p className="text-xs text-white/50">
+                  <p className="hidden text-xs text-white/50 sm:block">
                     Selecciona un día para asignar o cambiar su plantilla de turno.
                   </p>
                 </div>

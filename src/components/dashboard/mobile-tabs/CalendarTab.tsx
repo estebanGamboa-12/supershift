@@ -30,21 +30,22 @@ type CalendarTabProps = CalendarSidebarProps & {
   onCommitPlanner: (days: ManualRotationDay[]) => Promise<void> | void
   isCommittingPlanner: boolean
   plannerError: string | null
-  /** Si false, no se renderiza el sidebar (útil cuando el sidebar va fuera para sticky). */
-  embedSidebar?: boolean
-  /** Abrir formulario para añadir turno en la fecha indicada */
-  onAddShiftForDate?: (date: Date, startTime?: string, endTime?: string) => void
-  /** Actualizar turno existente (para drag & drop) */
-  onUpdateShift?: (shift: ShiftEvent, updates: { startTime?: string; endTime?: string }) => Promise<void>
-  /** Vista activa: día (calendario) o plan mensual */
-  calendarView?: "day" | "monthly"
-  /** Cambiar entre vista día y plan mensual */
-  onCalendarViewChange?: (view: "day" | "monthly") => void
+  onSelectEvent: (shift: ShiftEvent) => void
+  userId: string | null
 }
 
-const upcomingShiftsFromOrdered = (
-  orderedShifts: ShiftEvent[],
-): ShiftEvent[] => {
+const CalendarTab: FC<CalendarTabProps> = ({
+  nextShift,
+  daysUntilNextShift,
+  shiftTypeLabels,
+  orderedShifts,
+  plannerDays,
+  onCommitPlanner,
+  isCommittingPlanner,
+  plannerError,
+  onSelectEvent,
+  userId,
+}) => {
   const today = startOfDay(new Date())
   return orderedShifts
     .filter((shift) => {
@@ -63,7 +64,15 @@ export const CalendarSidebar: FC<CalendarSidebarProps> = ({
 }) => {
   const upcomingShifts = upcomingShiftsFromOrdered(orderedShifts)
   return (
-    <div className="flex flex-col gap-6 max-h-[calc(100vh-6rem)] overflow-y-auto pr-1">
+    <div className="flex flex-col gap-6">
+      <ShiftPlannerLab
+        initialEntries={plannerDays}
+        onCommit={onCommitPlanner}
+        isCommitting={isCommittingPlanner}
+        errorMessage={plannerError}
+        userId={userId}
+      />
+
       <NextShiftCard
         nextShift={nextShift ?? undefined}
         daysUntilNextShift={daysUntilNextShift}

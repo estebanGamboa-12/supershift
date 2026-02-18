@@ -32,7 +32,6 @@ import {
 import { calculateWeeklyShiftSummaries } from "@/lib/shiftStatistics"
 import {
   CalendarTab,
-  CalendarSidebar,
   HistoryTab,
   HoursTab,
   SettingsTab,
@@ -494,7 +493,7 @@ export default function Home() {
   })
   const [isSyncingPendingShifts, setIsSyncingPendingShifts] = useState(false)
   const [hasMounted, setHasMounted] = useState(false)
-  const [headerHeightPx, setHeaderHeightPx] = useState(0)
+  const [, setHeaderHeightPx] = useState(0)
   const headerRef = useRef<HTMLDivElement>(null)
   const [pendingShiftMutations, setPendingShiftMutations] = useState(0)
   const [lastSyncError, setLastSyncError] = useState<string | null>(null)
@@ -517,21 +516,6 @@ export default function Home() {
       return null
     }
   }, [])
-
-  const calendarCacheKey = useMemo(() => {
-    if (!currentUser) {
-      return null
-    }
-
-    return buildCalendarCacheKey(currentUser.id, activeCalendarId)
-  }, [activeCalendarId, currentUser])
-
-  const activeCalendar = useMemo(
-    () =>
-      availableCalendars.find((calendar) => calendar.id === activeCalendarId) ??
-      null,
-    [activeCalendarId, availableCalendars],
-  )
 
   const {
     email: notificationEmailEnabled,
@@ -1785,7 +1769,7 @@ export default function Home() {
         setIsCommittingRotation(false)
       }
     },
-    [currentUser, handleAddShift, handleDeleteShift, handleUpdateShift, shifts],
+    [activeCalendarId, currentUser, handleAddShift, handleDeleteShift, handleUpdateShift, shifts],
   )
 
   const handleSavePreferences = useCallback(

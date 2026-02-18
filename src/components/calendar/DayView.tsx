@@ -3,7 +3,6 @@
 import type { FC } from "react"
 import { useState, useRef, useEffect, useCallback } from "react"
 import { format } from "date-fns"
-import { es } from "date-fns/locale"
 import type { ShiftEvent, ShiftType } from "@/types/shifts"
 import { formatCompactDate } from "@/lib/formatDate"
 
@@ -162,7 +161,7 @@ const DayView: FC<DayViewProps> = ({
       setSelectionStart(startMin)
       setSelectionEnd(startMin)
     },
-    [yToMinutes, onUpdateShift, onSelectEvent],
+    [yToMinutes, dayShifts, onUpdateShift],
   )
 
   const handlePointerMove = useCallback(
@@ -197,9 +196,6 @@ const DayView: FC<DayViewProps> = ({
       // Resize edge
       if (editingShift && dragStartMinutes !== null) {
         if (!timelineRef.current || !scrollContainerRef.current) return
-
-        const currentMin = snapToInterval(yToMinutes(e.clientY))
-        const { shift, edge } = editingShift
 
         const rect = timelineRef.current.getBoundingClientRect()
         const relativeY = e.clientY - rect.top

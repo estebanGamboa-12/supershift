@@ -52,6 +52,8 @@ function normaliseAssignment(
   }
 }
 
+// Type guard for runtime validation; kept for potential use.
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
 function isRotationTemplateRowArray(
   rows: unknown,
 ): rows is RotationTemplateRow[] {

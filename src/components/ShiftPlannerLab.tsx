@@ -1,6 +1,5 @@
 "use client"
 
-import type { CSSProperties } from "react"
 import { useCallback, useEffect, useMemo, useRef, useState } from "react"
 import { AnimatePresence, motion } from "framer-motion"
 import { CalendarDays, Check, Loader2, Sparkles } from "lucide-react"
@@ -13,8 +12,6 @@ import {
   format,
   getDay,
   getDaysInMonth,
-  isSameMonth,
-  isToday,
   parseISO,
   startOfMonth,
   startOfWeek,
@@ -53,14 +50,6 @@ const SHIFT_TYPES: { value: ShiftType; label: string; defaultColor: string }[] =
   { value: "VACATION", label: "Vacaciones", defaultColor: "#22c55e" },
   { value: "CUSTOM", label: "Personalizado", defaultColor: "#0ea5e9" },
 ]
-
-const SHIFT_ABBREVIATIONS: Record<ShiftType, string> = {
-  WORK: "Tra",
-  REST: "Des",
-  NIGHT: "Noc",
-  VACATION: "Vac",
-  CUSTOM: "Per",
-}
 
 const SHIFT_LABELS: Record<ShiftType, string> = {
   WORK: "Trabajo",
@@ -447,10 +436,6 @@ export default function ShiftPlannerLab({
   function handleGoToday() {
     const today = startOfMonth(new Date())
     setCurrentMonth(today)
-  }
-
-  function openEditor(day: Date) {
-    setSelectedDate(toIsoDate(day))
   }
 
   function closeEditor() {
@@ -1041,34 +1026,11 @@ export default function ShiftPlannerLab({
                     transition={{ duration: 0.25, ease: "easeOut" }}
                     className="grid grid-cols-7 gap-2 bg-transparent px-2 pb-2 pt-2 sm:gap-3 sm:px-6 sm:pb-5 sm:pt-3"
                   >
-                    {calendarConfig.days.map((day, index) => {
-                      const key = toIsoDate(day)
-                      const entry = entries[key]
-                      const isCurrent = isSameMonth(day, currentMonth)
-                      const isCurrentDay = isToday(day)
-                  const accentColor = entry
-                    ? entry.color ||
-                      SHIFT_TYPES.find(({ value }) => value === entry.type)?.defaultColor ||
-                      "#2563eb"
-                    : "#2563eb"
-                  const fullLabel = entry
-                    ? entry.label || SHIFT_LABELS[entry.type]
-                    : ""
-                  const compactLabel = entry
-                    ? (entry.label
-                        ? entry.label.slice(0, 3)
-                        : SHIFT_ABBREVIATIONS[entry.type])
-                    : ""
-
-                  const style: CSSProperties | undefined =
-                    index === 0 ? { gridColumnStart: calendarConfig.firstColumn } : undefined
-
-                  return (
-                    <div key={index} className="rounded bg-slate-900/50 py-1 text-center text-white/70 sm:py-1.5">
-                      {format(reference, "EEE", { locale: es })}
-                    </div>
-                  )
-                })}
+                    {calendarConfig.days.map((day, index) => (
+                      <div key={index} className="rounded bg-slate-900/50 py-1 text-center text-white/70 sm:py-1.5">
+                        {format(day, "EEE", { locale: es })}
+                      </div>
+                    ))}
                 </motion.div>
               </AnimatePresence>
             </div>

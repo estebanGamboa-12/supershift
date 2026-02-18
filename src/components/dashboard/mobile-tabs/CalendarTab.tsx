@@ -133,7 +133,6 @@ const CalendarTab: FC<CalendarTabProps> = ({
   isCommittingPlanner,
   plannerError,
   onSelectEvent,
-  embedSidebar = true,
   onAddShiftForDate,
   onUpdateShift,
   calendarView = "day",

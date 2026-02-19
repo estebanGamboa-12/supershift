@@ -14,6 +14,7 @@ import { DEFAULT_USER_PREFERENCES, type UserPreferences } from "@/types/preferen
 import DashboardHeader from "@/components/dashboard/DashboardHeader"
 import MobileNavigation, { type MobileTab } from "@/components/dashboard/MobileNavigation"
 import MobileAddShiftSheet from "@/components/dashboard/MobileAddShiftSheet"
+import MobileSideMenu from "@/components/dashboard/MobileSideMenu"
 import ResponsiveNav from "@/components/dashboard/ResponsiveNav"
 import UserAuthPanel from "@/components/auth/UserAuthPanel"
 import FloatingParticlesLoader from "@/components/FloatingParticlesLoader"
@@ -468,6 +469,7 @@ export default function Home() {
   const [activeTab, setActiveTab] = useState<MobileTab>("calendar")
   const [calendarView, setCalendarView] = useState<"day" | "monthly">("day")
   const [isMobileAddOpen, setIsMobileAddOpen] = useState(false)
+  const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false)
   const [users, setUsers] = useState<UserSummary[]>([])
   const [currentUser, setCurrentUser] = useState<UserSummary | null>(null)
   const [availableCalendars, setAvailableCalendars] = useState<CalendarSummary[]>([])
@@ -1239,6 +1241,20 @@ export default function Home() {
         )
       }
 
+      // Verificar si ya existen 2 turnos en esta fecha (máximo permitido)
+      // Normalizar la fecha para asegurar formato consistente (yyyy-MM-dd)
+      const normalizedDate = date.includes("T") ? date.split("T")[0] : date
+      const existingShiftsForDate = shifts.filter((shift) => {
+        const shiftDateNormalized = shift.date.includes("T") ? shift.date.split("T")[0] : shift.date
+        return shiftDateNormalized === normalizedDate
+      })
+      if (existingShiftsForDate.length >= 2) {
+        const dateFormatted = new Date(normalizedDate + "T00:00:00").toLocaleDateString("es-ES", { weekday: "long", day: "numeric", month: "long" })
+        throw new Error(
+          `Ya existen 2 turnos para el ${dateFormatted}. Solo se permiten máximo 2 turnos por día.`,
+        )
+      }
+
       const userId = currentUser.id
       const calendarId = activeCalendarId
       const cacheKey = buildCalendarCacheKey(userId, calendarId)
@@ -1327,6 +1343,7 @@ export default function Home() {
     },
     [
       currentUser,
+      shifts,
       createSnapshot,
       mapApiShift,
       activeCalendarId,
@@ -2479,7 +2496,7 @@ export default function Home() {
         className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_10%_0%,rgba(59,130,246,0.18),transparent_55%),_radial-gradient(circle_at_80%_105%,rgba(139,92,246,0.2),transparent_60%),_radial-gradient(circle_at_50%_50%,rgba(59,130,246,0.12),transparent_65%)]"
         aria-hidden
       />
-      <div className="relative z-10 mx-auto min-h-screen w-full px-4 py-6 lg:max-w-[160rem] lg:px-10 lg:py-8 xl:px-12">
+      <div className="relative z-10 mx-auto min-h-screen w-full px-4 py-2 lg:max-w-[160rem] lg:px-10 lg:py-8 xl:px-12">
         <div className="flex min-h-full w-full flex-col gap-6 lg:gap-8">
           <OfflineStatusBanner
             isOffline={isOffline}
@@ -2841,163 +2858,147 @@ export default function Home() {
             </div>
 
               <div className="lg:hidden">
-                <section className="relative -mx-4 mt-2">
-                  <div
-                    className="pointer-events-none absolute inset-x-4 top-0 h-full rounded-3xl bg-[radial-gradient(circle_at_top,_rgba(59,130,246,0.22),_transparent_65%)] blur-3xl"
-                    aria-hidden
-                  />
-                  <div className="relative mx-auto max-w-3xl overflow-hidden rounded-3xl border border-white/10 bg-[rgba(13,18,32,0.82)] px-5 py-5 shadow-[0_35px_90px_-48px_rgba(59,130,246,0.75)] backdrop-blur-xl">
-                    <div className="pointer-events-none absolute inset-0 opacity-85" aria-hidden>
-                      <div className="absolute inset-0 bg-[radial-gradient(circle_at_top_left,rgba(59,130,246,0.18),transparent_60%),_radial-gradient(circle_at_bottom_right,rgba(139,92,246,0.18),transparent_58%)]" />
-                    </div>
-                    <div className="relative flex items-center justify-between gap-4">
-                      <div>
-                        <p className="text-xs font-semibold uppercase tracking-wide text-blue-200/80">
-                          Tu panel hoy
-                        </p>
-                        <h2 className="text-2xl font-bold text-white sm:text-3xl">
-                          Hola, {mobileGreeting}
-                        </h2>
-                      </div>
-                      <div className="flex flex-col items-end gap-2.5 sm:flex-row sm:items-center">
-                        <button
-                          type="button"
-                          onClick={handleOpenMobileAdd}
-                          className="inline-flex items-center gap-2 rounded-2xl border border-blue-400/40 bg-gradient-to-br from-blue-500/40 to-indigo-500/40 px-4 py-2 text-sm font-bold uppercase tracking-wide text-white shadow-lg shadow-blue-500/30 transition hover:from-blue-400/50 hover:to-indigo-400/50 focus:outline-none focus:ring-2 focus:ring-blue-400/60"
-                        >
-                          <span aria-hidden className="text-lg font-bold leading-none">
-                            +
-                          </span>
-                          Añadir turno
-                        </button>
-                        <button
-                          type="button"
-                          onClick={handleLogout}
-                          className="inline-flex items-center justify-center gap-2 rounded-2xl border border-white/15 px-4 py-2 text-[11px] font-semibold uppercase tracking-wide text-white/80 transition hover:border-red-400/40 hover:text-red-200 focus:outline-none focus:ring-2 focus:ring-red-400/40"
-                        >
-                          Cerrar sesión
-                        </button>
-                      </div>
-                    </div>
-                    <p className="relative mt-4 text-sm text-white/70">
-                      Mantén el control de tus turnos con la misma experiencia premium que en escritorio.
-                    </p>
-                    <div className="relative mt-4 grid grid-cols-2 gap-3 text-xs text-white/70">
-                      <div className="relative overflow-hidden rounded-2xl border border-white/10 bg-[#141b2b]/90 px-3 py-3 shadow-[0_18px_40px_-22px_rgba(59,130,246,0.55)]">
-                        <div className="pointer-events-none absolute inset-0 opacity-80" aria-hidden>
-                          <div className="absolute inset-0 bg-[radial-gradient(circle_at_top_left,rgba(59,130,246,0.18),transparent_65%),_radial-gradient(circle_at_bottom_right,rgba(139,92,246,0.18),transparent_60%)]" />
-                        </div>
-                        <span aria-hidden className="relative float-right text-lg">🗓️</span>
-                        <p className="text-[11px] uppercase tracking-wide text-white/60">
-                          Este mes
-                        </p>
-                        <p className="mt-1 text-2xl font-semibold text-white">
-                          {currentMonthShifts.length}
-                        </p>
-                        <p className="mt-1 text-[11px] text-white/50">
-                          Turnos programados
-                        </p>
-                      </div>
-                      <div className="relative overflow-hidden rounded-2xl border border-white/10 bg-[#141b2b]/90 px-3 py-3 shadow-[0_18px_40px_-22px_rgba(59,130,246,0.55)]">
-                        <div className="pointer-events-none absolute inset-0 opacity-80" aria-hidden>
-                          <div className="absolute inset-0 bg-[radial-gradient(circle_at_top_left,rgba(59,130,246,0.15),transparent_60%),_radial-gradient(circle_at_bottom_right,rgba(139,92,246,0.15),transparent_58%)]" />
-                        </div>
-                        <span aria-hidden className="relative float-right text-lg">⏰</span>
-                        <p className="text-[11px] uppercase tracking-wide text-white/60">
-                          Próximo turno
-                        </p>
-                        <p className="mt-1 text-base font-semibold text-white">
-                          {nextShift
-                            ? format(new Date(nextShift.date), "d MMM", { locale: es })
-                            : "Pendiente"}
-                        </p>
-                        <p className="mt-1 text-[11px] text-white/50">
-                          {nextShiftCountdownLabel}
-                        </p>
-                      </div>
-                      <div className="relative overflow-hidden rounded-2xl border border-white/10 bg-[#141b2b]/90 px-3 py-3 shadow-[0_18px_40px_-22px_rgba(59,130,246,0.55)]">
-                        <div className="pointer-events-none absolute inset-0 opacity-80" aria-hidden>
-                          <div className="absolute inset-0 bg-[radial-gradient(circle_at_top_left,rgba(59,130,246,0.16),transparent_60%),_radial-gradient(circle_at_bottom_right,rgba(139,92,246,0.16),transparent_58%)]" />
-                        </div>
-                        <span aria-hidden className="relative float-right text-lg">📊</span>
-                        <p className="text-[11px] uppercase tracking-wide text-white/60">
-                          Tipos activos
-                        </p>
-                        <p className="mt-1 text-2xl font-semibold text-white">
-                          {activeShiftTypes}
-                        </p>
-                        <p className="mt-1 text-[11px] text-white/50">
-                          Variaciones en uso
-                        </p>
-                      </div>
-                      <div className="relative overflow-hidden rounded-2xl border border-white/10 bg-[#141b2b]/90 px-3 py-3 shadow-[0_18px_40px_-22px_rgba(59,130,246,0.55)]">
-                        <div className="pointer-events-none absolute inset-0 opacity-80" aria-hidden>
-                          <div className="absolute inset-0 bg-[radial-gradient(circle_at_top_left,rgba(59,130,246,0.14),transparent_60%),_radial-gradient(circle_at_bottom_right,rgba(139,92,246,0.16),transparent_60%)]" />
-                        </div>
-                        <span aria-hidden className="relative float-right text-lg">👥</span>
-                        <p className="text-[11px] uppercase tracking-wide text-white/60">
-                          Equipo
-                        </p>
-                        <p className="mt-1 text-base font-semibold text-white">
-                          Equipo activo
-                        </p>
-                        <p className="mt-1 text-[11px] text-white/50">
-                          Activos en Planloop
-                        </p>
-                      </div>
-                    </div>
-                  </div>
-                </section>
+                {/* Header móvil compacto */}
+                <div className="sticky top-0 z-10 mb-3 flex items-center justify-between gap-3 border-b border-white/10 bg-slate-950/95 px-2 py-3 backdrop-blur-sm">
+                  <button
+                    type="button"
+                    onClick={() => setIsMobileMenuOpen(true)}
+                    className="rounded-xl border border-white/10 bg-white/5 p-2.5 text-white/80 transition hover:bg-white/10 hover:text-white active:scale-95 touch-manipulation"
+                    aria-label="Abrir menú"
+                    aria-expanded={isMobileMenuOpen}
+                  >
+                    <svg className="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 12h16M4 18h16" />
+                    </svg>
+                  </button>
+                  <h1 className="flex-1 text-lg font-bold text-white">Calendario</h1>
+                  <button
+                    type="button"
+                    onClick={handleOpenMobileAdd}
+                    className="rounded-xl border border-sky-400/50 bg-gradient-to-br from-sky-500/90 to-sky-400/90 px-4 py-2.5 text-base font-bold text-white shadow-lg shadow-sky-500/40 transition hover:from-sky-400 hover:to-sky-300 hover:shadow-sky-400/50 active:scale-95 touch-manipulation min-w-[44px] min-h-[44px] flex items-center justify-center"
+                    aria-label="Añadir nuevo turno"
+                  >
+                    <span aria-hidden className="text-xl font-bold leading-none">+</span>
+                  </button>
+                </div>
 
-                <div className="mx-auto mt-4 flex w-full max-w-3xl flex-col gap-5 pb-[calc(5.5rem+env(safe-area-inset-bottom))] sm:mt-6 sm:gap-6 sm:pb-32">
+                <div className="mx-auto flex w-full max-w-3xl flex-col gap-5 pb-[calc(4.5rem+env(safe-area-inset-bottom))] sm:gap-6 sm:pb-28">
                   <AnimatePresence mode="wait">
                     {activeTab === "calendar" && (
                       <motion.div
                         key="mobile-calendar"
-                    initial={{ opacity: 0, y: 24 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    exit={{ opacity: 0, y: -16 }}
-                    transition={{ duration: 0.18, ease: "easeOut" }}
-                    className="w-full"
-                  >
-                    {availableCalendars.length > 0 && (
-                      <div className="mb-4 flex flex-wrap items-center gap-2 text-[11px] font-semibold uppercase tracking-wide text-white/70">
-                        {availableCalendars.map((calendar) => (
+                        initial={{ opacity: 0, y: 24 }}
+                        animate={{ opacity: 1, y: 0 }}
+                        exit={{ opacity: 0, y: -16 }}
+                        transition={{ duration: 0.18, ease: "easeOut" }}
+                        className="w-full"
+                      >
+                        {/* Controles de vista día/mes */}
+                        <div className="mb-4 flex items-center gap-2">
                           <button
-                            key={`mobile-cal-${calendar.id}`}
                             type="button"
-                            onClick={() => setActiveCalendarId(calendar.id)}
-                            className={`rounded-full border px-3 py-1 transition ${
-                              activeCalendarId === calendar.id
-                                ? "border-blue-400/60 bg-blue-500/20 text-white"
-                                : "border-white/15 bg-white/5 text-white/70 hover:border-blue-300/40 hover:text-white"
+                            onClick={() => setCalendarView("day")}
+                            className={`flex-1 rounded-xl border px-4 py-2.5 text-sm font-semibold transition ${
+                              calendarView === "day"
+                                ? "border-sky-400/40 bg-sky-500/20 text-sky-100"
+                                : "border-white/20 bg-white/10 text-white/80 hover:border-sky-400/50 hover:bg-sky-500/15"
                             }`}
                           >
-                            {calendar.name}
+                            📆 Día
                           </button>
-                        ))}
-                        {isLoadingCalendars && (
-                          <span className="rounded-full border border-white/10 px-3 py-1 text-white/60">
-                            Sincronizando...
-                          </span>
+                          <button
+                            type="button"
+                            onClick={() => setCalendarView("monthly")}
+                            className={`flex-1 rounded-xl border px-4 py-2.5 text-sm font-semibold transition ${
+                              calendarView === "monthly"
+                                ? "border-sky-400/40 bg-sky-500/20 text-sky-100"
+                                : "border-white/20 bg-white/10 text-white/80 hover:border-sky-400/50 hover:bg-sky-500/15"
+                            }`}
+                          >
+                            📅 Mes
+                          </button>
+                        </div>
+
+                        {availableCalendars.length > 0 && (
+                          <div className="mb-4 flex flex-wrap items-center gap-2 text-[11px] font-semibold uppercase tracking-wide text-white/70">
+                            {availableCalendars.map((calendar) => (
+                              <button
+                                key={`mobile-cal-${calendar.id}`}
+                                type="button"
+                                onClick={() => setActiveCalendarId(calendar.id)}
+                                className={`rounded-full border px-3 py-1 transition ${
+                                  activeCalendarId === calendar.id
+                                    ? "border-blue-400/60 bg-blue-500/20 text-white"
+                                    : "border-white/15 bg-white/5 text-white/70 hover:border-blue-300/40 hover:text-white"
+                                }`}
+                              >
+                                {calendar.name}
+                              </button>
+                            ))}
+                            {isLoadingCalendars && (
+                              <span className="rounded-full border border-white/10 px-3 py-1 text-white/60">
+                                Sincronizando...
+                              </span>
+                            )}
+                          </div>
                         )}
-                      </div>
-                    )}
-                    <CalendarTab
-                      nextShift={nextShift ?? null}
-                      daysUntilNextShift={daysUntilNextShift}
-                      shiftTypeLabels={SHIFT_TYPE_LABELS}
-                      orderedShifts={orderedShifts}
-                      plannerDays={plannerDays}
-                      onCommitPlanner={handleManualRotationConfirm}
-                      isCommittingPlanner={isCommittingRotation}
-                      plannerError={rotationError}
-                      onSelectEvent={handleSelectShift}
-                      onAddShiftForDate={handleOpenMobileAddForDate}
-                      onUpdateShift={handleUpdateShiftTime}
-                      calendarView={calendarView}
-                      onCalendarViewChange={setCalendarView}
-                    />
+                        <CalendarTab
+                          nextShift={nextShift ?? null}
+                          daysUntilNextShift={daysUntilNextShift}
+                          shiftTypeLabels={SHIFT_TYPE_LABELS}
+                          orderedShifts={orderedShifts}
+                          plannerDays={plannerDays}
+                          onCommitPlanner={handleManualRotationConfirm}
+                          isCommittingPlanner={isCommittingRotation}
+                          plannerError={rotationError}
+                          onSelectEvent={handleSelectShift}
+                          onAddShiftForDate={handleOpenMobileAddForDate}
+                          onUpdateShift={handleUpdateShiftTime}
+                          calendarView={calendarView}
+                          onCalendarViewChange={setCalendarView}
+                        />
+
+                        {/* Resumen debajo del calendario */}
+                        <div className="mt-6 grid grid-cols-2 gap-3 rounded-2xl border border-white/10 bg-[rgba(13,18,32,0.82)] p-4 backdrop-blur-xl">
+                          <div className="rounded-xl border border-white/10 bg-[#141b2b]/90 px-3 py-3">
+                            <span aria-hidden className="text-lg">🗓️</span>
+                            <p className="mt-1 text-[11px] uppercase tracking-wide text-white/60">
+                              Este mes
+                            </p>
+                            <p className="mt-1 text-xl font-semibold text-white">
+                              {currentMonthShifts.length}
+                            </p>
+                          </div>
+                          <div className="rounded-xl border border-white/10 bg-[#141b2b]/90 px-3 py-3">
+                            <span aria-hidden className="text-lg">⏰</span>
+                            <p className="mt-1 text-[11px] uppercase tracking-wide text-white/60">
+                              Próximo turno
+                            </p>
+                            <p className="mt-1 text-base font-semibold text-white">
+                              {nextShift
+                                ? format(new Date(nextShift.date), "d MMM", { locale: es })
+                                : "Pendiente"}
+                            </p>
+                          </div>
+                          <div className="rounded-xl border border-white/10 bg-[#141b2b]/90 px-3 py-3">
+                            <span aria-hidden className="text-lg">📊</span>
+                            <p className="mt-1 text-[11px] uppercase tracking-wide text-white/60">
+                              Tipos activos
+                            </p>
+                            <p className="mt-1 text-xl font-semibold text-white">
+                              {activeShiftTypes}
+                            </p>
+                          </div>
+                          <div className="rounded-xl border border-white/10 bg-[#141b2b]/90 px-3 py-3">
+                            <span aria-hidden className="text-lg">👥</span>
+                            <p className="mt-1 text-[11px] uppercase tracking-wide text-white/60">
+                              Equipo
+                            </p>
+                            <p className="mt-1 text-sm font-semibold text-white">
+                              Activo
+                            </p>
+                          </div>
+                        </div>
                       </motion.div>
                     )}
 
@@ -3080,6 +3081,16 @@ export default function Home() {
         onChange={handleNavigateTab}
         onNavigateLink={handleNavigateLink}
       />
+
+      {currentUser && (
+        <MobileSideMenu
+          open={isMobileMenuOpen}
+          onClose={() => setIsMobileMenuOpen(false)}
+          userName={currentUser.name}
+          userEmail={currentUser.email}
+          onLogout={handleLogout}
+        />
+      )}
 
       <MobileAddShiftSheet
         open={isMobileAddOpen}

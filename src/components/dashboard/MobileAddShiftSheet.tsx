@@ -137,7 +137,7 @@ export default function MobileAddShiftSheet({
       <form
         onSubmit={handleSubmit}
         onClick={(e) => e.stopPropagation()}
-        className="relative w-full max-w-md rounded-2xl border border-white/10 bg-slate-900 shadow-2xl shadow-black/50 flex flex-col gap-4 p-5"
+        className="relative w-full max-w-md rounded-2xl border border-white/10 bg-slate-900 shadow-2xl shadow-black/50 flex flex-col gap-4 p-5 max-h-[90vh] overflow-y-auto"
       >
         <button
           type="button"
@@ -163,7 +163,7 @@ export default function MobileAddShiftSheet({
                 type="date"
                 value={date}
                 onChange={(e) => setDate(e.target.value)}
-                className="input-field flex-1 text-sm"
+                className="input-field flex-1 text-base min-h-[44px] touch-manipulation"
               />
               <span className="rounded-lg bg-sky-500/20 px-2.5 py-1.5 text-xs font-semibold text-sky-200 whitespace-nowrap">
                 {selectedDateLabel}
@@ -176,7 +176,7 @@ export default function MobileAddShiftSheet({
             <select
               value={type}
               onChange={(e) => setType(e.target.value as ShiftType)}
-              className="input-field w-full text-sm"
+              className="input-field w-full text-base min-h-[44px] touch-manipulation"
             >
               {Object.entries(SHIFT_TYPE_LABELS).map(([value, label]) => (
                 <option key={value} value={value}>{label}</option>
@@ -193,7 +193,7 @@ export default function MobileAddShiftSheet({
                   type="time"
                   value={startTime}
                   onChange={(e) => setStartTime(e.target.value)}
-                  className="input-field w-full text-sm"
+                  className="input-field w-full text-base min-h-[44px] touch-manipulation"
                   required
                 />
               </label>
@@ -203,7 +203,7 @@ export default function MobileAddShiftSheet({
                   type="time"
                   value={endTime}
                   onChange={(e) => setEndTime(e.target.value)}
-                  className="input-field w-full text-sm"
+                  className="input-field w-full text-base min-h-[44px] touch-manipulation"
                   required
                 />
               </label>
@@ -232,7 +232,7 @@ export default function MobileAddShiftSheet({
           whileTap={{ scale: 0.98 }}
           type="submit"
           disabled={isSubmitting}
-          className="w-full rounded-xl bg-gradient-to-r from-sky-500 to-sky-600 py-3 text-base font-bold text-white shadow-lg shadow-sky-500/25 hover:from-sky-400 hover:to-sky-500 disabled:opacity-60"
+          className="w-full rounded-xl bg-gradient-to-r from-sky-500 to-sky-600 py-4 text-lg font-bold text-white shadow-lg shadow-sky-500/25 hover:from-sky-400 hover:to-sky-500 disabled:opacity-60 touch-manipulation min-h-[52px]"
         >
           {isSubmitting ? "Guardando…" : "Guardar turno"}
         </motion.button>

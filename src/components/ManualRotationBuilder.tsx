@@ -16,7 +16,7 @@ import {
 import { es } from "date-fns/locale"
 import { AnimatePresence, motion } from "framer-motion"
 import { formatCompactDate, formatCompactMonth } from "@/lib/formatDate"
-import { useConfirmDelete } from "@/contexts/ConfirmDeleteContext"
+import { useConfirmDelete } from "@/lib/ConfirmDeleteContext"
 
 const WEEK_STARTS_ON = 1
 

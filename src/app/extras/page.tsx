@@ -14,8 +14,8 @@ import { getSupabaseBrowserClient } from "@/lib/supabase"
 import { exchangeAccessToken } from "@/lib/auth-client"
 import type { Session } from "@supabase/supabase-js"
 import type { UserSummary } from "@/types/users"
-import { useConfirmDelete } from "@/contexts/ConfirmDeleteContext"
-import { useToast } from "@/contexts/ToastContext"
+import { useConfirmDelete } from "@/lib/ConfirmDeleteContext"
+import { useToast } from "@/lib/ToastContext"
 
 // Loader mínimo inline: sin componente pesado para que la ruta cargue rápido
 function ExtrasPageLoader() {

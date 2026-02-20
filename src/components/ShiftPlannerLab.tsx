@@ -28,7 +28,7 @@ import { useRotationTemplates } from "@/lib/useRotationTemplates"
 import type { RotationTemplate, ShiftTemplate } from "@/types/templates"
 import { loadUserPreferences } from "@/lib/user-preferences"
 import { DEFAULT_USER_PREFERENCES, type UserPreferences } from "@/types/preferences"
-import { useConfirmDelete } from "@/contexts/ConfirmDeleteContext"
+import { useConfirmDelete } from "@/lib/ConfirmDeleteContext"
 
 type PlannerPluses = {
   night: number

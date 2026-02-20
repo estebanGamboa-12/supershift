@@ -17,8 +17,8 @@ import { getSupabaseBrowserClient } from "@/lib/supabase"
 import { exchangeAccessToken } from "@/lib/auth-client"
 import { useShiftTemplates } from "@/lib/useShiftTemplates"
 import { useRotationTemplates } from "@/lib/useRotationTemplates"
-import { useConfirmDelete } from "@/contexts/ConfirmDeleteContext"
-import { useToast } from "@/contexts/ToastContext"
+import { useConfirmDelete } from "@/lib/ConfirmDeleteContext"
+import { useToast } from "@/lib/ToastContext"
 
 function sanitizeUserSummary(value: unknown): UserSummary | null {
   if (!value || typeof value !== "object") {

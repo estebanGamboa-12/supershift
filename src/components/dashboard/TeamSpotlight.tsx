@@ -14,8 +14,8 @@ import { formatCompactDate } from "@/lib/formatDate"
 import type { ShiftEvent, ShiftType } from "@/types/shifts"
 import type { TeamDetails, TeamInviteSummary, TeamRole } from "@/types/teams"
 import type { UserSummary } from "@/types/users"
-import { useConfirmDelete } from "@/contexts/ConfirmDeleteContext"
-import { useToast } from "@/contexts/ToastContext"
+import { useConfirmDelete } from "@/lib/ConfirmDeleteContext"
+import { useToast } from "@/lib/ToastContext"
 
 type TeamSpotlightProps = {
   upcomingShifts: ShiftEvent[]

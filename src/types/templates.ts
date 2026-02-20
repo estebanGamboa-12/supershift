@@ -3,6 +3,7 @@ export type ShiftTemplate = {
   userId: string
   title: string
   icon?: string | null
+  color?: string | null
   startTime: string
   endTime: string
   breakMinutes?: number | null
@@ -15,6 +16,7 @@ export type ShiftTemplate = {
 export type ShiftTemplateInput = {
   title: string
   icon?: string | null
+  color?: string | null
   startTime: string
   endTime: string
   breakMinutes?: number | null

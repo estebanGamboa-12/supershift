@@ -439,7 +439,6 @@ export default function TemplatesPage() {
                     <ShiftTemplateCard
                       key={template.id}
                       template={template}
-                      onAdd={() => handleSeedRotation(template)}
                       onEdit={handleEditShift}
                       onDelete={handleDeleteShift}
                     />
@@ -563,6 +562,24 @@ export default function TemplatesPage() {
         onSubmit={handleSubmitRotationTemplate}
         template={rotationModalTemplate ?? undefined}
         shiftTemplates={shiftTemplates}
+        onUpdateShiftTemplate={async (id, payload) => {
+          const template = shiftTemplates.find((t) => t.id === id)
+          if (!template) return
+          const result = await updateShiftTemplate(id, {
+            ...template,
+            icon: payload.icon ?? template.icon,
+            color: payload.color ?? template.color,
+            title: template.title,
+            startTime: template.startTime,
+            endTime: template.endTime,
+            breakMinutes: template.breakMinutes,
+            alertMinutes: template.alertMinutes,
+            location: template.location,
+          })
+          if (!result) {
+            throw new Error("No se pudo actualizar la plantilla de turno")
+          }
+        }}
       />
     </div>
   )

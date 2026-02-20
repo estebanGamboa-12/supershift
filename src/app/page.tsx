@@ -19,9 +19,7 @@ import MobileSideMenu from "@/components/dashboard/MobileSideMenu"
 import ResponsiveNav from "@/components/dashboard/ResponsiveNav"
 import UserAuthPanel from "@/components/auth/UserAuthPanel"
 import FloatingParticlesLoader from "@/components/FloatingParticlesLoader"
-import ActionFeedback, {
-  type ActionFeedbackState,
-} from "@/components/dashboard/ActionFeedback"
+import { useToast } from "@/contexts/ToastContext"
 import type { UserSummary } from "@/types/users"
 import type { Session } from "@supabase/supabase-js"
 import { getSupabaseBrowserClient } from "@/lib/supabase"
@@ -50,6 +48,7 @@ import {
 } from "@/lib/offline-db"
 import { OfflineStatusBanner } from "@/components/pwa/offline-status-banner"
 import type { CalendarSummary } from "@/types/calendars"
+import { useShiftTemplates } from "@/lib/useShiftTemplates"
 
 type ApiShift = {
   id: number
@@ -471,6 +470,7 @@ export default function Home() {
   const [availableCalendars, setAvailableCalendars] = useState<CalendarSummary[]>([])
   const [activeCalendarId, setActiveCalendarId] = useState<number | null>(null)
   const [isLoadingCalendars, setIsLoadingCalendars] = useState(false)
+  const [isLoadingShifts, setIsLoadingShifts] = useState(false)
   const [isLoadingUsers, setIsLoadingUsers] = useState(true)
   const [userError, setUserError] = useState<string | null>(null)
   const [isCommittingRotation, setIsCommittingRotation] = useState(false)
@@ -496,11 +496,8 @@ export default function Home() {
   const [pendingShiftMutations, setPendingShiftMutations] = useState(0)
   const [lastSyncError, setLastSyncError] = useState<string | null>(null)
   const isSyncingRef = useRef(false)
-  const [actionFeedback, setActionFeedback] =
-    useState<ActionFeedbackState | null>(null)
-  const actionFeedbackTimeoutRef =
-    useRef<ReturnType<typeof setTimeout> | null>(null)
   const [shiftHistory, setShiftHistory] = useState<ShiftHistoryEntry[]>([])
+  const { showToast } = useToast()
 
   const supabase = useMemo(() => {
     if (typeof window === "undefined") {
@@ -514,6 +511,8 @@ export default function Home() {
       return null
     }
   }, [])
+
+  const { templates: shiftTemplates } = useShiftTemplates(currentUser?.id)
 
   const {
     email: notificationEmailEnabled,
@@ -954,55 +953,6 @@ export default function Home() {
     }
   }, [])
 
-  const dismissActionFeedback = useCallback(() => {
-    if (actionFeedbackTimeoutRef.current) {
-      clearTimeout(actionFeedbackTimeoutRef.current)
-      actionFeedbackTimeoutRef.current = null
-    }
-    setActionFeedback(null)
-  }, [])
-
-  const showActionFeedback = useCallback(
-    (type: ActionFeedbackState["type"], options?: { offline?: boolean }) => {
-      const offline = options?.offline ?? false
-      const baseMessages: Record<ActionFeedbackState["type"], string> = {
-        create: "Turno guardado correctamente",
-        update: "Cambios guardados",
-        delete: "Turno eliminado",
-      }
-      const offlineMessages: Record<ActionFeedbackState["type"], string> = {
-        create: "Turno guardado sin conexión",
-        update: "Cambios listos para sincronizar",
-        delete: "Turno eliminado (pendiente de sincronizar)",
-      }
-
-      if (actionFeedbackTimeoutRef.current) {
-        clearTimeout(actionFeedbackTimeoutRef.current)
-      }
-
-      setActionFeedback({
-        type,
-        offline,
-        message: offline ? offlineMessages[type] : baseMessages[type],
-      })
-
-      actionFeedbackTimeoutRef.current = setTimeout(() => {
-        setActionFeedback(null)
-        actionFeedbackTimeoutRef.current = null
-      }, offline ? 5000 : 3400)
-    },
-    [],
-  )
-
-  useEffect(() => {
-    return () => {
-      if (actionFeedbackTimeoutRef.current) {
-        clearTimeout(actionFeedbackTimeoutRef.current)
-        actionFeedbackTimeoutRef.current = null
-      }
-    }
-  }, [])
-
   const synchronizePendingShiftRequests = useCallback(async () => {
     if (!currentUser || !activeCalendarId) {
       return
@@ -1285,7 +1235,7 @@ export default function Home() {
         })
         setIsOffline(false)
         setLastSyncError(null)
-        showActionFeedback("create")
+        showToast({ type: "create", message: "Turno guardado correctamente" })
       } catch (error) {
         if (isLikelyOfflineError(error)) {
           const optimisticId = generateTemporaryShiftId()
@@ -1328,7 +1278,7 @@ export default function Home() {
           await refreshPendingMutations(cacheKey)
           void requestBackgroundSync()
           setIsOffline(true)
-          showActionFeedback("create", { offline: true })
+          showToast({ type: "create", message: "Turno guardado sin conexión", offline: true })
           return
         }
 
@@ -1348,7 +1298,7 @@ export default function Home() {
       refreshPendingMutations,
       requestBackgroundSync,
       sortByDate,
-      showActionFeedback,
+      showToast,
     ],
   )
 
@@ -1427,7 +1377,7 @@ export default function Home() {
         })
         setIsOffline(false)
         setLastSyncError(null)
-        showActionFeedback("update")
+        showToast({ type: "update", message: "Cambios guardados" })
       } catch (error) {
         if (isLikelyOfflineError(error)) {
           const optimisticShift = mapApiShift({
@@ -1480,7 +1430,7 @@ export default function Home() {
           await refreshPendingMutations(cacheKey)
           void requestBackgroundSync()
           setIsOffline(true)
-          showActionFeedback("update", { offline: true })
+          showToast({ type: "update", message: "Cambios listos para sincronizar", offline: true })
           return
         }
 
@@ -1517,7 +1467,7 @@ export default function Home() {
       refreshPendingMutations,
       requestBackgroundSync,
       sortByDate,
-      showActionFeedback,
+      showToast,
     ],
   )
   const handleDeleteShift = useCallback(
@@ -1530,25 +1480,7 @@ export default function Home() {
       const calendarId = activeCalendarId
       const cacheKey = buildCalendarCacheKey(userId, calendarId)
 
-      try {
-        const response = await fetch(
-          `/api/shifts/${id}?userId=${userId}&calendarId=${calendarId}`,
-          {
-            method: "DELETE",
-          },
-        )
-
-        if (!response.ok && response.status !== 204) {
-          const payload = (await response.json().catch(() => null)) as
-            | { error?: string }
-            | null
-          const message =
-            payload && payload.error
-              ? payload.error
-              : `Error al eliminar el turno (${response.status})`
-          throw new Error(message)
-        }
-
+      const removeFromState = () => {
         setShifts((current) => {
           const target = current.find((shift) => shift.id === id) ?? null
           const next = sortByDate(current.filter((shift) => shift.id !== id))
@@ -1562,24 +1494,43 @@ export default function Home() {
           }
           return next
         })
+      }
+
+      if (id < 0) {
+        removeFromState()
+        return
+      }
+
+      try {
+        const response = await fetch(
+          `/api/shifts/${id}?userId=${userId}&calendarId=${calendarId}`,
+          {
+            method: "DELETE",
+          },
+        )
+
+        if (!response.ok && response.status !== 204) {
+          const payload = (await response.json().catch(() => null)) as
+            | { error?: string }
+            | null
+          if (response.status === 404 || (payload?.error && payload.error.includes("No se encontró"))) {
+            removeFromState()
+            return
+          }
+          const message =
+            payload && payload.error
+              ? payload.error
+              : `Error al eliminar el turno (${response.status})`
+          throw new Error(message)
+        }
+
+        removeFromState()
         setIsOffline(false)
         setLastSyncError(null)
-        showActionFeedback("delete")
+        showToast({ type: "delete", message: "Turno eliminado" })
       } catch (error) {
         if (isLikelyOfflineError(error)) {
-          setShifts((current) => {
-            const target = current.find((shift) => shift.id === id) ?? null
-            const next = sortByDate(current.filter((shift) => shift.id !== id))
-            persistShiftsSnapshot(userId, calendarId, next)
-            if (target) {
-              recordHistoryEntry({
-                shiftId: id,
-                action: "delete",
-                before: createSnapshot(target),
-              })
-            }
-            return next
-          })
+          removeFromState()
 
           const isOptimisticShift = id < 0
           await addPendingShiftRequest({
@@ -1595,7 +1546,7 @@ export default function Home() {
           await refreshPendingMutations(cacheKey)
           void requestBackgroundSync()
           setIsOffline(true)
-          showActionFeedback("delete", { offline: true })
+          showToast({ type: "delete", message: "Turno eliminado (pendiente de sincronizar)", offline: true })
           return
         }
 
@@ -1612,7 +1563,7 @@ export default function Home() {
       refreshPendingMutations,
       requestBackgroundSync,
       sortByDate,
-      showActionFeedback,
+      showToast,
     ],
   )
 
@@ -2055,11 +2006,13 @@ export default function Home() {
     if (!currentUser || !activeCalendarId) {
       setShifts([])
       setPendingShiftMutations(0)
+      setIsLoadingShifts(false)
       return
     }
 
     let isMounted = true
     const cacheKey = buildCalendarCacheKey(currentUser.id, activeCalendarId)
+    setIsLoadingShifts(true)
 
     const loadShifts = async () => {
       if (typeof window !== "undefined") {
@@ -2068,6 +2021,7 @@ export default function Home() {
           if (isMounted && cached.length > 0) {
             const restored = sortByDate(cached.map((item) => fromCachedShiftEvent(item)))
             setShifts(restored)
+            setIsLoadingShifts(false)
           }
         } catch (error) {
           console.error("No se pudieron recuperar los turnos en caché", error)
@@ -2087,8 +2041,12 @@ export default function Home() {
         persistShiftsSnapshot(currentUser.id, activeCalendarId, ordered)
         setIsOffline(false)
         setLastSyncError(null)
+        setIsLoadingShifts(false)
       } catch (error) {
         console.error("No se pudieron cargar los turnos desde la API", error)
+        if (isMounted) {
+          setIsLoadingShifts(false)
+        }
         if (error instanceof ApiError && error.status === 404 && isMounted) {
           clearSession(
             "El usuario seleccionado ya no existe. Inicia sesión nuevamente.",
@@ -2506,6 +2464,8 @@ export default function Home() {
                           onCalendarViewChange={setCalendarView}
                           embedSidebar={false}
                           userId={currentUser?.id ?? null}
+                          isLoadingShifts={isLoadingShifts}
+                          shiftTemplates={shiftTemplates}
                         />
                       </div>
                     </div>
@@ -2646,6 +2606,8 @@ export default function Home() {
                           calendarView={calendarView}
                           onCalendarViewChange={setCalendarView}
                           userId={currentUser?.id ?? null}
+                          isLoadingShifts={isLoadingShifts}
+                          shiftTemplates={shiftTemplates}
                         />
 
                       </motion.div>
@@ -2702,6 +2664,8 @@ export default function Home() {
         initialStartTime={initialStartTime}
         initialEndTime={initialEndTime}
         onDateConsumed={() => setSelectedDateFromCalendar(null)}
+        userId={currentUser?.id ?? null}
+        shiftTemplates={shiftTemplates}
       />
 
       {selectedShift && (
@@ -2717,13 +2681,11 @@ export default function Home() {
             setSelectedShift(null)
           }}
           onClose={() => setSelectedShift(null)}
+          userId={currentUser?.id ?? null}
+          shiftTemplates={shiftTemplates}
         />
       )}
 
-      <ActionFeedback
-        feedback={actionFeedback}
-        onDismiss={dismissActionFeedback}
-      />
       </div>
     </div>
   )

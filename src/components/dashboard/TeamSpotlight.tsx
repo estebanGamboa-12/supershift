@@ -14,6 +14,8 @@ import { formatCompactDate } from "@/lib/formatDate"
 import type { ShiftEvent, ShiftType } from "@/types/shifts"
 import type { TeamDetails, TeamInviteSummary, TeamRole } from "@/types/teams"
 import type { UserSummary } from "@/types/users"
+import { useConfirmDelete } from "@/contexts/ConfirmDeleteContext"
+import { useToast } from "@/contexts/ToastContext"
 
 type TeamSpotlightProps = {
   upcomingShifts: ShiftEvent[]
@@ -249,6 +251,8 @@ const TeamSpotlight: FC<TeamSpotlightProps> = ({
   const [roleNotice, setRoleNotice] = useState<string | null>(null)
   const [assignments, setAssignments] = useState<Record<string, string | null>>({})
   const [selectedIndividualId, setSelectedIndividualId] = useState<string | null>(null)
+  const { confirmDelete } = useConfirmDelete()
+  const { showToast } = useToast()
 
   useEffect(() => {
     if (typeof window !== "undefined") {
@@ -579,6 +583,7 @@ const TeamSpotlight: FC<TeamSpotlightProps> = ({
         }
 
         setMemberActionNotice("Miembro eliminado correctamente")
+        showToast({ type: "delete", message: "Miembro eliminado del equipo" })
         setSelectedMemberId(null)
         await refreshTeam(currentUser.id)
       } catch (error) {
@@ -591,7 +596,7 @@ const TeamSpotlight: FC<TeamSpotlightProps> = ({
         setIsRemovingMember(false)
       }
     },
-    [currentUser?.id, refreshTeam, team],
+    [currentUser?.id, refreshTeam, showToast, team],
   )
 
   const canRemoveSelectedMember = Boolean(
@@ -698,18 +703,27 @@ const TeamSpotlight: FC<TeamSpotlightProps> = ({
     [templateForm],
   )
 
-  const handleRemoveTemplate = useCallback((templateId: string) => {
-    setTemplates((current) => current.filter((item) => item.id !== templateId))
-    setAssignments((current) => {
-      const next: Record<string, string | null> = {}
-      for (const [key, value] of Object.entries(current)) {
-        if (!key.startsWith(`template-${templateId}`)) {
-          next[key] = value
-        }
-      }
-      return next
-    })
-  }, [])
+  const handleRemoveTemplate = useCallback(
+    (template: ShiftTemplate) => {
+      confirmDelete({
+        itemName: `la plantilla "${template.name}"`,
+        onConfirm: () => {
+          setTemplates((current) => current.filter((item) => item.id !== template.id))
+          setAssignments((current) => {
+            const next: Record<string, string | null> = {}
+            for (const [key, value] of Object.entries(current)) {
+              if (!key.startsWith(`template-${template.id}`)) {
+                next[key] = value
+              }
+            }
+            return next
+          })
+          showToast({ type: "delete", message: "Plantilla eliminada" })
+        },
+      })
+    },
+    [confirmDelete, showToast],
+  )
 
   const selectedIndividualSummary = useMemo(() => {
     if (!selectedIndividualId) {
@@ -880,7 +894,12 @@ const TeamSpotlight: FC<TeamSpotlightProps> = ({
                       {canRemoveSelectedMember && (
                         <button
                           type="button"
-                          onClick={() => handleRemoveMember(selectedMember.id)}
+                          onClick={() =>
+                            confirmDelete({
+                              itemName: `a ${selectedMember.name} del equipo`,
+                              onConfirm: () => handleRemoveMember(selectedMember.id),
+                            })
+                          }
                           disabled={isRemovingMember}
                           className="inline-flex items-center gap-2 rounded-lg border border-rose-400/40 bg-rose-500/10 px-3 py-1 text-xs font-semibold uppercase tracking-wide text-rose-100 transition hover:border-rose-300/60 hover:bg-rose-500/20 disabled:cursor-not-allowed disabled:opacity-70"
                         >
@@ -1391,7 +1410,7 @@ const TeamSpotlight: FC<TeamSpotlightProps> = ({
                         </span>
                         <button
                           type="button"
-                          onClick={() => handleRemoveTemplate(template.id)}
+                          onClick={() => handleRemoveTemplate(template)}
                           className="inline-flex items-center gap-2 rounded-full border border-red-400/30 bg-red-500/10 px-3 py-1 text-[11px] font-semibold uppercase tracking-wide text-red-100 transition hover:border-red-300/60 hover:bg-red-500/20"
                         >
                           Eliminar

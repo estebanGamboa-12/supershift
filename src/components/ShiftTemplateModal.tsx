@@ -4,12 +4,22 @@ import { useEffect, useMemo, useState } from "react"
 import { AnimatePresence, motion } from "framer-motion"
 import type { ShiftTemplate, ShiftTemplateInput } from "@/types/templates"
 
+type CustomShiftTypeItem = {
+  id: string
+  name: string
+  color: string
+  icon?: string
+  defaultStartTime?: string | null
+  defaultEndTime?: string | null
+}
+
 type ShiftTemplateModalProps = {
   open: boolean
   onClose: () => void
   onSubmit: (payload: ShiftTemplateInput) => Promise<void>
   template?: ShiftTemplate | null
   title?: string
+  customShiftTypes?: CustomShiftTypeItem[]
 }
 
 export default function ShiftTemplateModal({
@@ -18,6 +28,7 @@ export default function ShiftTemplateModal({
   onSubmit,
   template,
   title = "Nueva plantilla de turno",
+  customShiftTypes = [],
 }: ShiftTemplateModalProps) {
   const [formTitle, setFormTitle] = useState("")
   const [icon, setIcon] = useState("🗓️")
@@ -133,6 +144,38 @@ export default function ShiftTemplateModal({
             </div>
 
             <form onSubmit={handleSubmit} className="space-y-4">
+              {!template && customShiftTypes.length > 0 && (
+                <div className="rounded-2xl border border-white/10 bg-white/5 p-3">
+                  <p className="mb-2 text-xs font-semibold uppercase tracking-wider text-white/50">
+                    Crear desde tipo de turno
+                  </p>
+                  <select
+                    value=""
+                    onChange={(e) => {
+                      const id = e.target.value
+                      if (!id) return
+                      const ct = customShiftTypes.find((t) => t.id === id)
+                      if (ct) {
+                        setFormTitle(ct.name)
+                        setColor(ct.color)
+                        setIcon(ct.icon?.slice(0, 2) ?? "🗓️")
+                        if (ct.defaultStartTime) setStartTime(ct.defaultStartTime)
+                        if (ct.defaultEndTime) setEndTime(ct.defaultEndTime)
+                        e.target.value = ""
+                      }
+                    }}
+                    className="w-full rounded-xl border border-white/15 bg-white/5 px-4 py-2 text-sm text-white focus:border-sky-400 focus:outline-none focus:ring-2 focus:ring-sky-400/40"
+                  >
+                    <option value="">Elige un tipo para rellenar título y horario</option>
+                    {customShiftTypes.map((ct) => (
+                      <option key={ct.id} value={ct.id}>
+                        {ct.icon ? `${ct.icon} ` : ""}{ct.name}
+                        {ct.defaultStartTime && ct.defaultEndTime ? ` (${ct.defaultStartTime}-${ct.defaultEndTime})` : ""}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+              )}
               <div className="grid gap-4 sm:grid-cols-[auto_1fr] sm:items-start">
                 <div className="flex flex-col items-center gap-2">
                   <label className="flex h-16 w-16 items-center justify-center rounded-2xl border border-white/10 bg-white/5 text-3xl shadow-inner shadow-black/30" style={{ backgroundColor: color + "20", borderColor: color + "40" }}>

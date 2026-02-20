@@ -13,10 +13,20 @@ export type ShiftExtra = {
   color?: string
 }
 
+export type CustomShiftType = {
+  id: string // ID único del tipo personalizado
+  name: string // Nombre del tipo (ej: "Mañana", "Tarde", "Guardia")
+  color: string // Color hexadecimal
+  icon?: string // Emoji o icono opcional
+  defaultStartTime?: string | null // HH:mm
+  defaultEndTime?: string | null // HH:mm
+}
+
 export type UserPreferences = {
   startOfWeek: StartOfWeekPreference
   notifications: NotificationPreferences
   shiftExtras?: ShiftExtra[] // Extras personalizados del usuario
+  customShiftTypes?: CustomShiftType[] // Tipos de turnos personalizados del usuario
   hourlyRate?: number // Tarifa por hora base
 }
 
@@ -27,11 +37,7 @@ export const DEFAULT_USER_PREFERENCES: UserPreferences = {
     push: true,
     reminders: false,
   },
-  shiftExtras: [
-    { id: "night", name: "Extra nocturno", value: 10, color: "#a855f7" },
-    { id: "holiday", name: "Domingo/Festivo", value: 20, color: "#f59e0b" },
-    { id: "availability", name: "Disponibilidad", value: 5, color: "#10b981" },
-    { id: "other", name: "Otro extra", value: 15, color: "#3b82f6" },
-  ],
+  shiftExtras: [], // Sin extras por defecto; el usuario los crea en Extras
+  customShiftTypes: [], // Sin tipos personalizados por defecto; el usuario los crea en Extras
   hourlyRate: 0,
 }

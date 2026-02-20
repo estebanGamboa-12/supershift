@@ -16,6 +16,7 @@ import PlanLoopLogo from "@/components/PlanLoopLogo"
 import type { ManualRotationDay } from "@/components/ManualRotationBuilder"
 import NextShiftCard from "@/components/dashboard/NextShiftCard"
 import type { ShiftEvent, ShiftType } from "@/types/shifts"
+import type { ShiftTemplate } from "@/types/templates"
 import { formatCompactDate } from "@/lib/formatDate"
 import MiniCalendar from "@/components/calendar/MiniCalendar"
 import DayView from "@/components/calendar/DayView"
@@ -40,6 +41,33 @@ type CalendarTabProps = CalendarSidebarProps & {
   calendarView?: "day" | "monthly"
   onCalendarViewChange?: (view: "day" | "monthly") => void
   userId?: string | null
+  isLoadingShifts?: boolean
+  shiftTemplates?: ShiftTemplate[]
+}
+
+/** Skeleton para el área del calendario/día mientras cargan los turnos */
+function CalendarDaysSkeleton() {
+  return (
+    <div
+      className="flex min-h-[320px] flex-col rounded-2xl border border-white/10 bg-slate-950/30 p-4"
+      aria-busy="true"
+      aria-label="Cargando turnos"
+    >
+      <div className="flex items-center gap-2 pb-3 text-sm text-white/50">
+        <div className="h-4 w-4 animate-spin rounded-full border-2 border-white/20 border-t-sky-400" />
+        <span>Cargando días...</span>
+      </div>
+      <div className="flex flex-1 flex-col gap-2">
+        {[1, 2, 3, 4, 5, 6, 7, 8].map((i) => (
+          <div
+            key={i}
+            className="h-10 w-full animate-pulse rounded-lg bg-white/5"
+            style={{ animationDelay: `${i * 40}ms` }}
+          />
+        ))}
+      </div>
+    </div>
+  )
 }
 
 const upcomingShiftsFromOrdered = (
@@ -141,6 +169,8 @@ const CalendarTab: FC<CalendarTabProps> = ({
   onUpdateShift,
   calendarView = "day",
   userId = null,
+  isLoadingShifts = false,
+  shiftTemplates = [],
 }) => {
   const [currentMonth, setCurrentMonth] = useState(() => startOfMonth(new Date()))
   const [selectedDate, setSelectedDate] = useState<Date | null>(() => new Date())
@@ -327,13 +357,16 @@ const CalendarTab: FC<CalendarTabProps> = ({
 
       {/* Área principal: una sola vista (día o plan mensual) */}
       <div className={`order-1 min-w-0 flex-1 transition-all lg:pl-1 ${isSidebarOpen ? 'lg:pl-1' : ''}`}>
-        {calendarView === "monthly" ? (
+        {isLoadingShifts ? (
+          <CalendarDaysSkeleton />
+        ) : calendarView === "monthly" ? (
           <ShiftPlannerLab
             initialEntries={plannerDays}
             onCommit={onCommitPlanner}
             isCommitting={isCommittingPlanner}
             errorMessage={plannerError}
             userId={userId}
+            shiftTemplates={shiftTemplates ?? []}
           />
         ) : (
           <DayView

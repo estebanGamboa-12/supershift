@@ -17,6 +17,8 @@ import { getSupabaseBrowserClient } from "@/lib/supabase"
 import { exchangeAccessToken } from "@/lib/auth-client"
 import { useShiftTemplates } from "@/lib/useShiftTemplates"
 import { useRotationTemplates } from "@/lib/useRotationTemplates"
+import { useConfirmDelete } from "@/contexts/ConfirmDeleteContext"
+import { useToast } from "@/contexts/ToastContext"
 
 function sanitizeUserSummary(value: unknown): UserSummary | null {
   if (!value || typeof value !== "object") {
@@ -70,7 +72,9 @@ function sanitizeUserSummary(value: unknown): UserSummary | null {
 
 export default function TemplatesPage() {
   const router = useRouter()
-  
+  const { confirmDelete } = useConfirmDelete()
+  const { showToast } = useToast()
+
   const supabase = useMemo(() => {
     if (typeof window === "undefined") {
       return null
@@ -241,13 +245,14 @@ export default function TemplatesPage() {
     setIsShiftModalOpen(true)
   }
 
-  const handleDeleteShift = async (template: ShiftTemplate) => {
-    const confirmed = window.confirm(`¿Eliminar la plantilla "${template.title}"?`)
-    if (!confirmed) {
-      return
-    }
-
-    await deleteShiftTemplate(template.id)
+  const handleDeleteShift = (template: ShiftTemplate) => {
+    confirmDelete({
+      itemName: `la plantilla "${template.title}"`,
+      onConfirm: async () => {
+        await deleteShiftTemplate(template.id)
+        showToast({ type: "delete", message: "Plantilla eliminada" })
+      },
+    })
   }
 
   const handleSubmitShiftTemplate = async (payload: Parameters<typeof createShiftTemplate>[0]) => {
@@ -256,11 +261,13 @@ export default function TemplatesPage() {
       if (!result) {
         throw new Error("No se pudo actualizar la plantilla de turno")
       }
+      showToast({ type: "update", message: "Plantilla modificada" })
     } else {
       const result = await createShiftTemplate(payload)
       if (!result) {
         throw new Error("No se pudo crear la plantilla de turno")
       }
+      showToast({ type: "create", message: "Plantilla creada" })
     }
     setShiftModalTemplate(null)
   }
@@ -268,6 +275,40 @@ export default function TemplatesPage() {
   const closeShiftModal = () => {
     setIsShiftModalOpen(false)
     setShiftModalTemplate(null)
+  }
+
+  const SHIFT_PRESETS = [
+    { title: "Trabajo", color: "#3b82f6", startTime: "09:00", endTime: "17:00" },
+    { title: "Nocturno", color: "#a855f7", startTime: "22:00", endTime: "06:00" },
+    { title: "Descanso", color: "#94a3b8", startTime: "00:00", endTime: "00:00" },
+    { title: "Vacaciones", color: "#10b981", startTime: "00:00", endTime: "00:00" },
+    { title: "Personalizado", color: "#f59e0b", startTime: "09:00", endTime: "17:00" },
+  ] as const
+
+  const [isCreatingPreset, setIsCreatingPreset] = useState(false)
+  const handleCreatePresetShift = async (preset: (typeof SHIFT_PRESETS)[number]) => {
+    if (isCreatingPreset) return
+    const exists = shiftTemplates.some((t) => t.title === preset.title)
+    if (exists) return
+    setIsCreatingPreset(true)
+    try {
+      const result = await createShiftTemplate({
+        title: preset.title,
+        color: preset.color,
+        startTime: preset.startTime,
+        endTime: preset.endTime,
+        icon: null,
+        breakMinutes: null,
+        alertMinutes: null,
+        location: null,
+      })
+      if (!result) throw new Error("No se pudo crear")
+      showToast({ type: "create", message: "Plantilla creada" })
+    } catch (e) {
+      console.error(e)
+    } finally {
+      setIsCreatingPreset(false)
+    }
   }
 
   const openNewRotationModal = () => {
@@ -280,13 +321,14 @@ export default function TemplatesPage() {
     setIsRotationModalOpen(true)
   }
 
-  const handleDeleteRotation = async (template: RotationTemplate) => {
-    const confirmed = window.confirm(`¿Eliminar la rotación "${template.title}"?`)
-    if (!confirmed) {
-      return
-    }
-
-    await deleteRotationTemplate(template.id)
+  const handleDeleteRotation = (template: RotationTemplate) => {
+    confirmDelete({
+      itemName: `la rotación "${template.title}"`,
+      onConfirm: async () => {
+        await deleteRotationTemplate(template.id)
+        showToast({ type: "delete", message: "Rotación eliminada" })
+      },
+    })
   }
 
   const handleSubmitRotationTemplate = async (payload: Parameters<typeof createRotationTemplate>[0]) => {
@@ -295,11 +337,13 @@ export default function TemplatesPage() {
       if (!result) {
         throw new Error("No se pudo actualizar la plantilla de rotación")
       }
+      showToast({ type: "update", message: "Rotación modificada" })
     } else {
       const result = await createRotationTemplate(payload)
       if (!result) {
         throw new Error("No se pudo crear la plantilla de rotación")
       }
+      showToast({ type: "create", message: "Rotación creada" })
     }
     setRotationModalTemplate(null)
   }
@@ -380,7 +424,7 @@ export default function TemplatesPage() {
         <section className="mt-8 mb-12 space-y-8">
           {activeTab === "shifts" ? (
             <div className="space-y-4">
-              <div className="flex items-center justify-between">
+              <div className="flex flex-wrap items-center justify-between gap-3">
                 <h2 className="text-sm font-semibold text-white">Turnos base</h2>
                 <button
                   type="button"
@@ -389,6 +433,29 @@ export default function TemplatesPage() {
                 >
                   + Nueva
                 </button>
+              </div>
+
+              <div className="flex flex-wrap items-center gap-2">
+                <span className="text-xs text-white/50">Crear con un clic:</span>
+                {SHIFT_PRESETS.map((preset) => {
+                  const exists = shiftTemplates.some((t) => t.title === preset.title)
+                  return (
+                    <button
+                      key={preset.title}
+                      type="button"
+                      disabled={exists || isCreatingPreset}
+                      onClick={() => handleCreatePresetShift(preset)}
+                      className="rounded-xl border-2 px-4 py-2 text-sm font-semibold transition focus:outline-none focus:ring-2 focus:ring-white/50 disabled:opacity-50 disabled:cursor-not-allowed"
+                      style={
+                        !exists && !isCreatingPreset
+                          ? { borderColor: preset.color + "70", backgroundColor: preset.color + "25", color: preset.color }
+                          : undefined
+                      }
+                    >
+                      {preset.title}
+                    </button>
+                  )
+                })}
               </div>
 
               {shiftError ? (
@@ -521,6 +588,7 @@ export default function TemplatesPage() {
         onSubmit={handleSubmitShiftTemplate}
         template={shiftModalTemplate}
         title={shiftModalTemplate ? "Editar plantilla de turno" : "Nueva plantilla de turno"}
+        customShiftTypes={shiftTemplates.map((t) => ({ id: String(t.id), name: t.title, color: t.color ?? "#3b82f6", defaultStartTime: t.startTime, defaultEndTime: t.endTime }))}
       />
 
       <EditRotationModal

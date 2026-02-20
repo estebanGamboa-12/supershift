@@ -108,9 +108,9 @@ const MobileSideMenu: FC<MobileSideMenuProps> = ({
                         onLogout()
                         onClose()
                       }}
-                      className="flex w-full items-center gap-3 rounded-xl border border-white/10 bg-white/5 px-4 py-3 text-sm font-semibold text-white/80 transition hover:border-red-400/40 hover:bg-red-500/10 hover:text-red-200 active:scale-[0.98] touch-manipulation"
+                      className="flex w-full items-center gap-3 rounded-xl border-2 border-red-500/50 bg-red-500/20 px-4 py-3.5 text-base font-bold text-red-200 transition hover:border-red-400 hover:bg-red-500/30 hover:text-red-100 active:scale-[0.98] touch-manipulation shadow-lg shadow-red-500/20"
                     >
-                      <span className="text-lg" aria-hidden>🚪</span>
+                      <span className="text-xl" aria-hidden>🚪</span>
                       <span>Cerrar sesión</span>
                     </button>
                   </li>

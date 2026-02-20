@@ -95,7 +95,7 @@ export default function ShiftTemplateModal({
     <AnimatePresence>
       {open ? (
         <motion.div
-          className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/80 backdrop-blur-2xl px-3 py-8"
+          className="fixed inset-0 z-50 flex items-start justify-center bg-slate-950/80 backdrop-blur-2xl px-3 py-4 pb-[calc(6rem+env(safe-area-inset-bottom))] overflow-y-auto"
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
           exit={{ opacity: 0 }}
@@ -112,7 +112,7 @@ export default function ShiftTemplateModal({
             animate={{ opacity: 1, scale: 1, y: 0 }}
             exit={{ opacity: 0, scale: 0.96, y: 16 }}
             transition={{ duration: 0.25, ease: "easeOut" }}
-            className="relative w-full max-w-lg max-h-[90vh] overflow-y-auto rounded-3xl border border-white/15 bg-gradient-to-br from-slate-950/95 via-slate-950/80 to-slate-900/85 p-6 text-white shadow-[0_30px_80px_-48px_rgba(59,130,246,0.6)]"
+            className="relative w-full max-w-lg rounded-3xl border border-white/15 bg-gradient-to-br from-slate-950/95 via-slate-950/80 to-slate-900/85 p-6 text-white shadow-[0_30px_80px_-48px_rgba(59,130,246,0.6)] my-4 mb-8"
           >
             <div className="mb-6 flex items-start justify-between gap-4">
               <div>

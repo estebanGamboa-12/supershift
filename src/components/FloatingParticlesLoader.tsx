@@ -1,4 +1,5 @@
 import type { CSSProperties } from "react"
+import PlanLoopLogo from "./PlanLoopLogo"
 
 const PARTICLES = [
   { x: 18, y: -74, size: 12, duration: 5.8, delay: 0, opacity: 0.75 },
@@ -17,9 +18,9 @@ const PARTICLES = [
 
 function FloatingParticlesLoader() {
   return (
-    <div className="flex items-center justify-center rounded-3xl border border-white/10 bg-slate-900/80 p-12">
-      <div className="flex flex-col items-center gap-4 text-center">
-        <div className="relative h-24 w-24" aria-hidden>
+    <div className="flex min-h-screen items-center justify-center bg-slate-950">
+      <div className="flex flex-col items-center gap-6 text-center">
+        <div className="relative h-32 w-32" aria-hidden>
           <div className="loader-ring" />
           <div className="loader-ring loader-ring--inner" />
           <div className="loader-core" />
@@ -37,9 +38,13 @@ function FloatingParticlesLoader() {
             return <span key={index} className="loader-particle" style={style} />
           })}
         </div>
-        <div className="space-y-1">
-          <p className="text-sm font-semibold text-white">Preparando tu equipo...</p>
-          <p className="text-xs text-white/60">Cargando usuarios y configuraciones</p>
+        <div className="space-y-4">
+          <PlanLoopLogo size="lg" showText={true} />
+          <div className="flex items-center justify-center gap-2">
+            <div className="h-1 w-1 animate-pulse rounded-full bg-sky-400" />
+            <p className="text-sm font-medium text-white/70">Cargando...</p>
+            <div className="h-1 w-1 animate-pulse rounded-full bg-sky-400" style={{ animationDelay: '0.2s' }} />
+          </div>
         </div>
       </div>
     </div>

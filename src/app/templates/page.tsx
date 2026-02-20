@@ -2,12 +2,15 @@
 
 import { useCallback, useEffect, useMemo, useState } from "react"
 import Link from "next/link"
+import { useRouter } from "next/navigation"
 import type { Session } from "@supabase/supabase-js"
 import FloatingParticlesLoader from "@/components/FloatingParticlesLoader"
 import UserAuthPanel from "@/components/auth/UserAuthPanel"
 import ShiftTemplateCard from "@/components/dashboard/ShiftTemplateCard"
 import ShiftTemplateModal from "@/components/ShiftTemplateModal"
 import EditRotationModal from "@/components/EditRotationModal"
+import MobileNavigation, { type MobileTab } from "@/components/dashboard/MobileNavigation"
+import PlanLoopLogo from "@/components/PlanLoopLogo"
 import type { UserSummary } from "@/types/users"
 import type { RotationTemplate, ShiftTemplate } from "@/types/templates"
 import { getSupabaseBrowserClient } from "@/lib/supabase"
@@ -65,24 +68,9 @@ function sanitizeUserSummary(value: unknown): UserSummary | null {
   }
 }
 
-function buildSeedRotation(template: ShiftTemplate, days = 7): RotationTemplate {
-  return {
-    id: 0,
-    userId: template.userId,
-    title: `Rotación · ${template.title}`,
-    icon: template.icon ?? "🔄",
-    description: "",
-    daysCount: days,
-    assignments: Array.from({ length: days }, (_, index) => ({
-      dayIndex: index,
-      shiftTemplateId: template.id,
-    })),
-    createdAt: new Date().toISOString(),
-    updatedAt: new Date().toISOString(),
-  }
-}
-
 export default function TemplatesPage() {
+  const router = useRouter()
+  
   const supabase = useMemo(() => {
     if (typeof window === "undefined") {
       return null
@@ -95,6 +83,18 @@ export default function TemplatesPage() {
       return null
     }
   }, [])
+
+  const handleNavigateTab = useCallback((tab: MobileTab) => {
+    if (tab === "calendar") {
+      router.push("/")
+    } else if (tab === "settings") {
+      router.push("/?tab=settings")
+    }
+  }, [router])
+
+  const handleNavigateLink = useCallback((href: string) => {
+    router.push(href)
+  }, [router])
 
   const [currentUser, setCurrentUser] = useState<UserSummary | null>(null)
   const [isCheckingSession, setIsCheckingSession] = useState(true)
@@ -280,12 +280,6 @@ export default function TemplatesPage() {
     setIsRotationModalOpen(true)
   }
 
-  const handleSeedRotation = (template: ShiftTemplate) => {
-    setRotationModalTemplate(buildSeedRotation({ ...template, userId: currentUser?.id ?? template.userId }))
-    setActiveTab("rotations")
-    setIsRotationModalOpen(true)
-  }
-
   const handleDeleteRotation = async (template: RotationTemplate) => {
     const confirmed = window.confirm(`¿Eliminar la rotación "${template.title}"?`)
     if (!confirmed) {
@@ -349,37 +343,20 @@ export default function TemplatesPage() {
   }
 
   return (
-    <div className="relative min-h-screen bg-slate-950 text-white">
+    <div className="relative min-h-screen bg-slate-950 text-white pb-[calc(7rem+env(safe-area-inset-bottom))] lg:pb-[calc(5rem+env(safe-area-inset-bottom))]">
       <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_10%_0%,rgba(59,130,246,0.18),transparent_55%),_radial-gradient(circle_at_80%_105%,rgba(139,92,246,0.2),transparent_60%),_radial-gradient(circle_at_50%_50%,rgba(59,130,246,0.12),transparent_65%)]" aria-hidden />
-      <main className="relative z-10 mx-auto max-w-6xl px-4 py-10 sm:px-6 lg:px-8">
-        <header className="flex flex-col gap-6 rounded-3xl border border-white/10 bg-slate-950/70 p-6 shadow-[0_40px_100px_-60px_rgba(56,189,248,0.6)] lg:flex-row lg:items-center lg:justify-between">
-          <div className="space-y-3">
-            <p className="inline-flex items-center gap-2 rounded-full border border-emerald-400/40 bg-emerald-500/15 px-3 py-1 text-xs font-semibold uppercase tracking-[0.35em] text-emerald-100">
-              Plantillas
-            </p>
-            <h1 className="text-3xl font-bold tracking-tight">Biblioteca de turnos y rotaciones</h1>
-            <p className="max-w-2xl text-sm text-white/70">
-              Crea plantillas reutilizables para acelerar la programación de turnos, construir rotaciones circulares y compartir patrones con tu equipo.
-            </p>
-          </div>
-          <div className="flex flex-col items-stretch gap-3 sm:flex-row sm:items-center">
-            <Link
-              href="/"
-              className="inline-flex items-center justify-center rounded-full border border-white/15 px-5 py-2 text-xs font-semibold uppercase tracking-wide text-white/70 transition hover:border-white/40 hover:text-white"
-            >
-              ← Volver al panel
-            </Link>
-            <button
-              type="button"
-              onClick={() => setActiveTab("rotations")}
-              className="inline-flex items-center justify-center rounded-full border border-sky-400/50 bg-sky-500/20 px-5 py-2 text-xs font-semibold uppercase tracking-wide text-sky-100 shadow hover:bg-sky-400/30"
-            >
-              Construir rotación
-            </button>
-          </div>
-        </header>
+      <main className="relative z-10 mx-auto max-w-6xl px-4 py-2 pb-20 sm:px-6 sm:pb-24 lg:px-8">
+        <div className="mb-3 flex items-center justify-between">
+          <PlanLoopLogo size="sm" showText={true} />
+          <Link
+            href="/"
+            className="rounded-lg border border-white/10 bg-white/5 px-3 py-1.5 text-xs font-semibold text-white/70 transition hover:bg-white/10 hover:text-white"
+          >
+            ← Panel
+          </Link>
+        </div>
 
-        <div className="mt-8 flex flex-wrap gap-2 rounded-2xl border border-white/10 bg-slate-950/60 p-2 text-xs font-semibold uppercase tracking-wide text-white/60">
+        <div className="mb-4 flex flex-wrap gap-2 rounded-xl border border-white/10 bg-white/5 p-1.5 text-xs font-semibold uppercase tracking-wide text-white/60">
           <button
             type="button"
             onClick={() => setActiveTab("shifts")}
@@ -400,22 +377,17 @@ export default function TemplatesPage() {
           </button>
         </div>
 
-        <section className="mt-8 space-y-8">
+        <section className="mt-8 mb-12 space-y-8">
           {activeTab === "shifts" ? (
-            <div className="space-y-6">
-              <div className="flex flex-col gap-3 rounded-3xl border border-white/10 bg-white/5 p-5 sm:flex-row sm:items-center sm:justify-between">
-                <div>
-                  <h2 className="text-xl font-semibold">Turnos base</h2>
-                  <p className="text-sm text-white/60">
-                    Define horarios con descansos y recordatorios preconfigurados para aplicarlos en segundos.
-                  </p>
-                </div>
+            <div className="space-y-4">
+              <div className="flex items-center justify-between">
+                <h2 className="text-sm font-semibold text-white">Turnos base</h2>
                 <button
                   type="button"
                   onClick={openNewShiftModal}
-                  className="inline-flex items-center justify-center rounded-full bg-gradient-to-r from-sky-500 via-blue-500 to-indigo-500 px-5 py-2 text-xs font-semibold uppercase tracking-wide text-white shadow-[0_20px_40px_-28px_rgba(14,165,233,0.65)] transition hover:brightness-110"
+                  className="rounded-lg bg-sky-500 px-3 py-1.5 text-xs font-semibold text-white transition hover:bg-sky-400"
                 >
-                  Nueva plantilla
+                  + Nueva
                 </button>
               </div>
 
@@ -447,20 +419,15 @@ export default function TemplatesPage() {
               )}
             </div>
           ) : (
-            <div className="space-y-6">
-              <div className="flex flex-col gap-3 rounded-3xl border border-white/10 bg-white/5 p-5 sm:flex-row sm:items-center sm:justify-between">
-                <div>
-                  <h2 className="text-xl font-semibold">Rotaciones automáticas</h2>
-                  <p className="text-sm text-white/60">
-                    Organiza ciclos circulares asignando plantillas de turno a cada día. Perfecto para guardias y equipos 24/7.
-                  </p>
-                </div>
+            <div className="space-y-4">
+              <div className="flex items-center justify-between">
+                <h2 className="text-sm font-semibold text-white">Rotaciones</h2>
                 <button
                   type="button"
                   onClick={openNewRotationModal}
-                  className="inline-flex items-center justify-center rounded-full bg-gradient-to-r from-emerald-500 via-sky-500 to-indigo-500 px-5 py-2 text-xs font-semibold uppercase tracking-wide text-white shadow-[0_24px_48px_-28px_rgba(16,185,129,0.55)] transition hover:brightness-110"
+                  className="rounded-lg bg-emerald-500 px-3 py-1.5 text-xs font-semibold text-white transition hover:bg-emerald-400"
                 >
-                  Nueva rotación
+                  + Nueva
                 </button>
               </div>
 
@@ -580,6 +547,12 @@ export default function TemplatesPage() {
             throw new Error("No se pudo actualizar la plantilla de turno")
           }
         }}
+      />
+
+      <MobileNavigation
+        active="calendar"
+        onChange={handleNavigateTab}
+        onNavigateLink={handleNavigateLink}
       />
     </div>
   )

@@ -2,16 +2,17 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react"
 import { AnimatePresence, motion } from "framer-motion"
-import { CalendarDays, Check, Loader2, Sparkles } from "lucide-react"
+import { Loader2 } from "lucide-react"
 import {
   addDays,
   addMonths,
-  differenceInCalendarDays,
   eachDayOfInterval,
   endOfMonth,
   format,
   getDay,
   getDaysInMonth,
+  isSameMonth,
+  isToday,
   parseISO,
   startOfMonth,
   startOfWeek,
@@ -24,6 +25,8 @@ import { formatCompactDate, formatCompactMonth } from "@/lib/formatDate"
 import { useShiftTemplates } from "@/lib/useShiftTemplates"
 import { useRotationTemplates } from "@/lib/useRotationTemplates"
 import type { RotationTemplate, ShiftTemplate } from "@/types/templates"
+import { loadUserPreferences } from "@/lib/user-preferences"
+import { DEFAULT_USER_PREFERENCES, type UserPreferences } from "@/types/preferences"
 
 type PlannerPluses = {
   night: number
@@ -93,15 +96,6 @@ type ShiftPlannerLabProps = {
 
 function toIsoDate(date: Date) {
   return format(date, "yyyy-MM-dd")
-}
-
-function ensureNumber(value: string): number {
-  const normalized = value.replace(/,/g, "").trim()
-  const parsed = Number.parseInt(normalized, 10)
-  if (Number.isNaN(parsed)) {
-    return 0
-  }
-  return Math.max(0, Math.min(3, parsed))
 }
 
 function parseTimeToMinutes(value?: string | null): number | null {
@@ -210,6 +204,19 @@ export default function ShiftPlannerLab({
     isLoading: isLoadingRotationTemplates,
     error: rotationTemplatesError,
   } = useRotationTemplates(userId)
+
+  // Debug: Log para verificar que las rotaciones se carguen
+  useEffect(() => {
+    if (userId) {
+      console.log("[ShiftPlannerLab] userId:", userId)
+      console.log("[ShiftPlannerLab] rotationTemplates count:", rotationTemplates.length)
+      console.log("[ShiftPlannerLab] rotationTemplates:", rotationTemplates)
+      console.log("[ShiftPlannerLab] isLoadingRotationTemplates:", isLoadingRotationTemplates)
+      console.log("[ShiftPlannerLab] rotationTemplatesError:", rotationTemplatesError)
+    } else {
+      console.warn("[ShiftPlannerLab] ⚠️ No userId provided! Las rotaciones no se cargarán.")
+    }
+  }, [userId, rotationTemplates, isLoadingRotationTemplates, rotationTemplatesError])
 
   useEffect(() => {
     if (
@@ -327,10 +334,15 @@ export default function ShiftPlannerLab({
   const getCalendarConfigForMonth = useCallback((month: Date) => {
     const monthStart = startOfMonth(month)
     const daysInMonth = getDaysInMonth(month)
-    const days = Array.from({ length: daysInMonth }, (_, index) => addDays(monthStart, index))
+    const startWeek = startOfWeek(monthStart, { weekStartsOn: 1 })
     const weekday = getDay(monthStart)
-    const firstColumn = ((weekday + 6) % 7) + 1
-    return { days, firstColumn }
+    const padStart = (weekday + 6) % 7
+    const totalCells = Math.ceil((padStart + daysInMonth) / 7) * 7
+    const days: Date[] = []
+    for (let i = 0; i < totalCells; i++) {
+      days.push(addDays(startWeek, i))
+    }
+    return { days, firstColumn: padStart + 1 }
   }, [])
 
   const calendarConfig = useMemo(
@@ -418,13 +430,6 @@ export default function ShiftPlannerLab({
     return formatCompactDate(parsed, { includeYear: true })
   }, [rotationStart])
 
-  const progressWorked = monthDays.length
-    ? Math.min(100, Math.round((stats.worked / monthDays.length) * 100))
-    : 0
-  const progressRested = monthDays.length
-    ? Math.min(100, Math.round((stats.rested / monthDays.length) * 100))
-    : 0
-
   function handlePrevMonth() {
     setCurrentMonth((month) => subMonths(month, 1))
   }
@@ -489,9 +494,9 @@ export default function ShiftPlannerLab({
       return false
     }
 
-    const targetMonth = rotationTargetMonth
-    const monthStart = startOfMonth(targetMonth)
-    const monthEnd = endOfMonth(targetMonth)
+    // Calcular fecha de fin: fecha de inicio + días del ciclo - 1
+    // Ejemplo: si empieza lunes y son 7 días, termina el domingo (lunes + 6 días)
+    const rotationEnd = addDays(parsedStart, cycleLength - 1)
 
     const assignmentsByDay = new Map(
       selectedRotationTemplate.assignments.map((assignment) => [assignment.dayIndex, assignment]),
@@ -499,13 +504,13 @@ export default function ShiftPlannerLab({
 
     updateEntries((prev) => {
       const updates: Record<string, PlannerEntry> = {}
-      let pointer = monthStart
+      let pointer = parsedStart
+      let dayIndex = 0
 
-      while (pointer <= monthEnd) {
+      // Solo aplicar durante los días del ciclo, no repetir durante todo el mes
+      while (dayIndex < cycleLength && pointer <= rotationEnd) {
         const iso = toIsoDate(pointer)
-        const diff = differenceInCalendarDays(pointer, parsedStart)
-        const normalized = ((diff % cycleLength) + cycleLength) % cycleLength
-        const assignment = assignmentsByDay.get(normalized)
+        const assignment = assignmentsByDay.get(dayIndex)
         const template = assignment?.shiftTemplateId
           ? shiftTemplatesById.get(assignment.shiftTemplateId)
           : null
@@ -536,6 +541,7 @@ export default function ShiftPlannerLab({
         }
 
         pointer = addDays(pointer, 1)
+        dayIndex++
       }
 
       return {
@@ -544,20 +550,21 @@ export default function ShiftPlannerLab({
       }
     })
 
-    setCurrentMonth(monthStart)
+    // Establecer el mes actual al mes donde empieza la rotación
+    const rotationStartMonth = startOfMonth(parsedStart)
+    setCurrentMonth(rotationStartMonth)
+
+    const rotationEndLabel = formatCompactDate(rotationEnd, { includeYear: true })
+    const rotationStartLabel = formatCompactDate(parsedStart, { includeYear: true })
+    
     pushToast(
       "success",
-      monthHasEntries
-        ? `La rotación anterior se reemplazó con "${selectedRotationTemplate.title}" en ${rotationTargetMonthLabel}.`
-        : `La rotación "${selectedRotationTemplate.title}" se aplicó correctamente en ${rotationTargetMonthLabel}.`,
+      `La rotación "${selectedRotationTemplate.title}" se aplicó del ${rotationStartLabel} al ${rotationEndLabel} (${cycleLength} días).`,
     )
     return true
   }, [
-    monthHasEntries,
     pushToast,
     rotationStart,
-    rotationTargetMonth,
-    rotationTargetMonthLabel,
     selectedRotationTemplate,
     shiftTemplatesById,
     updateEntries,
@@ -729,340 +736,386 @@ export default function ShiftPlannerLab({
     }
   }, [selectedDate, activeEntry])
   return (
-    <div className="relative overflow-hidden rounded-3xl border border-white/10 bg-slate-950/70 text-white shadow-[0_40px_90px_-35px_rgba(15,23,42,0.95)]">
-      <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_top,_rgba(59,130,246,0.18),transparent_60%),_radial-gradient(circle_at_bottom_right,_rgba(236,72,153,0.14),transparent_55%)]" />
-      <div className="relative flex flex-col gap-6 p-4 sm:p-6">
-        <section className="space-y-4 rounded-2xl border border-white/10 bg-white/5 p-3 sm:p-5 backdrop-blur-xl">
-          <header className="border-b border-white/10 pb-4">
-            <div className="flex flex-col gap-1 sm:flex-row sm:items-end sm:justify-between">
-              <AnimatePresence mode="wait" initial={false}>
-                <motion.p
-                  key={monthLabel}
-                  initial={{ opacity: 0, y: 8 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  exit={{ opacity: 0, y: -8 }}
-                  transition={{ duration: 0.25, ease: "easeOut" }}
-                  className="text-lg font-semibold text-white"
-                >
-                  {monthLabel}
-                </motion.p>
-              </AnimatePresence>
-            </div>
-          </header>
-
-          <div className="grid grid-cols-1 gap-3 rounded-2xl border border-white/10 bg-slate-950/60 p-2 text-xs sm:grid-cols-2 sm:p-4 lg:grid-cols-4">
+    <>
+    <div className="relative text-white">
+      <div className="relative flex flex-col gap-2 p-1 sm:p-2">
+        <section className="space-y-2">
+          {/* Estadísticas compactas */}
+          <div className="grid grid-cols-4 gap-1 text-[9px]">
             <div>
-              <p className="uppercase tracking-wide text-[10px] text-white/40">Días trabajados</p>
-              <p className="text-lg font-semibold text-emerald-300 sm:text-xl">{stats.worked}</p>
-              <div className="mt-1.5 h-1.5 rounded-full bg-white/10">
-                <div className="h-1.5 rounded-full bg-emerald-400" style={{ width: `${progressWorked}%` }} />
-              </div>
+              <p className="text-white/40">Trabajados</p>
+              <p className="text-xs font-semibold text-white">{stats.worked}</p>
             </div>
             <div>
-              <p className="uppercase tracking-wide text-[10px] text-white/40">Días descanso</p>
-              <p className="text-lg font-semibold text-sky-300 sm:text-xl">{stats.rested}</p>
-              <div className="mt-1.5 h-1.5 rounded-full bg-white/10">
-                <div className="h-1.5 rounded-full bg-sky-400" style={{ width: `${progressRested}%` }} />
-              </div>
+              <p className="text-white/40">Descanso</p>
+              <p className="text-xs font-semibold text-white">{stats.rested}</p>
             </div>
             <div>
-              <p className="uppercase tracking-wide text-[10px] text-white/40">Total pluses (niveles)</p>
-              <p className="text-lg font-semibold text-fuchsia-300 sm:text-xl">{stats.totalPluses}</p>
-              <p className="text-[9px] uppercase tracking-wider text-white/30">{stats.totalPluses * 12} niv. anuales</p>
+              <p className="text-white/40">Pluses</p>
+              <p className="text-xs font-semibold text-white">{stats.totalPluses}</p>
             </div>
             <div>
-              <p className="uppercase tracking-wide text-[10px] text-white/40">Plan actual</p>
-              <p className="text-sm text-white/70">{orderedEntries.length} días</p>
-              <p className="text-[9px] text-white/30">Rotación + ajustes</p>
+              <p className="text-white/40">Plan</p>
+              <p className="text-xs font-semibold text-white">{orderedEntries.length}</p>
             </div>
           </div>
 
-          <div className="flex flex-col gap-2 rounded-2xl border border-white/10 bg-slate-950/50 p-2 text-xs font-semibold uppercase tracking-wider text-white/60 sm:flex-row sm:flex-wrap sm:p-3">
+          {/* Modos compactos - más grandes en móviles */}
+          <div className="flex gap-2 text-xs sm:text-[10px]">
             <button
               type="button"
               onClick={() => setMode("manual")}
-              className={`rounded-full px-3 py-1 transition ${mode === "manual" ? "bg-sky-500 text-white shadow shadow-sky-500/30" : "bg-white/5 hover:bg-white/10"}`}
+              className={`rounded-lg px-3 py-1.5 sm:px-2 sm:py-0.5 font-semibold transition ${mode === "manual" ? "bg-white/10 text-white border border-white/20" : "bg-white/5 text-white/60 hover:bg-white/10 border border-white/10"}`}
             >
-              Modo manual
+              Manual
             </button>
             <button
               type="button"
               onClick={() => setMode("rotation")}
-              className={`rounded-full px-3 py-1 transition ${mode === "rotation" ? "bg-sky-500 text-white shadow shadow-sky-500/30" : "bg-white/5 hover:bg-white/10"}`}
+              className={`rounded-lg px-3 py-1.5 sm:px-2 sm:py-0.5 font-semibold transition ${mode === "rotation" ? "bg-white/10 text-white border border-white/20" : "bg-white/5 text-white/60 hover:bg-white/10 border border-white/10"}`}
             >
-              Modo rotación
+              Rotación
             </button>
-            <span className="text-[11px] lowercase text-white/40 sm:ml-auto">Cambia de modo en cualquier momento</span>
           </div>
 
           {mode === "rotation" ? (
-            <div className="space-y-3 rounded-2xl border border-white/10 bg-slate-950/40 p-3 text-xs text-white/70 sm:p-4">
-              <p className="text-[11px] uppercase tracking-[0.3em] text-white/40">Plantilla de rotación</p>
+            <div className="space-y-3 text-xs sm:text-[9px] text-white/70">
               {rotationTemplatesError ? (
-                <div className="rounded-xl border border-red-400/50 bg-red-500/10 px-3 py-2 text-sm text-red-200">
+                <div className="rounded-lg bg-red-500/20 border border-red-500/30 px-3 py-2 sm:px-2 sm:py-1 text-red-300 text-xs sm:text-[9px]">
                   {rotationTemplatesError}
                 </div>
               ) : null}
-              {isLoadingRotationTemplates ? (
-                <div className="flex items-center gap-2 rounded-xl border border-white/10 bg-white/5 px-4 py-3 text-sm">
-                  <Loader2 className="h-4 w-4 animate-spin text-white/60" />
-                  Cargando plantillas de rotación...
+              {!userId ? (
+                <div className="rounded-lg bg-amber-500/20 border border-amber-500/30 px-3 py-2 sm:px-2 sm:py-1 text-xs sm:text-[9px] text-amber-200">
+                  ⚠️ No se ha identificado el usuario. Por favor, inicia sesión.
+                </div>
+              ) : rotationTemplatesError ? (
+                <div className="rounded-lg bg-red-500/20 border border-red-500/30 px-3 py-2 sm:px-2 sm:py-1 text-red-300 text-xs sm:text-[9px]">
+                  ❌ Error: {rotationTemplatesError}
+                </div>
+              ) : isLoadingRotationTemplates ? (
+                <div className="flex items-center gap-2 text-xs sm:text-[9px]">
+                  <Loader2 className="h-4 w-4 sm:h-3 sm:w-3 animate-spin text-white/60" />
+                  Cargando rotaciones...
                 </div>
               ) : rotationTemplates.length === 0 ? (
-                <div className="rounded-xl border border-dashed border-white/15 bg-white/5 px-4 py-4 text-sm text-white/60">
-                  No tienes plantillas de rotación todavía. Crea una en la sección de plantillas.
+                <div className="rounded-lg bg-white/5 border border-white/10 px-3 py-2 sm:px-2 sm:py-1 text-xs sm:text-[9px] text-white/50">
+                  <p className="mb-1">Sin rotaciones encontradas.</p>
+                  <p className="text-white/40 text-[8px] mb-1">Usuario ID: {userId}</p>
+                  <a href="/templates" className="text-sky-400 hover:text-sky-300 underline font-medium">Crea una en plantillas →</a>
                 </div>
               ) : (
-                <div className="flex flex-col gap-2 sm:flex-row sm:flex-wrap">
-                  {rotationTemplates.map((template) => {
-                    const isSelected = selectedRotationTemplate?.id === template.id
-                    const assignedCount = template.assignments.filter(
+                <div className="space-y-2">
+                  <p className="text-[10px] sm:text-[8px] uppercase tracking-wide text-white/40 mb-2">Selecciona una rotación:</p>
+                  <div className="flex flex-wrap gap-2 sm:gap-1">
+                    {rotationTemplates.map((template) => {
+                      const isSelected = selectedRotationTemplate?.id === template.id
+                      const assignedCount = template.assignments.filter(
+                        (assignment) => assignment.shiftTemplateId != null,
+                      ).length
+                      const hasAssignments = assignedCount > 0
+                      return (
+                        <button
+                          key={template.id}
+                          type="button"
+                          onClick={() => setSelectedRotationId(template.id)}
+                          className={`flex items-center gap-1.5 sm:gap-1 rounded-lg px-3 py-2 sm:px-2 sm:py-1 text-xs sm:text-[9px] font-medium transition ${
+                            isSelected
+                              ? "bg-sky-500/30 border-2 border-sky-400/50 text-white shadow-md shadow-sky-500/20"
+                              : "bg-white/5 border border-white/10 text-white/70 hover:bg-white/10 hover:text-white hover:border-white/20"
+                          } ${!hasAssignments ? "opacity-60" : ""}`}
+                          title={!hasAssignments ? "Esta rotación no tiene turnos asignados" : `${assignedCount} turnos asignados`}
+                        >
+                          <span className="text-base sm:text-xs">{template.icon ?? "🔄"}</span>
+                          <span className="font-semibold">{template.title}</span>
+                          {hasAssignments && (
+                            <span className="text-[10px] sm:text-[8px] text-white/50">({assignedCount})</span>
+                          )}
+                        </button>
+                      )
+                    })}
+                  </div>
+                  {selectedRotationTemplate && (() => {
+                    const assignedCount = selectedRotationTemplate.assignments.filter(
                       (assignment) => assignment.shiftTemplateId != null,
                     ).length
                     return (
-                      <button
-                        key={template.id}
-                        type="button"
-                        onClick={() => setSelectedRotationId(template.id)}
-                        className={`flex items-center gap-3 rounded-2xl border px-4 py-3 text-left transition ${
-                          isSelected
-                            ? "border-sky-400/60 bg-sky-500/20 text-sky-100 shadow shadow-sky-500/30"
-                            : "border-white/10 bg-white/5 text-white/70 hover:border-sky-400/40 hover:text-white"
-                        }`}
-                      >
-                        <span className="text-xl">{template.icon ?? "🔄"}</span>
-                        <span className="text-sm font-semibold">
-                          {template.title}
-                          <span className="block text-[11px] font-normal uppercase tracking-[0.3em] text-white/40">
-                            {template.daysCount} días · {assignedCount} turnos asignados
-                          </span>
-                        </span>
-                      </button>
+                      <div className="mt-2 rounded bg-white/5 border border-white/10 px-2 py-1 text-[9px]">
+                        <p className="text-white/80 font-medium mb-0.5">
+                          {selectedRotationTemplate.icon ?? "🔄"} {selectedRotationTemplate.title}
+                        </p>
+                        {selectedRotationTemplate.description && (
+                          <p className="text-white/50 text-[8px]">{selectedRotationTemplate.description}</p>
+                        )}
+                        <p className="text-white/40 text-[8px] mt-0.5">
+                          {selectedRotationTemplate.daysCount} días • {assignedCount} turnos asignados
+                        </p>
+                      </div>
                     )
-                  })}
+                  })()}
                 </div>
               )}
-              <label className="flex flex-col gap-2 text-xs text-white/70 sm:flex-row sm:items-center">
-                <span className="uppercase tracking-wide text-white/40">Inicio</span>
-                <input
-                  type="date"
-                  value={rotationStart}
-                  onChange={(event) => setRotationStart(event.target.value)}
-                  className="w-full rounded-lg border border-white/10 bg-white/5 px-3 py-2 text-sm text-white focus:border-sky-400 focus:outline-none focus:ring-2 focus:ring-sky-400/40 sm:max-w-[180px]"
-                />
-                {isConfirmingRotation && selectedRotationTemplate ? (
+              {selectedRotationTemplate && (
+                <div className="space-y-3 sm:space-y-2">
+                  <label className="flex flex-col gap-1.5 sm:gap-1 text-xs sm:text-[9px]">
+                    <span className="text-white/70 font-semibold sm:font-medium">Fecha de inicio de la rotación:</span>
+                    <input
+                      type="date"
+                      value={rotationStart}
+                      onChange={(event) => setRotationStart(event.target.value)}
+                      className="rounded-lg border-2 border-white/20 bg-white/10 px-4 py-3 sm:px-3 sm:py-1.5 text-sm sm:text-[10px] text-white focus:border-sky-400 focus:outline-none focus:ring-2 focus:ring-sky-400/40 min-h-[44px] sm:min-h-0"
+                    />
+                  </label>
+                  
+                  {isConfirmingRotation && selectedRotationTemplate ? (
                     <motion.div
-                      initial={{ opacity: 0, y: 10 }}
-                      animate={{ opacity: 1, y: 0 }}
-                      transition={{ duration: 0.25, ease: "easeOut" }}
-                      className="relative w-full overflow-hidden rounded-2xl border border-white/15 bg-slate-950/75 p-4 text-left text-xs text-white/70 shadow-lg shadow-slate-950/40"
+                      initial={{ opacity: 0 }}
+                      animate={{ opacity: 1 }}
+                      className="rounded-lg bg-sky-500/20 border border-sky-400/30 px-3 py-2 sm:px-2 sm:py-1.5 space-y-1 sm:space-y-0.5 text-xs sm:text-[9px]"
                     >
-                      <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_top,_rgba(56,189,248,0.18),transparent_55%),_radial-gradient(circle_at_bottom,_rgba(236,72,153,0.16),transparent_60%)]" />
-                      <div className="relative flex flex-col gap-4">
-                        <div className="flex items-start gap-3">
-                          <div className="flex h-10 w-10 items-center justify-center rounded-full bg-sky-500/20 text-sky-200">
-                            <Sparkles className="h-5 w-5" />
-                          </div>
-                          <div className="space-y-1">
-                            <p className="text-sm font-semibold text-white">Aplicar plantilla</p>
-                            <p className="text-xs text-white/70">
-                              {monthHasEntries
-                                ? `Se reemplazarán los turnos configurados en ${rotationTargetMonthLabel} por la plantilla seleccionada.`
-                                : "Confirma si quieres aplicar la plantilla seleccionada sobre el calendario mostrado."}
-                            </p>
-                          </div>
-                        </div>
-
-                        <div className="grid grid-cols-1 gap-3 rounded-xl border border-white/10 bg-slate-900/70 p-3 sm:grid-cols-2">
-                          <div className="flex items-start gap-3">
-                            <Sparkles className="mt-1 h-4 w-4 text-sky-300" />
-                            <div className="space-y-1">
-                              <p className="text-[11px] uppercase tracking-wide text-white/40">Plantilla</p>
-                              <p className="text-sm font-semibold text-white">{selectedRotationTemplate.title}</p>
-                              <p className="text-[10px] text-white/50">
-                                {selectedRotationTemplate.daysCount} días · {selectedRotationTemplate.assignments.filter((assignment) => assignment.shiftTemplateId != null).length} turnos asignados
-                              </p>
-                            </div>
-                          </div>
-                          <div className="flex items-start gap-3">
-                            <CalendarDays className="mt-1 h-4 w-4 text-fuchsia-300" />
-                            <div className="space-y-1">
-                              <p className="text-[11px] uppercase tracking-wide text-white/40">Inicio</p>
-                              <p className="text-sm font-semibold text-white">{rotationStartLabel}</p>
-                              <p className="text-[10px] text-white/50">Se aplicará al mes de {rotationTargetMonthLabel}.</p>
-                            </div>
-                          </div>
-                        </div>
-
-                        {monthHasEntries ? (
-                          <p className="text-[10px] text-white/50">
-                            Se sobrescribirán los turnos existentes en {rotationTargetMonthLabel}.
-                          </p>
-                        ) : (
-                          <p className="text-[10px] text-white/50">No se encontraron turnos existentes en el periodo seleccionado.</p>
-                        )}
-                      </div>
+                      <p className="text-white font-semibold sm:font-medium">
+                        {monthHasEntries
+                          ? `⚠️ Reemplazar turnos en ${rotationTargetMonthLabel}`
+                          : `✅ Aplicar rotación en ${rotationTargetMonthLabel}`}
+                      </p>
+                      <p className="text-white/70">
+                        {selectedRotationTemplate.title} · Inicio: {rotationStartLabel}
+                      </p>
                     </motion.div>
-                ) : null}
+                  ) : null}
 
-                <div className="flex flex-col gap-2 sm:flex-row sm:flex-wrap">
-                  <button
-                    type="button"
-                    onClick={() => setIsConfirmingRotation((value) => !value)}
-                    disabled={
-                      isCommitting ||
-                      isLoadingRotationTemplates ||
-                      rotationTemplates.length === 0 ||
-                      !selectedRotationTemplate ||
-                      isLoadingShiftTemplates
-                    }
-                    className={`inline-flex items-center gap-2 rounded-full border px-4 py-2 text-[11px] font-semibold uppercase tracking-wide transition ${
-                      isConfirmingRotation
-                        ? "border-sky-400/60 bg-sky-500/20 text-sky-100"
-                        : "border-white/10 bg-white/5 text-white/70 hover:border-sky-400/40 hover:text-white"
-                    } ${isCommitting ? "opacity-50" : ""}`}
-                  >
-                    <Sparkles className="h-4 w-4" />
-                    {isConfirmingRotation ? "Cancelar" : "Previsualizar"}
-                  </button>
-                  <button
-                    type="button"
-                    onClick={confirmApplyRotation}
-                    disabled={
-                      isCommitting ||
-                      isLoadingRotationTemplates ||
-                      rotationTemplates.length === 0 ||
-                      !selectedRotationTemplate ||
-                      isLoadingShiftTemplates
-                    }
-                    className="inline-flex items-center gap-2 rounded-full border border-sky-400/60 bg-sky-500/20 px-4 py-2 text-[11px] font-semibold uppercase tracking-wide text-sky-100 transition hover:bg-sky-500/30 disabled:opacity-50"
-                  >
-                    <Check className="h-4 w-4" />
-                    Aplicar rotación
-                  </button>
-                  <a
-                    href="/templates"
-                    className="inline-flex items-center gap-2 rounded-full border border-white/10 bg-white/5 px-4 py-2 text-[11px] font-semibold uppercase tracking-wide text-white/70 transition hover:border-sky-400/40 hover:text-white"
-                  >
-                    Gestionar plantillas
-                  </a>
+                  <div className="flex flex-wrap gap-2 sm:gap-1.5">
+                    <button
+                      type="button"
+                      onClick={() => setIsConfirmingRotation((value) => !value)}
+                      disabled={
+                        isCommitting ||
+                        isLoadingRotationTemplates ||
+                        rotationTemplates.length === 0 ||
+                        !selectedRotationTemplate ||
+                        isLoadingShiftTemplates ||
+                        !selectedRotationTemplate.assignments.some(a => a.shiftTemplateId != null)
+                      }
+                      className={`rounded-lg px-4 py-2.5 sm:px-3 sm:py-1.5 text-xs sm:text-[9px] font-semibold sm:font-medium transition min-h-[44px] sm:min-h-0 ${
+                        isConfirmingRotation
+                          ? "bg-white/10 text-white border-2 border-white/20"
+                          : "bg-white/5 text-white/70 hover:bg-white/10 hover:text-white border border-white/10"
+                      } ${isCommitting ? "opacity-50 cursor-not-allowed" : ""}`}
+                    >
+                      {isConfirmingRotation ? "✕ Cancelar" : "👁 Previsualizar"}
+                    </button>
+                    <button
+                      type="button"
+                      onClick={confirmApplyRotation}
+                      disabled={
+                        isCommitting ||
+                        isLoadingRotationTemplates ||
+                        rotationTemplates.length === 0 ||
+                        !selectedRotationTemplate ||
+                        isLoadingShiftTemplates ||
+                        !selectedRotationTemplate.assignments.some(a => a.shiftTemplateId != null)
+                      }
+                      className="rounded-lg bg-sky-500 px-4 py-2.5 sm:px-3 sm:py-1.5 text-xs sm:text-[9px] font-bold sm:font-semibold text-white transition hover:bg-sky-400 disabled:opacity-50 disabled:cursor-not-allowed shadow-md shadow-sky-500/30 min-h-[44px] sm:min-h-0"
+                      title={
+                        !selectedRotationTemplate?.assignments.some(a => a.shiftTemplateId != null)
+                          ? "Esta rotación no tiene turnos asignados. Edítala en Plantillas primero."
+                          : "Aplicar la rotación al calendario"
+                      }
+                    >
+                      {isCommitting ? "⏳ Aplicando..." : "✓ Aplicar rotación"}
+                    </button>
+                    <a
+                      href="/templates"
+                      className="rounded-lg bg-white/5 px-4 py-2.5 sm:px-3 sm:py-1.5 text-xs sm:text-[9px] text-white/70 transition hover:bg-white/10 hover:text-white border border-white/10 font-semibold sm:font-medium min-h-[44px] sm:min-h-0 flex items-center justify-center"
+                    >
+                      📋 Plantillas
+                    </a>
+                  </div>
+                  
+                  {selectedRotationTemplate && !selectedRotationTemplate.assignments.some(a => a.shiftTemplateId != null) && (
+                    <div className="rounded-lg bg-amber-500/20 border border-amber-500/30 px-3 py-2 sm:px-2 sm:py-1.5 text-xs sm:text-[8px] text-amber-200">
+                      ⚠️ Esta rotación no tiene turnos asignados. <a href="/templates" className="underline font-medium">Edítala en Plantillas</a> para asignar turnos antes de aplicarla.
+                    </div>
+                  )}
                 </div>
-              </label>
+              )}
             </div>
-          ) : (
-            <div className="rounded-2xl border border-white/10 bg-slate-950/40 p-3 text-sm text-white/70 sm:p-4">
-              <p>
-                Pulsa cualquier día del calendario para asignar turno, color, notas y pluses personalizados. Puedes copiar el patrón automático y luego afinar turno por turno.
-              </p>
-            </div>
-          )}
+          ) : null}
 
-          <div className="flex flex-col gap-3 rounded-2xl border border-white/10 bg-slate-950/50 p-3 text-xs font-semibold text-white/70 sm:flex-row sm:flex-wrap sm:items-center sm:justify-between sm:p-5">
-            <div className="flex flex-wrap items-center gap-2 sm:gap-3">
-              <button
-                type="button"
-                onClick={handlePrevMonth}
-                className="hidden rounded-full border border-white/20 bg-white/10 px-2 py-1 text-[11px] font-semibold text-white/70 transition hover:border-sky-400/60 hover:bg-sky-500/15 sm:inline-flex"
+          {/* Navegación del calendario - botones más grandes */}
+          <div className="flex items-center justify-end gap-2">
+            <button
+              type="button"
+              onClick={handlePrevMonth}
+              className="flex h-8 w-8 items-center justify-center rounded-lg bg-white/5 text-base font-bold text-white/70 transition hover:bg-white/10 hover:text-white sm:h-10 sm:w-10 sm:text-lg"
+            >
+              ‹
+            </button>
+            <button
+              type="button"
+              onClick={handleGoToday}
+              className="rounded-lg bg-sky-500/20 px-3 py-1.5 text-xs font-semibold text-sky-200 transition hover:bg-sky-500/30 sm:px-4 sm:py-2 sm:text-sm"
+            >
+              Hoy
+            </button>
+            <AnimatePresence mode="wait" initial={false}>
+              <motion.p
+                key={`calendar-${monthLabel}`}
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                exit={{ opacity: 0 }}
+                className="min-w-[100px] text-center text-sm font-semibold text-white sm:text-base"
               >
-                Ant.
-              </button>
-              <button
-                type="button"
-                onClick={handleGoToday}
-                className="rounded-full border border-sky-500/70 bg-sky-500 px-2.5 py-1 text-[11px] font-semibold text-white shadow-md shadow-sky-500/25 transition hover:bg-sky-400 sm:px-3 sm:py-1.5 sm:text-xs"
-              >
-                Hoy
-              </button>
-              <button
-                type="button"
-                onClick={handleNextMonth}
-                className="hidden rounded-full border border-white/20 bg-white/10 px-2 py-1 text-[11px] font-semibold text-white/70 transition hover:border-sky-400/60 hover:bg-sky-500/15 sm:inline-flex"
-              >
-                Sig.
-              </button>
-              <AnimatePresence mode="wait" initial={false}>
-                <motion.p
-                  key={`calendar-${monthLabel}`}
-                  initial={{ opacity: 0, y: 4 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  exit={{ opacity: 0, y: -4 }}
-                  transition={{ duration: 0.2, ease: "easeOut" }}
-                  className="text-xs font-semibold text-sky-200 sm:text-sm lg:text-base"
-                >
-                  {monthLabel}
-                </motion.p>
-              </AnimatePresence>
-            </div>
+                {monthLabel}
+              </motion.p>
+            </AnimatePresence>
             <button
               type="button"
               onClick={handleNextMonth}
-              className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg border border-white/20 bg-white/10 text-white/80 transition hover:border-sky-400/60 hover:bg-sky-500/15 hover:text-sky-200 sm:h-9 sm:w-9"
-              aria-label="Mes siguiente"
+              className="flex h-8 w-8 items-center justify-center rounded-lg bg-white/5 text-base font-bold text-white/70 transition hover:bg-white/10 hover:text-white sm:h-10 sm:w-10 sm:text-lg"
             >
-              <span className="text-lg font-bold leading-none">›</span>
+              ›
             </button>
           </div>
 
-          <div className="overflow-hidden rounded-3xl border border-white/10 bg-slate-950/50">
-            <div className="overflow-x-auto">
-              <div className="min-w-0">
-                <div className="grid grid-cols-7 gap-2 border-b border-white/5 bg-slate-950/40 px-2 py-2 text-[10px] font-semibold uppercase tracking-wide text-white/60 sm:gap-3 sm:px-6 sm:py-3 sm:text-[11px]">
-                  {Array.from({ length: 7 }).map((_, index) => {
-                    const reference = addDays(startOfWeek(new Date(), { weekStartsOn: 1 }), index)
-                    return (
-                      <div key={index} className="rounded-md bg-slate-950/70 py-1 text-center text-white/70 sm:py-1.5">
-                        {format(reference, "EEE", { locale: es })}
-                      </div>
-                    )
-                  })}
-                </div>
+          {/* Calendario principal - más prominente */}
+          <div className="overflow-hidden">
+            <div className="grid grid-cols-7 gap-1 border-b border-white/5 py-1 text-[9px] font-semibold uppercase tracking-wide text-white/60 sm:text-[10px]">
+              {Array.from({ length: 7 }).map((_, index) => {
+                const reference = addDays(startOfWeek(new Date(), { weekStartsOn: 1 }), index)
+                return (
+                  <div key={index} className="text-center text-white/70">
+                    {format(reference, "EEE", { locale: es })}
+                  </div>
+                )
+              })}
+            </div>
 
-                <AnimatePresence mode="wait" initial={false}>
-                  <motion.div
-                    key={monthLabel}
-                    initial={{ opacity: 0, y: 12 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    exit={{ opacity: 0, y: -12 }}
-                    transition={{ duration: 0.25, ease: "easeOut" }}
-                    className="grid grid-cols-7 gap-2 bg-transparent px-2 pb-2 pt-2 sm:gap-3 sm:px-6 sm:pb-5 sm:pt-3"
-                  >
-                    {calendarConfig.days.map((day, index) => (
-                      <div key={index} className="rounded bg-slate-900/50 py-1 text-center text-white/70 sm:py-1.5">
-                        {format(day, "EEE", { locale: es })}
-                      </div>
-                    ))}
+            <AnimatePresence mode="wait" initial={false}>
+              <motion.div
+                key={monthLabel}
+                initial={{ opacity: 0, y: 8 }}
+                animate={{ opacity: 1, y: 0 }}
+                exit={{ opacity: 0, y: -8 }}
+                transition={{ duration: 0.2, ease: "easeOut" }}
+                className="grid grid-cols-7 gap-1 py-1"
+              >
+                    {calendarConfig.days.map((day, index) => {
+                      const dayIso = toIsoDate(day)
+                      const entry = entries[dayIso]
+                      const isCurrentMonth = isSameMonth(day, currentMonth)
+                      const isCurrentDay = isToday(day)
+                      const isSelected = selectedDate === dayIso
+                      const hasEntry = entry != null
+                      const isRest = entry?.type === "REST"
+                      const isVacation = entry?.type === "VACATION"
+                      const shiftLabel = entry?.label || (entry ? SHIFT_LABELS[entry.type] : null)
+                      const timeRange = entry?.startTime && entry?.endTime 
+                        ? `${entry.startTime}-${entry.endTime}` 
+                        : null
+                      
+                      return (
+                        <button
+                          key={index}
+                          type="button"
+                          onClick={() => setSelectedDate(dayIso)}
+                          className={`relative flex flex-col items-stretch gap-1 rounded-lg transition hover:scale-[1.02] focus:outline-none min-h-[60px] sm:min-h-[70px] ${
+                            !isCurrentMonth
+                              ? "py-1 px-1 text-white/20"
+                              : isSelected
+                                ? "bg-sky-500/30 py-1.5 px-1.5 text-white ring-2 ring-sky-400/50"
+                                : isCurrentDay
+                                  ? "bg-white/10 py-1.5 px-1.5 text-white font-bold ring-1 ring-white/20"
+                                  : hasEntry
+                                    ? "py-1.5 px-1.5 text-white font-semibold hover:bg-white/10"
+                                    : "py-1.5 px-1.5 text-white/70 hover:bg-white/5 hover:text-white"
+                          }`}
+                        >
+                          {/* Número del día */}
+                          <span className={`text-xs font-medium sm:text-sm ${isCurrentDay ? "text-white" : "text-white/90"}`}>
+                            {format(day, "d", { locale: es })}
+                          </span>
+                          
+                          {/* Barra de color y contenido */}
+                          {isCurrentMonth && (
+                            <div className="flex-1 flex flex-col gap-0.5">
+                              {hasEntry ? (
+                                <>
+                                  {/* Barra de color prominente */}
+                                  <div 
+                                    className="h-1.5 w-full rounded-sm shadow-sm"
+                                    style={{ 
+                                      backgroundColor: entry.color || "#3b82f6",
+                                      opacity: isRest || isVacation ? 0.7 : 1
+                                    }}
+                                  />
+                                  
+                                  {/* Información del turno */}
+                                  <div className="flex flex-col gap-0.5 min-h-0">
+                                    {shiftLabel && (
+                                      <span className="text-[8px] sm:text-[9px] font-semibold text-white/90 leading-tight truncate">
+                                        {shiftLabel}
+                                      </span>
+                                    )}
+                                    {timeRange && (
+                                      <span className="text-[7px] sm:text-[8px] text-white/70 leading-tight">
+                                        {timeRange}
+                                      </span>
+                                    )}
+                                    {isRest && (
+                                      <span className="text-[7px] sm:text-[8px] text-white/60 italic">
+                                        Libre
+                                      </span>
+                                    )}
+                                    {isVacation && (
+                                      <span className="text-[7px] sm:text-[8px] text-white/60 italic">
+                                        Vacaciones
+                                      </span>
+                                    )}
+                                  </div>
+                                </>
+                              ) : (
+                                <div className="flex-1 flex items-center justify-center">
+                                  <span className="text-[7px] sm:text-[8px] text-white/40 italic">
+                                    Libre
+                                  </span>
+                                </div>
+                              )}
+                            </div>
+                          )}
+                        </button>
+                      )
+                    })}
                 </motion.div>
               </AnimatePresence>
-            </div>
           </div>
-        </div>
-      </section>
+        </section>
 
-        <div className="flex flex-col gap-4 rounded-2xl border border-white/10 bg-slate-950/60 p-4 text-sm text-white/70 sm:p-5 lg:flex-row lg:items-center lg:justify-between">
-          <p className="inline-flex items-center justify-center rounded-full border border-emerald-500/40 bg-emerald-500/10 px-4 py-2 text-center text-xs font-semibold uppercase tracking-wide text-emerald-200">
-            {isCommitting ? "Guardando cambios en tu calendario..." : "Cambios guardados automáticamente"}
-          </p>
-          <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-end">
+        {/* Footer compacto */}
+        <div className="flex items-center justify-between gap-2 text-[9px] text-white/50">
+          <p>{isCommitting ? "Guardando..." : "Guardado"}</p>
+          <div className="flex gap-1">
             <button
               type="button"
               onClick={handleExportCSV}
               disabled={orderedEntries.length === 0}
-              className="inline-flex items-center justify-center rounded-full border border-white/20 bg-white/5 px-4 py-2 text-sm font-semibold text-white/80 transition hover:bg-white/10 disabled:cursor-not-allowed disabled:opacity-40"
+              className="rounded px-2 py-0.5 text-white/60 hover:text-white disabled:opacity-40"
             >
-              Exportar CSV
+              CSV
             </button>
             <button
               type="button"
               onClick={handleExportPdf}
               disabled={orderedEntries.length === 0}
-              className="inline-flex items-center justify-center rounded-full border border-white/20 bg-white/5 px-4 py-2 text-sm font-semibold text-white/80 transition hover:bg-white/10 disabled:cursor-not-allowed disabled:opacity-40"
+              className="rounded px-2 py-0.5 text-white/60 hover:text-white disabled:opacity-40"
             >
-              Exportar PDF
+              PDF
             </button>
-            {errorMessage ? <p className="text-center text-sm text-rose-300">{errorMessage}</p> : null}
           </div>
+          {errorMessage ? <p className="text-[9px] text-rose-300">{errorMessage}</p> : null}
         </div>
       </div>
+    </div>
 
       <div className="pointer-events-none absolute inset-x-0 top-4 z-50 flex justify-center px-4 sm:justify-end sm:px-6">
         <div className="flex w-full max-w-sm flex-col gap-3">
@@ -1091,7 +1144,7 @@ export default function ShiftPlannerLab({
       <AnimatePresence>
         {editorDefaults ? (
           <motion.div
-            className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/80 backdrop-blur"
+            className="fixed inset-0 z-50 flex items-start justify-center bg-slate-950/80 backdrop-blur overflow-y-auto py-4 pb-[calc(6rem+env(safe-area-inset-bottom))]"
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
@@ -1103,18 +1156,17 @@ export default function ShiftPlannerLab({
               animate={{ opacity: 1, y: 0 }}
               exit={{ opacity: 0, y: 20 }}
               transition={{ type: "spring", stiffness: 200, damping: 24 }}
-              className="mx-3 flex w-full max-w-sm flex-col overflow-y-auto rounded-2xl border border-white/10 bg-gradient-to-br from-slate-900 via-slate-950 to-slate-950 p-3 text-white shadow-[0_40px_70px_-30px_rgba(14,165,233,0.5)] sm:max-w-md sm:p-4"
-              style={{ maxHeight: "min(90vh, 520px)" }}
+              className="mx-3 flex w-full max-w-sm flex-col rounded-2xl border border-white/10 bg-gradient-to-br from-slate-900 via-slate-950 to-slate-950 p-2.5 text-white shadow-[0_40px_70px_-30px_rgba(14,165,233,0.5)] sm:max-w-md sm:p-3 my-4"
             >
               <div className="flex items-start justify-between gap-2">
                 <div className="min-w-0">
-                  <p className="text-[10px] uppercase tracking-[0.25em] text-white/50">Editar turno</p>
-                  <h3 className="mt-1 text-lg font-semibold truncate">{editorDefaults.display}</h3>
+                  <p className="text-[9px] uppercase tracking-[0.25em] text-white/50">Editar turno</p>
+                  <h3 className="mt-0.5 text-sm font-semibold truncate">{editorDefaults.display}</h3>
                 </div>
                 <button
                   type="button"
                   onClick={closeEditor}
-                  className="shrink-0 rounded-full border border-white/10 bg-white/5 p-1.5 text-white/60 transition hover:border-sky-400/40 hover:text-sky-200"
+                  className="shrink-0 rounded-full border border-white/10 bg-white/5 p-1 text-white/60 transition hover:border-sky-400/40 hover:text-sky-200 text-sm"
                   aria-label="Cerrar"
                 >
                   ✕
@@ -1123,6 +1175,7 @@ export default function ShiftPlannerLab({
 
               <EditorForm
                 defaults={editorDefaults}
+                dayEntries={Object.values(entries).filter(e => e.date === editorDefaults.date)}
                 onRemove={() => handleRemoveEntry(editorDefaults.date)}
                 onSave={(data) =>
                   handleSaveEntry({
@@ -1141,7 +1194,7 @@ export default function ShiftPlannerLab({
           </motion.div>
         ) : null}
       </AnimatePresence>
-    </div>
+    </>
   )
 }
 
@@ -1158,6 +1211,7 @@ type EditorFormProps = {
     startTime: string | null
     endTime: string | null
   }
+  dayEntries: PlannerEntry[] // Todos los turnos del día para calcular totales
   onSave: (entry: {
     type: ShiftType
     note: string
@@ -1170,7 +1224,7 @@ type EditorFormProps = {
   onRemove: () => void
 }
 
-function EditorForm({ defaults, onSave, onRemove }: EditorFormProps) {
+function EditorForm({ defaults, dayEntries, onSave, onRemove }: EditorFormProps) {
   const [type, setType] = useState<ShiftType>(defaults.type)
   const [note, setNote] = useState(defaults.note)
   const [color, setColor] = useState(defaults.color)
@@ -1178,6 +1232,14 @@ function EditorForm({ defaults, onSave, onRemove }: EditorFormProps) {
   const [startTime, setStartTime] = useState(defaults.startTime ?? "")
   const [endTime, setEndTime] = useState(defaults.endTime ?? "")
   const [pluses, setPluses] = useState<PlannerPluses>({ ...defaults.pluses })
+  const [userPreferences, setUserPreferences] = useState<UserPreferences>(DEFAULT_USER_PREFERENCES)
+
+  useEffect(() => {
+    const loaded = loadUserPreferences()
+    if (loaded) {
+      setUserPreferences(loaded.preferences)
+    }
+  }, [])
 
   useEffect(() => {
     setType(defaults.type)
@@ -1209,9 +1271,43 @@ function EditorForm({ defaults, onSave, onRemove }: EditorFormProps) {
   ).padStart(2, "0")}m`
   const usingFallbackTimes = !hasCompleteRange
 
+  // Calcular horas totales del día (sumando todos los turnos del día)
+  const totalDayHours = useMemo(() => {
+    return dayEntries.reduce((total, entry) => {
+      const { minutes } = getShiftDuration(entry.startTime, entry.endTime)
+      return total + minutes / 60
+    }, 0)
+  }, [dayEntries])
+
+  const formattedTotalDayHours = `${Math.floor(totalDayHours)}h ${String(
+    Math.round((totalDayHours % 1) * 60),
+  ).padStart(2, "0")}m`
+
+  // Calcular extras seleccionados y total ganado
+  const selectedExtras = useMemo(() => {
+    const extras: string[] = []
+    if (pluses.night > 0) extras.push("night")
+    if (pluses.holiday > 0) extras.push("holiday")
+    if (pluses.availability > 0) extras.push("availability")
+    if (pluses.other > 0) extras.push("other")
+    return extras
+  }, [pluses])
+
+  const totalEarned = useMemo(() => {
+    const hourlyRate = userPreferences.hourlyRate ?? 0
+    const hoursEarned = totalDayHours * hourlyRate
+    
+    const extrasEarned = selectedExtras.reduce((total, extraId) => {
+      const extra = userPreferences.shiftExtras?.find(e => e.id === extraId)
+      return total + (extra?.value ?? 0)
+    }, 0)
+
+    return hoursEarned + extrasEarned
+  }, [totalDayHours, selectedExtras, userPreferences])
+
   return (
     <form
-      className="mt-3 space-y-3 pb-2"
+      className="mt-2 space-y-2 pb-1"
       onSubmit={(event) => {
         event.preventDefault()
         onSave({
@@ -1225,10 +1321,10 @@ function EditorForm({ defaults, onSave, onRemove }: EditorFormProps) {
         })
       }}
     >
-      <div className="space-y-3">
+      <div className="space-y-2">
         <div>
-          <p className="text-xs uppercase tracking-wide text-white/40">Tipo de turno</p>
-          <div className="mt-3 grid grid-cols-1 gap-2 sm:grid-cols-2">
+          <p className="text-[10px] uppercase tracking-wide text-white/40">Tipo de turno</p>
+          <div className="mt-1.5 grid grid-cols-2 gap-1.5 sm:grid-cols-3">
             {SHIFT_TYPES.map((option) => (
               <button
                 key={option.value}
@@ -1249,7 +1345,7 @@ function EditorForm({ defaults, onSave, onRemove }: EditorFormProps) {
                     setLabel(SHIFT_LABELS[option.value])
                   }
                 }}
-                className={`rounded-xl border px-2 py-1.5 text-left text-xs font-semibold transition ${type === option.value ? "border-white/80 bg-white/10" : "border-white/10 bg-white/5 hover:border-sky-400/40"}`}
+                className={`rounded-lg border px-1.5 py-1 text-left text-[10px] font-semibold transition ${type === option.value ? "border-white/80 bg-white/10" : "border-white/10 bg-white/5 hover:border-sky-400/40"}`}
                 style={{ color: option.defaultColor }}
               >
                 {SHIFT_LABELS[option.value]}
@@ -1258,133 +1354,147 @@ function EditorForm({ defaults, onSave, onRemove }: EditorFormProps) {
           </div>
         </div>
 
-        <label className="flex flex-col gap-2 text-xs text-white/70">
+        <label className="flex flex-col gap-1 text-[10px] text-white/70">
           Texto del turno
           <input
             type="text"
             value={label}
             onChange={(event) => setLabel(event.target.value)}
-            className="w-full rounded-2xl border border-white/10 bg-white/5 px-3 py-2 text-sm text-white placeholder:text-white/40 focus:border-sky-400 focus:outline-none focus:ring-2 focus:ring-sky-400/40"
+            className="w-full rounded-xl border border-white/10 bg-white/5 px-2 py-1.5 text-xs text-white placeholder:text-white/40 focus:border-sky-400 focus:outline-none focus:ring-1 focus:ring-sky-400/40"
             placeholder="Etiqueta que verás en el calendario"
           />
         </label>
 
-        <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
-          <label className="flex flex-col gap-2 text-xs text-white/70">
-            Hora de entrada
+        <div className="grid grid-cols-2 gap-2">
+          <label className="flex flex-col gap-1 text-[10px] text-white/70">
+            Entrada
             <input
               type="time"
               value={startTime}
               onChange={(event) => setStartTime(event.target.value)}
-              className="w-full rounded-2xl border border-white/10 bg-white/5 px-3 py-2 text-sm text-white focus:border-sky-400 focus:outline-none focus:ring-2 focus:ring-sky-400/40"
+              className="w-full rounded-xl border border-white/10 bg-white/5 px-2 py-1.5 text-xs text-white focus:border-sky-400 focus:outline-none focus:ring-1 focus:ring-sky-400/40"
             />
           </label>
-          <label className="flex flex-col gap-2 text-xs text-white/70">
-            Hora de salida
+          <label className="flex flex-col gap-1 text-[10px] text-white/70">
+            Salida
             <input
-              type="text"
-              value={label}
-              onChange={(event) => setLabel(event.target.value)}
-              className="w-full rounded-xl border border-white/10 bg-white/5 px-2.5 py-1.5 text-xs text-white placeholder:text-white/40 focus:border-sky-400 focus:outline-none focus:ring-1 focus:ring-sky-400/40"
-              placeholder="Etiqueta en calendario"
+              type="time"
+              value={endTime}
+              onChange={(event) => setEndTime(event.target.value)}
+              className="w-full rounded-xl border border-white/10 bg-white/5 px-2 py-1.5 text-xs text-white focus:border-sky-400 focus:outline-none focus:ring-1 focus:ring-sky-400/40"
             />
           </label>
-          <div className="flex items-end gap-2">
-            <label className="flex flex-1 flex-col gap-1 text-[11px] text-white/70">
-              Entrada
-              <input
-                type="time"
-                value={startTime}
-                onChange={(event) => setStartTime(event.target.value)}
-                className="w-full rounded-xl border border-white/10 bg-white/5 px-2.5 py-1.5 text-xs text-white focus:border-sky-400 focus:outline-none focus:ring-1 focus:ring-sky-400/40"
-              />
-            </label>
-            <label className="flex flex-1 flex-col gap-1 text-[11px] text-white/70">
-              Salida
-              <input
-                type="time"
-                value={endTime}
-                onChange={(event) => setEndTime(event.target.value)}
-                className="w-full rounded-xl border border-white/10 bg-white/5 px-2.5 py-1.5 text-xs text-white focus:border-sky-400 focus:outline-none focus:ring-1 focus:ring-sky-400/40"
-              />
-            </label>
-          </div>
         </div>
 
-        <div className="flex flex-wrap items-center gap-3 rounded-xl border border-white/10 bg-white/5 px-2.5 py-2">
+        <div className="flex flex-wrap items-center gap-2 rounded-xl border border-white/10 bg-white/5 px-2 py-1.5">
           <div>
-            <p className="text-[9px] uppercase tracking-wider text-white/40">Horas</p>
-            <p className="text-base font-semibold text-white">{formattedDuration}</p>
+            <p className="text-[9px] uppercase tracking-wider text-white/40">Horas turno</p>
+            <p className="text-sm font-semibold text-white">{formattedDuration}</p>
           </div>
-          <p className="text-[10px] text-white/50">
+          <div>
+            <p className="text-[9px] uppercase tracking-wider text-white/40">Horas día</p>
+            <p className="text-sm font-semibold text-white">{formattedTotalDayHours}</p>
+          </div>
+          {totalEarned > 0 && (
+            <div>
+              <p className="text-[9px] uppercase tracking-wider text-white/40">Total</p>
+              <p className="text-sm font-semibold text-emerald-400">{totalEarned.toFixed(2)}€</p>
+            </div>
+          )}
+          <p className="text-[9px] text-white/50">
             {usingFallbackTimes
               ? `Por defecto ${DEFAULT_PLANNER_START_TIME}-${DEFAULT_PLANNER_END_TIME}`
               : crossesMidnight
                 ? "Termina al día siguiente."
                 : "Mismo día."}
           </p>
-          <label className="ml-auto flex items-center gap-2 text-[11px] text-white/70">
+          <label className="ml-auto flex items-center gap-1.5 text-[10px] text-white/70">
             Color
             <input
               type="color"
               value={color}
               onChange={(event) => setColor(event.target.value)}
-              className="h-7 w-12 rounded-lg border border-white/20 bg-transparent"
+              className="h-6 w-10 rounded-lg border border-white/20 bg-transparent"
             />
           </label>
         </div>
 
-        <label className="flex flex-col gap-1 text-[11px] text-white/70">
+        <div>
+          <p className="mb-2 text-[10px] uppercase tracking-wide text-white/40">Extras</p>
+          <div className="rounded-lg border border-white/10 bg-white/5 p-2">
+            <div className="grid grid-cols-2 gap-1.5 sm:grid-cols-3">
+              {(userPreferences.shiftExtras ?? DEFAULT_USER_PREFERENCES.shiftExtras ?? []).map((extra, index) => {
+                // Mapear extras a campos de pluses: primeros 4 extras van a night, holiday, availability, other
+                const plusKeys: (keyof PlannerPluses)[] = ["night", "holiday", "availability", "other"]
+                const key = index < 4 ? plusKeys[index] : "other"
+                const isSelected = pluses[key] > 0 && index < 4
+                // Si hay más de 4 extras, solo mostrar los primeros 4 para evitar problemas de mapeo
+                if (index >= 4) return null
+                
+                return (
+                  <label
+                    key={extra.id}
+                    className={`flex items-center gap-1.5 rounded-lg border px-2 py-1.5 text-[10px] transition cursor-pointer ${
+                      isSelected
+                        ? "border-white/30 bg-white/10"
+                        : "border-white/10 bg-white/5 hover:border-white/20"
+                    }`}
+                    style={isSelected ? { borderColor: extra.color + "60", backgroundColor: extra.color + "15" } : {}}
+                  >
+                    <input
+                      type="checkbox"
+                      checked={isSelected}
+                      onChange={(event) =>
+                        setPluses((prev) => ({
+                          ...prev,
+                          [key]: event.target.checked ? 1 : 0,
+                        }))
+                      }
+                      className="h-3 w-3 rounded border-white/20 bg-white/5 accent-sky-500 flex-shrink-0"
+                    />
+                    <span className="flex-1 font-medium text-white/90 truncate text-[9px]">{extra.name}</span>
+                    <span className="text-[9px] font-semibold text-white/60 whitespace-nowrap">{extra.value}€</span>
+                  </label>
+                )
+              })}
+            </div>
+          </div>
+          {(userPreferences.shiftExtras ?? []).length > 4 && (
+            <p className="mt-2 text-[8px] text-white/40 italic">
+              Nota: Solo los primeros 4 extras se pueden asignar por turno. Gestiona tus extras en /extras
+            </p>
+          )}
+          {selectedExtras.length > 0 && (
+            <p className="mt-2 text-[9px] text-white/50">
+              Extras: {selectedExtras.map(id => {
+                const extra = userPreferences.shiftExtras?.find(e => e.id === id)
+                return extra ? `${extra.name} (+${extra.value}€)` : null
+              }).filter(Boolean).join(", ")}
+            </p>
+          )}
+        </div>
+
+        <label className="flex flex-col gap-1 text-[10px] text-white/70">
           Nota
           <textarea
             value={note}
             onChange={(event) => setNote(event.target.value)}
-            rows={2}
-            className="w-full resize-none rounded-xl border border-white/10 bg-white/5 px-2.5 py-1.5 text-xs text-white placeholder:text-white/40 focus:border-sky-400 focus:outline-none focus:ring-1 focus:ring-sky-400/40"
+            rows={1}
+            className="w-full resize-none rounded-xl border border-white/10 bg-white/5 px-2 py-1.5 text-xs text-white placeholder:text-white/40 focus:border-sky-400 focus:outline-none focus:ring-1 focus:ring-sky-400/40 min-h-[36px]"
             placeholder="Incidencias, guardias, recordatorios"
           />
         </label>
-
-        <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
-          {(
-            [
-              ["night", "Noct."],
-              ["holiday", "Fest."],
-              ["availability", "Disp."],
-              ["other", "Extra"],
-            ] as const
-          ).map(([key, shortLabel]) => (
-            <label key={key} className="flex flex-col gap-0.5 text-[10px] text-white/70">
-              {shortLabel}
-              <input
-                type="number"
-                inputMode="numeric"
-                min={0}
-                max={3}
-                step={1}
-                value={pluses[key]}
-                onChange={(event) =>
-                  setPluses((prev) => ({
-                    ...prev,
-                    [key]: ensureNumber(event.target.value),
-                  }))
-                }
-                className="w-full rounded-lg border border-white/10 bg-white/5 px-1.5 py-1 text-xs text-white focus:border-sky-400 focus:outline-none focus:ring-1 focus:ring-sky-400/40"
-              />
-            </label>
-          ))}
-        </div>
       </div>
 
-      <div className="flex flex-wrap items-center justify-between gap-2 pt-1">
+      <div className="flex flex-wrap items-center justify-between gap-1.5 pt-0.5">
         <button
           type="button"
           onClick={onRemove}
-          className="inline-flex items-center justify-center rounded-full border border-rose-400/40 bg-rose-500/10 px-3 py-1.5 text-[11px] font-semibold uppercase tracking-wide text-rose-200 transition hover:border-rose-400 hover:bg-rose-500/20"
+          className="inline-flex items-center justify-center rounded-full border border-rose-400/40 bg-rose-500/10 px-2.5 py-1 text-[10px] font-semibold uppercase tracking-wide text-rose-200 transition hover:border-rose-400 hover:bg-rose-500/20"
         >
           Borrar día
         </button>
-        <div className="flex flex-wrap gap-2">
+        <div className="flex flex-wrap gap-1.5">
           <button
             type="button"
             onClick={() => {
@@ -1396,13 +1506,13 @@ function EditorForm({ defaults, onSave, onRemove }: EditorFormProps) {
               setEndTime(defaults.endTime ?? "")
               setPluses({ ...defaults.pluses })
             }}
-            className="inline-flex items-center justify-center rounded-full border border-white/10 bg-white/5 px-3 py-1.5 text-[11px] font-semibold uppercase tracking-wide text-white/70 transition hover:bg-white/10"
+            className="inline-flex items-center justify-center rounded-full border border-white/10 bg-white/5 px-2.5 py-1 text-[10px] font-semibold uppercase tracking-wide text-white/70 transition hover:bg-white/10"
           >
             Restablecer
           </button>
           <button
             type="submit"
-            className="inline-flex items-center justify-center rounded-full bg-gradient-to-r from-sky-500 to-fuchsia-500 px-4 py-1.5 text-xs font-semibold uppercase tracking-wide text-white shadow shadow-sky-500/30 transition hover:brightness-110"
+            className="inline-flex items-center justify-center rounded-full bg-gradient-to-r from-sky-500 to-fuchsia-500 px-3 py-1 text-[11px] font-semibold uppercase tracking-wide text-white shadow shadow-sky-500/30 transition hover:brightness-110"
           >
             Guardar turno
           </button>

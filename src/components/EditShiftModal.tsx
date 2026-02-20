@@ -106,7 +106,59 @@ export default function EditShiftModal({ shift, dayShifts = [], onSave, onDelete
     return () => window.removeEventListener("keydown", handleKey)
   }, [onClose])
 
-  if (!shift) return null
+  // Calcular horas del turno (hooks deben ir antes de cualquier return)
+  const shiftHours = useMemo(() => {
+    const start = startTime ? new Date(`1970-01-01T${startTime}:00`) : null
+    const end = endTime ? new Date(`1970-01-01T${endTime}:00`) : null
+    if (!start || !end) return 0
+    const endDate = new Date(end)
+    if (endDate <= start) {
+      endDate.setDate(endDate.getDate() + 1)
+    }
+    const diffMinutes = Math.round((endDate.getTime() - start.getTime()) / 60000)
+    return diffMinutes / 60
+  }, [startTime, endTime])
+
+  const formattedShiftHours = shift ? `${Math.floor(shiftHours)}h ${String(Math.round((shiftHours % 1) * 60)).padStart(2, "0")}m` : ""
+
+  // Calcular horas totales del día
+  const totalDayHours = useMemo(() => {
+    if (!shift) return 0
+    const allShifts = dayShifts.length > 0 ? dayShifts : [shift]
+    return allShifts.reduce((total, s) => {
+      if (!s.startTime || !s.endTime) return total
+      const start = new Date(`1970-01-01T${s.startTime}:00`)
+      const end = new Date(`1970-01-01T${s.endTime}:00`)
+      const endDate = new Date(end)
+      if (endDate <= start) {
+        endDate.setDate(endDate.getDate() + 1)
+      }
+      const diffMinutes = Math.round((endDate.getTime() - start.getTime()) / 60000)
+      return total + diffMinutes / 60
+    }, 0)
+  }, [dayShifts, shift])
+
+  const formattedTotalDayHours = shift ? `${Math.floor(totalDayHours)}h ${String(Math.round((totalDayHours % 1) * 60)).padStart(2, "0")}m` : ""
+
+  // Calcular extras seleccionados y total ganado
+  const selectedExtras = useMemo(() => {
+    const extras: string[] = []
+    if (pluses.night > 0) extras.push("night")
+    if (pluses.holiday > 0) extras.push("holiday")
+    if (pluses.availability > 0) extras.push("availability")
+    if (pluses.other > 0) extras.push("other")
+    return extras
+  }, [pluses])
+
+  const totalEarned = useMemo(() => {
+    const hourlyRate = userPreferences.hourlyRate ?? 0
+    const hoursEarned = totalDayHours * hourlyRate
+    const extrasEarned = selectedExtras.reduce((total, extraId) => {
+      const extra = userPreferences.shiftExtras?.find(e => e.id === extraId)
+      return total + (extra?.value ?? 0)
+    }, 0)
+    return hoursEarned + extrasEarned
+  }, [totalDayHours, selectedExtras, userPreferences])
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -135,60 +187,7 @@ export default function EditShiftModal({ shift, dayShifts = [], onSave, onDelete
 
   const formattedDate = date ? format(new Date(date + "T00:00:00"), "EEEE d 'de' MMMM yyyy", { locale: es }) : ""
 
-  // Calcular horas del turno
-  const shiftHours = useMemo(() => {
-    const start = startTime ? new Date(`1970-01-01T${startTime}:00`) : null
-    const end = endTime ? new Date(`1970-01-01T${endTime}:00`) : null
-    if (!start || !end) return 0
-    let endDate = new Date(end)
-    if (endDate <= start) {
-      endDate.setDate(endDate.getDate() + 1)
-    }
-    const diffMinutes = Math.round((endDate.getTime() - start.getTime()) / 60000)
-    return diffMinutes / 60
-  }, [startTime, endTime])
-
-  const formattedShiftHours = `${Math.floor(shiftHours)}h ${String(Math.round((shiftHours % 1) * 60)).padStart(2, "0")}m`
-
-  // Calcular horas totales del día
-  const totalDayHours = useMemo(() => {
-    const allShifts = dayShifts.length > 0 ? dayShifts : [shift]
-    return allShifts.reduce((total, s) => {
-      if (!s.startTime || !s.endTime) return total
-      const start = new Date(`1970-01-01T${s.startTime}:00`)
-      const end = new Date(`1970-01-01T${s.endTime}:00`)
-      let endDate = new Date(end)
-      if (endDate <= start) {
-        endDate.setDate(endDate.getDate() + 1)
-      }
-      const diffMinutes = Math.round((endDate.getTime() - start.getTime()) / 60000)
-      return total + diffMinutes / 60
-    }, 0)
-  }, [dayShifts, shift])
-
-  const formattedTotalDayHours = `${Math.floor(totalDayHours)}h ${String(Math.round((totalDayHours % 1) * 60)).padStart(2, "0")}m`
-
-  // Calcular extras seleccionados y total ganado
-  const selectedExtras = useMemo(() => {
-    const extras: string[] = []
-    if (pluses.night > 0) extras.push("night")
-    if (pluses.holiday > 0) extras.push("holiday")
-    if (pluses.availability > 0) extras.push("availability")
-    if (pluses.other > 0) extras.push("other")
-    return extras
-  }, [pluses])
-
-  const totalEarned = useMemo(() => {
-    const hourlyRate = userPreferences.hourlyRate ?? 0
-    const hoursEarned = totalDayHours * hourlyRate
-    
-    const extrasEarned = selectedExtras.reduce((total, extraId) => {
-      const extra = userPreferences.shiftExtras?.find(e => e.id === extraId)
-      return total + (extra?.value ?? 0)
-    }, 0)
-
-    return hoursEarned + extrasEarned
-  }, [totalDayHours, selectedExtras, userPreferences])
+  if (!shift) return null
 
   return (
     <AnimatePresence>

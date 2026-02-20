@@ -2,11 +2,10 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react"
 import { AnimatePresence, motion } from "framer-motion"
-import { CalendarDays, Check, Loader2, Sparkles } from "lucide-react"
+import { Loader2 } from "lucide-react"
 import {
   addDays,
   addMonths,
-  differenceInCalendarDays,
   eachDayOfInterval,
   endOfMonth,
   format,
@@ -97,15 +96,6 @@ type ShiftPlannerLabProps = {
 
 function toIsoDate(date: Date) {
   return format(date, "yyyy-MM-dd")
-}
-
-function ensureNumber(value: string): number {
-  const normalized = value.replace(/,/g, "").trim()
-  const parsed = Number.parseInt(normalized, 10)
-  if (Number.isNaN(parsed)) {
-    return 0
-  }
-  return Math.max(0, Math.min(3, parsed))
 }
 
 function parseTimeToMinutes(value?: string | null): number | null {
@@ -439,13 +429,6 @@ export default function ShiftPlannerLab({
 
     return formatCompactDate(parsed, { includeYear: true })
   }, [rotationStart])
-
-  const progressWorked = monthDays.length
-    ? Math.min(100, Math.round((stats.worked / monthDays.length) * 100))
-    : 0
-  const progressRested = monthDays.length
-    ? Math.min(100, Math.round((stats.rested / monthDays.length) * 100))
-    : 0
 
   function handlePrevMonth() {
     setCurrentMonth((month) => subMonths(month, 1))
@@ -1026,7 +1009,6 @@ export default function ShiftPlannerLab({
                       const hasEntry = entry != null
                       const isRest = entry?.type === "REST"
                       const isVacation = entry?.type === "VACATION"
-                      const isFree = !hasEntry || isRest || isVacation
                       const shiftLabel = entry?.label || (entry ? SHIFT_LABELS[entry.type] : null)
                       const timeRange = entry?.startTime && entry?.endTime 
                         ? `${entry.startTime}-${entry.endTime}` 

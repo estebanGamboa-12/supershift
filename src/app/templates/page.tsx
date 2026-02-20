@@ -68,23 +68,6 @@ function sanitizeUserSummary(value: unknown): UserSummary | null {
   }
 }
 
-function buildSeedRotation(template: ShiftTemplate, days = 7): RotationTemplate {
-  return {
-    id: 0,
-    userId: template.userId,
-    title: `Rotación · ${template.title}`,
-    icon: template.icon ?? "🔄",
-    description: "",
-    daysCount: days,
-    assignments: Array.from({ length: days }, (_, index) => ({
-      dayIndex: index,
-      shiftTemplateId: template.id,
-    })),
-    createdAt: new Date().toISOString(),
-    updatedAt: new Date().toISOString(),
-  }
-}
-
 export default function TemplatesPage() {
   const router = useRouter()
   
@@ -294,12 +277,6 @@ export default function TemplatesPage() {
 
   const handleEditRotation = (template: RotationTemplate) => {
     setRotationModalTemplate(template)
-    setIsRotationModalOpen(true)
-  }
-
-  const handleSeedRotation = (template: ShiftTemplate) => {
-    setRotationModalTemplate(buildSeedRotation({ ...template, userId: currentUser?.id ?? template.userId }))
-    setActiveTab("rotations")
     setIsRotationModalOpen(true)
   }
 

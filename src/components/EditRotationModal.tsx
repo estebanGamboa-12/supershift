@@ -171,7 +171,7 @@ export default function EditRotationModal({
   useEffect(() => {
     setAssignments((current) => buildAssignments(daysCount, current))
     setActiveDay((current) => (current >= daysCount ? 0 : current))
-  }, [daysCount])
+  }, [daysCount, maxDays])
 
   const shiftTemplateMap = useMemo(() => {
     const map = new Map<number, ShiftTemplate>()
@@ -183,11 +183,6 @@ export default function EditRotationModal({
 
   const activeAssignment = assignments[activeDay] ?? { dayIndex: activeDay, shiftTemplateId: null }
 
-  const activeTemplate =
-    activeAssignment.shiftTemplateId != null
-      ? shiftTemplateMap.get(activeAssignment.shiftTemplateId) ?? null
-      : null
-
   const handleSelectTemplate = (templateId: number | null) => {
     setAssignments((current) =>
       current.map((assignment) =>
@@ -195,12 +190,6 @@ export default function EditRotationModal({
           ? { ...assignment, shiftTemplateId: templateId }
           : assignment,
       ),
-    )
-  }
-
-  const handleApplyToAll = (templateId: number | null) => {
-    setAssignments((current) =>
-      current.map((assignment) => ({ ...assignment, shiftTemplateId: templateId })),
     )
   }
 

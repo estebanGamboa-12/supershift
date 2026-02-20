@@ -15,8 +15,6 @@ import {
   type DragEndEvent,
   type DragStartEvent,
   type DragMoveEvent,
-  type Active,
-  type Over,
 } from "@dnd-kit/core"
 import type { ShiftEvent, ShiftType } from "@/types/shifts"
 import { formatCompactDate } from "@/lib/formatDate"
@@ -100,6 +98,7 @@ type DraggableShiftProps = {
 const DraggableShift: FC<DraggableShiftProps> = ({
   shift,
   shiftTypeLabels,
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars -- prop required by interface, hook provides isDndDragging
   isDragging,
   isEditing,
   isEditingTop,
@@ -107,7 +106,7 @@ const DraggableShift: FC<DraggableShiftProps> = ({
   onSelectEvent,
   onUpdateShift,
 }) => {
-  const { attributes, listeners, setNodeRef, transform, isDragging: isDndDragging } = useDraggable({
+  const { attributes, listeners, setNodeRef, isDragging: isDndDragging } = useDraggable({
     id: String(shift.id),
     data: { shift },
   })
@@ -367,7 +366,7 @@ const DayView: FC<DayViewProps> = ({
   // Handler para cuando termina el drag
   const handleDragEnd = useCallback(
     async (event: DragEndEvent) => {
-      const { active, delta } = event
+      const { delta } = event
       
       // Restaurar scroll del contenedor
       if (scrollContainerRef.current) {

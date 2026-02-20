@@ -31,13 +31,9 @@ import {
   onUserPreferencesStorageChange,
   saveUserPreferences as persistUserPreferences,
 } from "@/lib/user-preferences"
-import { calculateWeeklyShiftSummaries } from "@/lib/shiftStatistics"
 import {
   CalendarTab,
-  HistoryTab,
-  HoursTab,
   SettingsTab,
-  StatsTab,
 } from "@/components/dashboard/mobile-tabs"
 import {
   addPendingShiftRequest,
@@ -1944,41 +1940,6 @@ export default function Home() {
 
   const activeShiftTypes = Object.keys(typeCounts).length
 
-  const dailyHoursSummary = useMemo(() => {
-    const totals = new Map<string, { totalMinutes: number; shifts: ShiftEvent[] }>()
-    for (const shift of orderedShifts) {
-      const minutes = shift.durationMinutes
-      const existing = totals.get(shift.date)
-      if (existing) {
-        existing.totalMinutes += minutes
-        existing.shifts = [...existing.shifts, shift]
-      } else {
-        totals.set(shift.date, { totalMinutes: minutes, shifts: [shift] })
-      }
-    }
-
-    return Array.from(totals.entries())
-      .map(([date, data]) => ({
-        date,
-        totalMinutes: data.totalMinutes,
-        shifts: data.shifts.sort((a, b) => (a.startTime ?? "").localeCompare(b.startTime ?? "")),
-      }))
-      .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime())
-  }, [orderedShifts])
-
-  const weeklyShiftSummaries = useMemo(
-    () =>
-      calculateWeeklyShiftSummaries(
-        orderedShifts.map((shift) => ({
-          date: shift.date,
-          durationMinutes: shift.durationMinutes,
-          type: shift.type,
-        })),
-        { weekStartsOn },
-      ),
-    [orderedShifts, weekStartsOn],
-  )
-
   const nextShiftCountdownLabel = useMemo(() => {
     if (daysUntilNextShift === null) {
       return "Sin turno programado"
@@ -1990,54 +1951,6 @@ export default function Home() {
 
     return `En ${daysUntilNextShift} día${daysUntilNextShift === 1 ? "" : "s"}`
   }, [daysUntilNextShift])
-
-  const mobileGreeting = useMemo(() => {
-    if (!currentUser?.name) {
-      return "Planloop"
-    }
-
-    const [firstName] = currentUser.name.split(" ")
-    return firstName && firstName.trim().length > 0
-      ? firstName
-      : currentUser.name
-  }, [currentUser])
-
-  const summaryCards = useMemo(
-    () => [
-      {
-        title: "Turnos este mes",
-        value: currentMonthShifts.length.toString(),
-        description: "Programados",
-        icon: "🗓️",
-      },
-      {
-        title: "Próximo turno",
-        value: nextShift
-          ? format(new Date(nextShift.date), "d MMM", { locale: es })
-          : "Pendiente",
-        description: nextShift ? nextShiftCountdownLabel : "Añade un turno",
-        icon: "⏰",
-      },
-      {
-        title: "Tipos activos",
-        value: activeShiftTypes.toString(),
-        description: "Variaciones en uso",
-        icon: "📊",
-      },
-      {
-        title: "Equipo",
-        value: "Equipo activo",
-        description: "En Planloop",
-        icon: "👥",
-      },
-    ],
-    [
-      activeShiftTypes,
-      currentMonthShifts.length,
-      nextShift,
-      nextShiftCountdownLabel,
-    ]
-  )
 
   useEffect(() => {
     if (!selectedDateFromCalendar) return

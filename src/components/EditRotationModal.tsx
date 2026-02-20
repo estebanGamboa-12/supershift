@@ -15,9 +15,11 @@ type EditRotationModalProps = {
   onSubmit: (payload: RotationTemplateInput) => Promise<void>
   template?: RotationTemplate | null
   shiftTemplates: ShiftTemplate[]
+  onUpdateShiftTemplate?: (id: number, payload: { icon?: string | null; color?: string | null }) => Promise<void>
 }
 
-const MAX_ROTATION_DAYS = 18
+const MAX_ROTATION_DAYS_DESKTOP = 31
+const MAX_ROTATION_DAYS_MOBILE = 31
 
 function buildAssignments(length: number, seed?: RotationTemplateAssignment[]): RotationTemplateAssignment[] {
   const next: RotationTemplateAssignment[] = []
@@ -34,6 +36,7 @@ export default function EditRotationModal({
   onSubmit,
   template,
   shiftTemplates,
+  onUpdateShiftTemplate,
 }: EditRotationModalProps) {
   const isEditing = Boolean(template && template.id > 0)
   const [name, setName] = useState("")
@@ -44,23 +47,88 @@ export default function EditRotationModal({
   const [activeDay, setActiveDay] = useState(0)
   const [error, setError] = useState<string | null>(null)
   const [isSubmitting, setIsSubmitting] = useState(false)
+  const [isMobile, setIsMobile] = useState(false)
+  const [templateColors, setTemplateColors] = useState<Map<number, string>>(new Map())
+  const [editingTemplateId, setEditingTemplateId] = useState<number | null>(null)
+  const [editingIcon, setEditingIcon] = useState("")
+  const [editingColor, setEditingColor] = useState("#3b82f6")
+
+  useEffect(() => {
+    const checkMobile = () => {
+      setIsMobile(window.innerWidth < 640)
+    }
+    checkMobile()
+    window.addEventListener("resize", checkMobile)
+    return () => window.removeEventListener("resize", checkMobile)
+  }, [])
+
+  const maxDays = isMobile ? MAX_ROTATION_DAYS_MOBILE : MAX_ROTATION_DAYS_DESKTOP
 
   const circleButtonSize = useMemo(() => {
-    if (assignments.length > 24) return 40
+    // En desktop, hacer botones más pequeños para 31 días pero mantener legibilidad
+    if (isMobile) {
+      if (assignments.length >= 25) return 28
+      if (assignments.length > 20) return 32
+      if (assignments.length > 14) return 36
+      return 40
+    }
+    // Desktop: tamaño optimizado para círculo perfecto con 31 días
+    if (assignments.length === 31) return 36
+    if (assignments.length >= 25) return 38
+    if (assignments.length > 20) return 40
     if (assignments.length > 14) return 44
-    return 50
-  }, [assignments.length])
+    return 48
+  }, [assignments.length, isMobile])
 
-  const circleSpacing = 8
+  const circleSpacing = isMobile ? 3 : 4
   const circleRadius = useMemo(() => {
-    const estimatedRadius =
-      (assignments.length * (circleButtonSize + circleSpacing)) / (2 * Math.PI)
-    return Math.min(220, Math.max(90, estimatedRadius))
-  }, [assignments.length, circleButtonSize])
+    // Calcular radio perfecto para distribución uniforme
+    const circumference = assignments.length * (circleButtonSize + circleSpacing)
+    const calculatedRadius = circumference / (2 * Math.PI)
+    
+    if (isMobile) {
+      const maxRadius = assignments.length >= 25 ? 75 : assignments.length > 20 ? 85 : 95
+      const minRadius = 55
+      return Math.min(maxRadius, Math.max(minRadius, calculatedRadius))
+    }
+    
+    // Desktop: radio optimizado para círculo perfecto
+    if (assignments.length === 31) {
+      // Para 31 días, usar un radio que permita distribución perfecta
+      return Math.max(140, Math.min(180, calculatedRadius))
+    }
+    if (assignments.length >= 25) {
+      return Math.max(130, Math.min(170, calculatedRadius))
+    }
+    if (assignments.length > 20) {
+      return Math.max(120, Math.min(160, calculatedRadius))
+    }
+    return Math.max(100, calculatedRadius)
+  }, [assignments.length, circleButtonSize, circleSpacing, isMobile])
 
   const circleSize = useMemo(
-    () => circleRadius * 2 + circleButtonSize + 24,
-    [circleButtonSize, circleRadius],
+    () => {
+      const baseSize = circleRadius * 2 + circleButtonSize
+      
+      if (isMobile) {
+        if (assignments.length >= 25) return Math.min(baseSize, 190)
+        if (assignments.length > 20) return Math.min(baseSize, 210)
+        return baseSize + 12
+      }
+      
+      // Desktop: tamaño perfecto para círculo con 31 días
+      if (assignments.length === 31) {
+        return Math.max(320, Math.min(400, baseSize))
+      }
+      if (assignments.length >= 25) {
+        return Math.max(300, Math.min(380, baseSize))
+      }
+      if (assignments.length > 20) {
+        return Math.max(280, Math.min(360, baseSize))
+      }
+      return baseSize + 20
+    },
+    [circleButtonSize, circleRadius, isMobile, assignments.length],
   )
   const circleCenter = useMemo(() => circleSize / 2, [circleSize])
 
@@ -73,7 +141,7 @@ export default function EditRotationModal({
       setName(template.title)
       setIcon(template.icon ?? "🔄")
       setDescription(template.description ?? "")
-      const clampedDays = Math.min(MAX_ROTATION_DAYS, template.daysCount)
+      const clampedDays = Math.min(maxDays, template.daysCount)
       setDaysCount(clampedDays)
       setAssignments(buildAssignments(clampedDays, template.assignments))
       setActiveDay(0)
@@ -85,9 +153,20 @@ export default function EditRotationModal({
       setAssignments(buildAssignments(7))
       setActiveDay(0)
     }
+    
+    // Cargar colores desde las plantillas
+    const colorsMap = new Map<number, string>()
+    shiftTemplates.forEach((t) => {
+      if (t.color) {
+        colorsMap.set(t.id, t.color)
+      }
+    })
+    setTemplateColors(colorsMap)
+    
     setError(null)
     setIsSubmitting(false)
-  }, [open, template])
+    setEditingTemplateId(null)
+  }, [open, template, shiftTemplates])
 
   useEffect(() => {
     setAssignments((current) => buildAssignments(daysCount, current))
@@ -143,7 +222,7 @@ export default function EditRotationModal({
     setIsSubmitting(true)
 
     try {
-      const clampedDays = Math.min(MAX_ROTATION_DAYS, Math.max(1, daysCount))
+      const clampedDays = Math.min(maxDays, Math.max(1, daysCount))
       const payload: RotationTemplateInput = {
         title: name.trim(),
         icon: icon.trim() || "🔄",
@@ -172,7 +251,7 @@ export default function EditRotationModal({
     <AnimatePresence>
       {open ? (
         <motion.div
-          className="fixed inset-0 z-50 flex items-start justify-center overflow-y-auto bg-slate-950/85 px-3 py-6 backdrop-blur-2xl sm:py-10"
+          className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950 px-3 py-4 backdrop-blur-2xl sm:px-4 sm:py-6"
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
           exit={{ opacity: 0 }}
@@ -183,145 +262,80 @@ export default function EditRotationModal({
               onClose()
             }
           }}
+          style={{ overflow: "hidden" }}
         >
           <motion.div
             initial={{ opacity: 0, scale: 0.95, y: 16 }}
             animate={{ opacity: 1, scale: 1, y: 0 }}
             exit={{ opacity: 0, scale: 0.95, y: 16 }}
             transition={{ duration: 0.25, ease: "easeOut" }}
-            className="relative w-full max-w-4xl overflow-y-auto rounded-[2rem] border border-white/15 bg-gradient-to-br from-slate-950/95 via-slate-950/80 to-slate-900/80 p-6 text-white shadow-[0_40px_100px_-60px_rgba(56,189,248,0.65)] sm:p-8"
-            style={{ maxHeight: "min(900px, calc(100vh - 3rem))" }}
+            className="relative flex h-full w-full flex-col overflow-hidden rounded-2xl border border-white/15 bg-gradient-to-br from-slate-950 via-slate-950 to-slate-900 text-white shadow-[0_40px_100px_-60px_rgba(56,189,248,0.65)] sm:rounded-3xl sm:h-auto sm:max-h-[95vh] sm:max-w-[95vw] lg:max-w-[1400px]"
+            onClick={(e) => e.stopPropagation()}
           >
-            <header className="sticky top-0 z-10 -mx-6 -mt-6 flex flex-col gap-4 border-b border-white/10 bg-slate-950/90 px-6 pb-5 pt-6 backdrop-blur sm:-mx-8 sm:-mt-8 sm:flex-row sm:items-start sm:justify-between sm:px-8">
-              <div>
-                <p className="text-xs uppercase tracking-[0.35em] text-white/40">Rotaciones</p>
-                <h2 className="text-2xl font-semibold tracking-tight">
-                  {isEditing ? "Editar rotación" : "Nueva rotación"}
-                </h2>
-                <p className="mt-1 text-sm text-white/60">
-                  Define un patrón circular asignando plantillas de turno a cada día del ciclo.
-                </p>
-              </div>
+            <header className="flex flex-shrink-0 items-center justify-between border-b border-white/10 bg-slate-950 px-3 py-2 sm:px-4 sm:py-3">
+              <h2 className="text-sm font-semibold tracking-tight sm:text-base">
+                {isEditing ? "Editar rotación" : "Nueva rotación"}
+              </h2>
               <button
                 type="button"
                 onClick={onClose}
-                className="self-end rounded-full border border-white/10 bg-white/5 p-2 text-white/70 transition hover:text-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/70 sm:self-start"
+                className="flex h-6 w-6 flex-shrink-0 items-center justify-center rounded-full border border-white/10 bg-white/5 text-base text-white/70 transition hover:bg-white/10 hover:text-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/70 sm:h-7 sm:w-7"
                 aria-label="Cerrar"
               >
                 ×
               </button>
             </header>
 
-            <form onSubmit={handleSubmit} className="space-y-6 pt-6 sm:pt-8">
-              <div className="grid gap-4 sm:grid-cols-[auto_1fr] sm:items-center">
-                <label className="flex h-16 w-16 items-center justify-center rounded-2xl border border-white/10 bg-white/5 text-3xl shadow-inner shadow-black/30">
-                  <span className="sr-only">Icono</span>
-                  <input
-                    type="text"
-                    value={icon}
-                    onChange={(event) => setIcon(event.target.value)}
-                    maxLength={2}
-                    className="h-full w-full bg-transparent text-center text-3xl outline-none"
-                  />
-                </label>
-                <div className="grid gap-3 sm:grid-cols-2">
-                  <label className="flex flex-col gap-2 text-sm text-white/80">
-                    Nombre de la rotación
-                    <input
-                      type="text"
-                      value={name}
-                      onChange={(event) => setName(event.target.value)}
-                      placeholder="Rotación principal"
-                      className="rounded-2xl border border-white/15 bg-white/5 px-4 py-2 text-sm text-white focus:border-sky-400 focus:outline-none focus:ring-2 focus:ring-sky-400/40"
-                      required
-                    />
-                  </label>
-                  <label className="flex flex-col gap-2 text-sm text-white/80">
-                    Días del ciclo
-                    <input
-                      type="number"
-                      min={1}
-                      max={MAX_ROTATION_DAYS}
-                      value={daysCount}
-                      onChange={(event) =>
-                        setDaysCount(
-                          Math.min(
-                            MAX_ROTATION_DAYS,
-                            Math.max(1, Number.parseInt(event.target.value, 10) || 1),
-                          ),
-                        )
-                      }
-                      className="rounded-2xl border border-white/15 bg-white/5 px-4 py-2 text-sm text-white focus:border-sky-400 focus:outline-none focus:ring-2 focus:ring-sky-400/40"
-                    />
-                  </label>
-                  <label className="sm:col-span-2 flex flex-col gap-2 text-sm text-white/80">
-                    Descripción
-                    <textarea
-                      value={description}
-                      onChange={(event) => setDescription(event.target.value)}
-                      placeholder="Resumen del patrón o indicaciones para el equipo"
-                      rows={2}
-                      className="resize-none rounded-xl border border-white/15 bg-white/5 px-3 py-2 text-sm text-white focus:border-sky-400 focus:outline-none focus:ring-2 focus:ring-sky-400/40"
-                    />
-                  </label>
-                </div>
-              </div>
-
-              <div className="grid gap-6 lg:grid-cols-[minmax(0,1fr)_minmax(0,1.2fr)]">
-                <div className="flex flex-col items-center gap-4">
-                  <div className="w-full sm:hidden">
-                    <p className="text-xs font-semibold uppercase tracking-[0.3em] text-white/40">Días del ciclo</p>
-                    <div className="mt-2 grid max-h-[50vh] grid-cols-4 gap-2 overflow-y-auto pb-1">
-                      {assignments.map((assignment, index) => {
-                        const isActive = activeDay === index
-                        const template =
-                          assignment.shiftTemplateId != null
-                            ? shiftTemplateMap.get(assignment.shiftTemplateId)
-                            : null
-                        return (
-                          <button
-                            key={assignment.dayIndex}
-                            type="button"
-                            onClick={() => setActiveDay(index)}
-                            className={`flex min-w-[3.25rem] flex-col items-center justify-center gap-1 rounded-2xl border px-3 py-2 text-[11px] font-medium transition ${
-                              isActive
-                                ? "border-sky-400 bg-sky-500/30 text-white shadow-lg shadow-sky-500/40"
-                                : "border-white/10 bg-white/5 text-white/70 hover:border-sky-400/40 hover:text-white"
-                            }`}
-                            aria-label={`Día ${index + 1}`}
-                          >
-                            <span className="text-base">{template?.icon ?? "○"}</span>
-                            Día {index + 1}
-                          </button>
-                        )
-                      })}
-                    </div>
-                  </div>
-
+            <div className="flex flex-1 flex-col overflow-hidden px-3 py-2 sm:px-4 sm:py-3">
+              <form id="rotation-form" onSubmit={handleSubmit} className="flex h-full min-h-0 flex-col gap-3 sm:gap-4">
+              {/* Layout dividido: círculo a la izquierda, formulario a la derecha */}
+              <div className="grid min-h-0 flex-1 gap-3 overflow-hidden sm:gap-4 lg:grid-cols-[1fr_1fr]">
+                {/* Mitad izquierda: Círculo de días */}
+                <div className="flex flex-col items-center justify-center overflow-hidden min-h-0 order-2 lg:order-1">
                   <div
-                    className="relative hidden max-w-full sm:block"
-                    style={{ width: circleSize, height: circleSize }}
+                    className="relative flex-shrink-0 mx-auto"
+                    style={{ 
+                      width: isMobile 
+                        ? (assignments.length >= 25 ? "min(100%, 200px)" : assignments.length > 20 ? "min(100%, 220px)" : "min(100%, 260px)")
+                        : `${circleSize}px`,
+                      height: isMobile 
+                        ? (assignments.length >= 25 ? "min(100%, 200px)" : assignments.length > 20 ? "min(100%, 220px)" : "min(100%, 260px)")
+                        : `${circleSize}px`,
+                      aspectRatio: "1 / 1",
+                      maxWidth: isMobile ? "100%" : "none",
+                      maxHeight: isMobile 
+                        ? (assignments.length >= 25 ? "min(200px, 35vh)" : assignments.length > 20 ? "min(220px, 38vh)" : "min(260px, 42vh)")
+                        : "none"
+                    }}
                   >
+                    {/* Círculo de fondo decorativo */}
                     <div
                       className="absolute rounded-full border border-sky-400/30 bg-sky-500/10"
-                      style={{ inset: `${Math.max(18, circleButtonSize * 0.9)}px` }}
+                      style={{ 
+                        inset: isMobile 
+                          ? `${Math.max(18, circleButtonSize * 0.9)}px`
+                          : `${Math.max(20, circleButtonSize * 0.85)}px`
+                      }}
                       aria-hidden
                     />
                     {assignments.map((assignment, index) => {
+                      // Calcular ángulo para distribución perfecta empezando desde arriba (12 en punto)
                       const angle = (index / assignments.length) * Math.PI * 2 - Math.PI / 2
+                      // Usar el centro exacto del círculo
                       const x = circleCenter + Math.cos(angle) * circleRadius
                       const y = circleCenter + Math.sin(angle) * circleRadius
                       const isActive = activeDay === index
-                      const label =
+                      const templateIcon =
                         assignment.shiftTemplateId != null
-                          ? shiftTemplateMap.get(assignment.shiftTemplateId)?.icon ?? "🗓️"
+                          ? shiftTemplateMap.get(assignment.shiftTemplateId)?.icon ?? "○"
                           : "○"
+                      const dayNumber = index + 1
                       return (
                         <button
                           key={assignment.dayIndex}
                           type="button"
                           onClick={() => setActiveDay(index)}
-                          className={`absolute flex -translate-x-1/2 -translate-y-1/2 items-center justify-center rounded-full border text-lg transition ${
+                          className={`absolute flex -translate-x-1/2 -translate-y-1/2 flex-col items-center justify-center rounded-full border transition ${
                             isActive
                               ? "border-sky-400 bg-sky-500/30 text-white shadow-lg shadow-sky-500/40"
                               : "border-white/10 bg-white/5 text-white/70 hover:border-sky-400/40 hover:text-white"
@@ -331,131 +345,314 @@ export default function EditRotationModal({
                             top: `${y}px`,
                             width: circleButtonSize,
                             height: circleButtonSize,
-                            fontSize: circleButtonSize > 48 ? "1.25rem" : "1.05rem",
                           }}
-                          aria-label={`Día ${index + 1}`}
+                          aria-label={`Día ${dayNumber}`}
                         >
-                          {label}
+                          <span 
+                            className="font-black leading-none text-white select-none"
+                            style={{ 
+                              fontSize: isMobile 
+                                ? `${Math.max(14, circleButtonSize * 0.4)}px`
+                                : assignments.length === 31 
+                                  ? `${Math.max(12, circleButtonSize * 0.35)}px`
+                                  : `${Math.max(14, circleButtonSize * 0.4)}px`, 
+                              lineHeight: 1,
+                              fontWeight: 800,
+                              textShadow: "0 1px 3px rgba(0,0,0,0.8), 0 0 2px rgba(0,0,0,0.6)"
+                            }}
+                          >
+                            {dayNumber}
+                          </span>
+                          {templateIcon !== "○" && (
+                            <span 
+                              className="mt-0.5 leading-none opacity-70 select-none"
+                              style={{ fontSize: `${Math.max(8, circleButtonSize * 0.2)}px` }}
+                            >
+                              {templateIcon}
+                            </span>
+                          )}
                         </button>
                       )
                     })}
                     <div className="pointer-events-none absolute inset-0 flex items-center justify-center">
                       <div
-                        className="flex flex-col items-center rounded-full border border-white/10 bg-white/5 px-6 py-6 text-center text-sm text-white/70"
-                        style={{ minWidth: circleButtonSize * 2.2, minHeight: circleButtonSize * 2 }}
+                        className="flex flex-col items-center rounded-full border border-white/10 bg-white/5 px-2 py-2 text-center text-white/70 sm:px-4 sm:py-4"
+                        style={{ 
+                          minWidth: circleButtonSize * (isMobile ? 1.6 : 2), 
+                          minHeight: circleButtonSize * (isMobile ? 1.6 : 2),
+                          fontSize: isMobile ? "0.7rem" : "0.8rem"
+                        }}
                       >
-                        <span className="text-3xl">{icon}</span>
-                        <span>{daysCount} días</span>
+                        <span className={isMobile ? "text-lg" : "text-2xl"}>{icon}</span>
+                        <span className={isMobile ? "text-[10px]" : "text-xs"}>{daysCount} días</span>
                       </div>
                     </div>
                   </div>
-                  <p className="hidden text-xs text-white/50 sm:block">
-                    Selecciona un día para asignar o cambiar su plantilla de turno.
-                  </p>
                 </div>
 
-                <div className="space-y-3 rounded-2xl border border-white/10 bg-white/5 p-4">
-                  <header className="flex items-center justify-between">
-                    <div>
-                      <p className="text-xs uppercase tracking-[0.35em] text-white/40">Día seleccionado</p>
-                      <h3 className="text-xl font-semibold">Día {activeAssignment.dayIndex + 1}</h3>
+                {/* Mitad derecha: Formulario (nombre, días, descripción) y selector de plantillas */}
+                <div className="flex flex-col gap-2 overflow-hidden min-h-0 order-1 lg:order-2">
+                  {/* Formulario de información básica */}
+                  <div className="flex-shrink-0 space-y-2">
+                    <div className="flex items-center gap-2">
+                      <label className="flex h-8 w-8 items-center justify-center rounded-lg border border-white/10 bg-white/5 text-lg shadow-inner shadow-black/30 sm:h-10 sm:w-10 sm:text-xl">
+                        <input
+                          type="text"
+                          value={icon}
+                          onChange={(event) => setIcon(event.target.value)}
+                          maxLength={2}
+                          className="h-full w-full bg-transparent text-center text-lg outline-none sm:text-xl"
+                        />
+                      </label>
+                      <label className="flex-1 flex flex-col gap-0.5">
+                        <span className="text-[10px] text-white/60 sm:text-xs">Nombre</span>
+                        <input
+                          type="text"
+                          value={name}
+                          onChange={(event) => setName(event.target.value)}
+                          placeholder="Rotación principal"
+                          className="rounded-lg border border-white/15 bg-white/5 px-2 py-1 text-xs text-white focus:border-sky-400 focus:outline-none focus:ring-1 focus:ring-sky-400/40 sm:px-3 sm:py-1.5 sm:text-sm"
+                          required
+                        />
+                      </label>
                     </div>
-                    <button
-                      type="button"
-                      onClick={() => handleSelectTemplate(null)}
-                      className="rounded-full border border-white/15 px-3 py-1 text-xs font-semibold uppercase tracking-wide text-white/70 transition hover:border-red-400/40 hover:text-red-200"
-                    >
-                      Limpiar
-                    </button>
-                  </header>
-
-                  <div className="space-y-3">
-                    <label className="block text-sm font-medium text-white/80">
-                      Seleccionar plantilla
-                      <select
-                        value={activeAssignment.shiftTemplateId ?? ""}
-                        onChange={(event) => {
-                          const value = event.target.value
-                          handleSelectTemplate(value ? Number.parseInt(value, 10) : null)
-                        }}
-                        className="mt-1 w-full rounded-2xl border border-white/15 bg-slate-950/60 px-4 py-2 text-sm text-white focus:border-sky-400 focus:outline-none focus:ring-2 focus:ring-sky-400/40"
-                      >
-                        <option value="">Sin turno asignado</option>
-                        {shiftTemplates.map((item) => (
-                          <option key={item.id} value={item.id}>
-                            {item.icon ?? "🗓️"} {item.title} ({item.startTime} - {item.endTime})
-                          </option>
-                        ))}
-                      </select>
+                    <div className="flex items-center gap-2">
+                      <label className="flex-1 flex flex-col gap-0.5">
+                        <span className="text-[10px] text-white/60 sm:text-xs">Días</span>
+                        <input
+                          type="number"
+                          min={1}
+                          max={maxDays}
+                          value={daysCount}
+                          onChange={(event) =>
+                            setDaysCount(
+                              Math.min(
+                                maxDays,
+                                Math.max(1, Number.parseInt(event.target.value, 10) || 1),
+                              ),
+                            )
+                          }
+                          className="rounded-lg border border-white/15 bg-white/5 px-2 py-1 text-xs text-white focus:border-sky-400 focus:outline-none focus:ring-1 focus:ring-sky-400/40 sm:px-3 sm:py-1.5 sm:text-sm"
+                        />
+                      </label>
+                    </div>
+                    <label className="flex flex-col gap-0.5">
+                      <span className="text-[10px] text-white/60 sm:text-xs">Descripción</span>
+                      <textarea
+                        value={description}
+                        onChange={(event) => setDescription(event.target.value)}
+                        placeholder="Resumen del patrón..."
+                        rows={2}
+                        className="resize-none rounded-lg border border-white/15 bg-white/5 px-2 py-1 text-xs text-white focus:border-sky-400 focus:outline-none focus:ring-1 focus:ring-sky-400/40 sm:px-3 sm:py-1.5 sm:text-sm"
+                      />
                     </label>
+                  </div>
 
-                    <div className="grid gap-2 text-xs text-white/60">
-                      <p>
-                        <span className="block text-[11px] uppercase tracking-[0.3em] text-white/40">
-                          Turno asignado
-                        </span>
-                        {activeTemplate
-                          ? `${activeTemplate.title} · ${activeTemplate.startTime} - ${activeTemplate.endTime}`
-                          : "Sin turno"}
-                      </p>
-                      <p>
-                        <span className="block text-[11px] uppercase tracking-[0.3em] text-white/40">
-                          Ubicación
-                        </span>
-                        {activeTemplate?.location ?? "No especificada"}
-                      </p>
+                  {/* Selector de plantillas y colores */}
+                  <div className="flex flex-col gap-1.5 overflow-hidden min-h-0 flex-1">
+                    <div className="flex items-center justify-between">
+                      <h3 className="text-xs font-semibold sm:text-sm">Día {activeAssignment.dayIndex + 1}</h3>
+                      <button
+                        type="button"
+                        onClick={() => handleSelectTemplate(null)}
+                        className="rounded-full border border-white/15 px-1.5 py-0.5 text-[8px] font-semibold uppercase tracking-wide text-white/70 transition hover:border-red-400/40 hover:text-red-200 sm:px-2 sm:text-[9px]"
+                      >
+                        Limpiar
+                      </button>
+                    </div>
+
+                  <div className="space-y-0.5">
+                    <p className="text-[9px] text-white/60 sm:text-[10px]">Seleccionar plantilla</p>
+                    <div className="flex flex-col gap-0.5 overflow-y-auto max-h-[140px] sm:max-h-[180px]">
+                      <button
+                        type="button"
+                        onClick={() => handleSelectTemplate(null)}
+                        className={`w-full rounded border px-1.5 py-0.5 text-left text-[9px] transition sm:px-2 sm:py-1 sm:text-[10px] ${
+                          activeAssignment.shiftTemplateId === null
+                            ? "border-sky-400 bg-sky-500/30 text-white"
+                            : "border-white/10 bg-white/5 text-white/70 hover:border-sky-400/40 hover:text-white"
+                        }`}
+                      >
+                        <span className="font-medium">Sin turno</span>
+                      </button>
+                      {shiftTemplates.map((item) => {
+                        const templateColor = item.color || templateColors.get(item.id) || "#3b82f6"
+                        const isEditing = editingTemplateId === item.id
+                        return (
+                          <div key={item.id} className="flex items-center gap-1">
+                            <button
+                              type="button"
+                              onClick={() => handleSelectTemplate(item.id)}
+                              className={`flex-1 rounded border px-1.5 py-0.5 text-left text-[9px] transition sm:px-2 sm:py-1 sm:text-[10px] ${
+                                activeAssignment.shiftTemplateId === item.id
+                                  ? "border-sky-400 bg-sky-500/30 text-white"
+                                  : "border-white/10 bg-white/5 text-white/70 hover:border-sky-400/40 hover:text-white"
+                              }`}
+                              style={{
+                                borderLeftColor: templateColor,
+                                borderLeftWidth: "3px",
+                              }}
+                            >
+                              {isEditing ? (
+                                <div className="flex items-center gap-1">
+                                  <input
+                                    type="text"
+                                    value={editingIcon}
+                                    onChange={(e) => setEditingIcon(e.target.value)}
+                                    onClick={(e) => e.stopPropagation()}
+                                    maxLength={2}
+                                    className="w-6 rounded border border-white/20 bg-white/10 px-1 text-center text-[10px] text-white focus:border-sky-400 focus:outline-none"
+                                    placeholder="🔄"
+                                  />
+                                  <span className="font-medium">{item.title}</span>
+                                </div>
+                              ) : (
+                                <>
+                                  <span 
+                                    className="mr-1 cursor-pointer hover:scale-110 transition-transform"
+                                    onClick={(e) => {
+                                      e.stopPropagation()
+                                      setEditingTemplateId(item.id)
+                                      setEditingIcon(item.icon || "🔄")
+                                      setEditingColor(templateColor)
+                                    }}
+                                    title="Clic para editar icono y color"
+                                  >
+                                    {item.icon ?? "🗓️"}
+                                  </span>
+                                  <span className="font-medium">{item.title}</span>
+                                </>
+                              )}
+                              <span className="ml-1 text-white/50">({item.startTime}-{item.endTime})</span>
+                            </button>
+                            {isEditing ? (
+                              <div className="flex items-center gap-1">
+                                <input
+                                  type="color"
+                                  value={editingColor}
+                                  onChange={(e) => setEditingColor(e.target.value)}
+                                  className="h-6 w-6 cursor-pointer rounded border border-white/10 bg-white/5 sm:h-7 sm:w-7"
+                                />
+                                <button
+                                  type="button"
+                                  onClick={async (e) => {
+                                    e.stopPropagation()
+                                    if (onUpdateShiftTemplate) {
+                                      try {
+                                        await onUpdateShiftTemplate(item.id, {
+                                          icon: editingIcon || null,
+                                          color: editingColor,
+                                        })
+                                        const newColors = new Map(templateColors)
+                                        newColors.set(item.id, editingColor)
+                                        setTemplateColors(newColors)
+                                      } catch (err) {
+                                        console.error("Error actualizando plantilla", err)
+                                      }
+                                    }
+                                    setEditingTemplateId(null)
+                                  }}
+                                  className="h-6 w-6 rounded border border-green-400/40 bg-green-500/20 text-[10px] text-green-100 hover:bg-green-400/30 sm:h-7 sm:w-7"
+                                  title="Guardar"
+                                >
+                                  ✓
+                                </button>
+                                <button
+                                  type="button"
+                                  onClick={(e) => {
+                                    e.stopPropagation()
+                                    setEditingTemplateId(null)
+                                  }}
+                                  className="h-6 w-6 rounded border border-red-400/40 bg-red-500/20 text-[10px] text-red-100 hover:bg-red-400/30 sm:h-7 sm:w-7"
+                                  title="Cancelar"
+                                >
+                                  ×
+                                </button>
+                              </div>
+                            ) : (
+                              <input
+                                type="color"
+                                value={templateColor}
+                                onChange={async (e) => {
+                                  const newColor = e.target.value
+                                  const newColors = new Map(templateColors)
+                                  newColors.set(item.id, newColor)
+                                  setTemplateColors(newColors)
+                                  if (onUpdateShiftTemplate) {
+                                    try {
+                                      await onUpdateShiftTemplate(item.id, {
+                                        color: newColor,
+                                      })
+                                    } catch (err) {
+                                      console.error("Error actualizando color", err)
+                                    }
+                                  }
+                                }}
+                                className="h-6 w-6 cursor-pointer rounded border border-white/10 bg-white/5 sm:h-7 sm:w-7"
+                                title={`Color para ${item.title}`}
+                              />
+                            )}
+                          </div>
+                        )
+                      })}
                     </div>
                   </div>
 
-                  <div>
-                    <p className="text-xs font-semibold uppercase tracking-[0.3em] text-white/40">Asignar rápidamente</p>
-                    <div className="mt-2 flex flex-wrap gap-2">
-                      {shiftTemplates.map((item) => (
-                        <button
-                          key={item.id}
-                          type="button"
-                          onClick={() => handleSelectTemplate(item.id)}
-                          className="inline-flex items-center gap-2 rounded-full border border-white/15 bg-white/10 px-3 py-1.5 text-xs font-semibold text-white/80 transition hover:border-sky-400/50 hover:text-white"
-                        >
-                          <span className="text-base">{item.icon ?? "🗓️"}</span>
-                          {item.title}
-                        </button>
-                      ))}
-                      <button
-                        type="button"
-                        onClick={() => handleApplyToAll(activeAssignment.shiftTemplateId ?? null)}
-                        className="inline-flex items-center gap-2 rounded-full border border-sky-400/40 bg-sky-500/20 px-3 py-1.5 text-xs font-semibold text-sky-100 shadow hover:bg-sky-400/30"
-                      >
-                        Aplicar a todos
-                      </button>
-                    </div>
                   </div>
                 </div>
               </div>
 
               {error ? (
-                <div className="rounded-2xl border border-red-400/50 bg-red-500/10 px-4 py-3 text-sm text-red-200">
+                <div className="flex-shrink-0 rounded-lg border border-red-400/50 bg-red-500/10 px-3 py-2 text-xs text-red-200 sm:rounded-xl sm:px-4 sm:py-2.5 sm:text-sm">
                   {error}
                 </div>
               ) : null}
 
-              <div className="flex flex-col-reverse gap-3 sm:flex-row sm:justify-end">
+              <div className="hidden flex-shrink-0 flex-col-reverse gap-2 border-t border-white/10 pt-2 sm:flex sm:flex-row sm:justify-end sm:border-0 sm:pt-0">
                 <button
                   type="button"
                   onClick={onClose}
-                  className="inline-flex items-center justify-center rounded-2xl border border-white/15 bg-white/5 px-5 py-2 text-sm font-semibold uppercase tracking-wide text-white/80 transition hover:border-white/30 hover:text-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/70"
+                  className="inline-flex items-center justify-center rounded-lg border border-white/15 bg-white/5 px-3 py-1.5 text-xs font-semibold uppercase tracking-wide text-white/80 transition hover:border-white/30 hover:text-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/70 sm:rounded-xl sm:px-4 sm:py-2 sm:text-sm"
                 >
                   Cancelar
                 </button>
                 <button
                   type="submit"
                   disabled={isSubmitting}
-                  className="inline-flex items-center justify-center rounded-2xl bg-gradient-to-r from-emerald-500 via-sky-500 to-indigo-500 px-6 py-2 text-sm font-semibold uppercase tracking-wide text-white shadow-[0_24px_48px_-28px_rgba(16,185,129,0.65)] transition hover:brightness-110 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-300 disabled:cursor-not-allowed disabled:opacity-50"
+                  className="inline-flex items-center justify-center rounded-lg bg-gradient-to-r from-emerald-500 via-sky-500 to-indigo-500 px-4 py-1.5 text-xs font-semibold uppercase tracking-wide text-white shadow-lg transition hover:brightness-110 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-300 disabled:cursor-not-allowed disabled:opacity-50 sm:rounded-xl sm:px-5 sm:py-2 sm:text-sm"
                 >
                   {isSubmitting ? "Guardando..." : isEditing ? "Actualizar" : "Crear rotación"}
                 </button>
               </div>
-            </form>
+              </form>
+            </div>
+            
+            {/* Footer sticky para móvil - ocupa todo el ancho */}
+            <div className="flex-shrink-0 border-t border-white/10 bg-slate-950 sm:hidden">
+              <div className="flex w-full gap-2 px-3 py-3">
+                <button
+                  type="button"
+                  onClick={onClose}
+                  className="flex-1 rounded-lg border border-white/15 bg-white/5 px-3 py-2.5 text-sm font-semibold uppercase tracking-wide text-white/80 transition hover:border-white/30 hover:text-white"
+                >
+                  Cancelar
+                </button>
+                <button
+                  type="button"
+                  disabled={isSubmitting}
+                  onClick={(e) => {
+                    e.preventDefault()
+                    const form = document.getElementById("rotation-form") as HTMLFormElement
+                    if (form) {
+                      form.requestSubmit()
+                    }
+                  }}
+                  className="flex-1 rounded-lg bg-gradient-to-r from-emerald-500 via-sky-500 to-indigo-500 px-3 py-2.5 text-sm font-semibold uppercase tracking-wide text-white shadow-lg transition hover:brightness-110 disabled:cursor-not-allowed disabled:opacity-50"
+                >
+                  {isSubmitting ? "Guardando..." : isEditing ? "Actualizar" : "Crear"}
+                </button>
+              </div>
+            </div>
           </motion.div>
         </motion.div>
       ) : null}

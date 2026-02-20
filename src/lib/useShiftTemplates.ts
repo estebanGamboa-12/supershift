@@ -10,6 +10,7 @@ type ShiftTemplateRow = {
   user_id: string
   title: string | null
   icon?: string | null
+  color?: string | null
   start_time?: string | null
   end_time?: string | null
   break_minutes?: number | null
@@ -36,6 +37,7 @@ function normaliseTemplate(row: ShiftTemplateRow): ShiftTemplate {
     userId: row.user_id,
     title: row.title ?? "Plantilla sin título",
     icon: row.icon ?? null,
+    color: row.color ?? null,
     startTime: normaliseTime(row.start_time ?? undefined) || "09:00",
     endTime: normaliseTime(row.end_time ?? undefined) || "17:00",
     breakMinutes: typeof row.break_minutes === "number" ? row.break_minutes : null,
@@ -76,7 +78,7 @@ export function useShiftTemplates(userId: string | null | undefined) {
     const response: PostgrestSingleResponse<ShiftTemplateRow[]> = await supabase
       .from("shift_template_presets")
       .select(
-        "id, user_id, title, icon, start_time, end_time, break_minutes, alert_minutes, location, created_at, updated_at",
+        "id, user_id, title, icon, color, start_time, end_time, break_minutes, alert_minutes, location, created_at, updated_at",
       )
       .eq("user_id", userId)
       .order("created_at", { ascending: false })
@@ -130,6 +132,7 @@ export function useShiftTemplates(userId: string | null | undefined) {
         user_id: userId,
         title: payload.title.trim(),
         icon: payload.icon ?? null,
+        color: payload.color ?? null,
         start_time: payload.startTime,
         end_time: payload.endTime,
         break_minutes: payload.breakMinutes ?? null,
@@ -141,7 +144,7 @@ export function useShiftTemplates(userId: string | null | undefined) {
         .from("shift_template_presets")
         .insert(insertPayload)
         .select(
-          "id, user_id, title, icon, start_time, end_time, break_minutes, alert_minutes, location, created_at, updated_at",
+          "id, user_id, title, icon, color, start_time, end_time, break_minutes, alert_minutes, location, created_at, updated_at",
         )
         .single()
 
@@ -171,6 +174,7 @@ export function useShiftTemplates(userId: string | null | undefined) {
       const updatePayload = {
         title: payload.title.trim(),
         icon: payload.icon ?? null,
+        color: payload.color ?? null,
         start_time: payload.startTime,
         end_time: payload.endTime,
         break_minutes: payload.breakMinutes ?? null,
@@ -184,7 +188,7 @@ export function useShiftTemplates(userId: string | null | undefined) {
         .eq("id", id)
         .eq("user_id", userId)
         .select(
-          "id, user_id, title, icon, start_time, end_time, break_minutes, alert_minutes, location, created_at, updated_at",
+          "id, user_id, title, icon, color, start_time, end_time, break_minutes, alert_minutes, location, created_at, updated_at",
         )
         .single()
 

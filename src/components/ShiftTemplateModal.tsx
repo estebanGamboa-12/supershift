@@ -21,12 +21,9 @@ export default function ShiftTemplateModal({
 }: ShiftTemplateModalProps) {
   const [formTitle, setFormTitle] = useState("")
   const [icon, setIcon] = useState("🗓️")
+  const [color, setColor] = useState("#3b82f6")
   const [startTime, setStartTime] = useState("09:00")
   const [endTime, setEndTime] = useState("17:00")
-  const [includeBreak, setIncludeBreak] = useState(false)
-  const [breakMinutes, setBreakMinutes] = useState<number | null>(null)
-  const [includeAlert, setIncludeAlert] = useState(false)
-  const [alertMinutes, setAlertMinutes] = useState<number | null>(null)
   const [location, setLocation] = useState("")
   const [error, setError] = useState<string | null>(null)
   const [isSubmitting, setIsSubmitting] = useState(false)
@@ -39,22 +36,16 @@ export default function ShiftTemplateModal({
     if (template) {
       setFormTitle(template.title)
       setIcon(template.icon ?? "🗓️")
+      setColor(template.color ?? "#3b82f6")
       setStartTime(template.startTime)
       setEndTime(template.endTime)
-      setIncludeBreak(template.breakMinutes != null)
-      setBreakMinutes(template.breakMinutes ?? null)
-      setIncludeAlert(template.alertMinutes != null)
-      setAlertMinutes(template.alertMinutes ?? null)
       setLocation(template.location ?? "")
     } else {
       setFormTitle("")
       setIcon("🗓️")
+      setColor("#3b82f6")
       setStartTime("09:00")
       setEndTime("17:00")
-      setIncludeBreak(false)
-      setBreakMinutes(null)
-      setIncludeAlert(false)
-      setAlertMinutes(null)
       setLocation("")
     }
     setError(null)
@@ -78,10 +69,11 @@ export default function ShiftTemplateModal({
       const payload: ShiftTemplateInput = {
         title: formTitle.trim(),
         icon: icon.trim().length > 0 ? icon : "🗓️",
+        color: color,
         startTime,
         endTime,
-        breakMinutes: includeBreak ? breakMinutes ?? 0 : null,
-        alertMinutes: includeAlert ? alertMinutes ?? 0 : null,
+        breakMinutes: null,
+        alertMinutes: null,
         location: location.trim() || null,
       }
 
@@ -103,7 +95,7 @@ export default function ShiftTemplateModal({
     <AnimatePresence>
       {open ? (
         <motion.div
-          className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/80 backdrop-blur-2xl px-3"
+          className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/80 backdrop-blur-2xl px-3 py-8"
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
           exit={{ opacity: 0 }}
@@ -120,7 +112,7 @@ export default function ShiftTemplateModal({
             animate={{ opacity: 1, scale: 1, y: 0 }}
             exit={{ opacity: 0, scale: 0.96, y: 16 }}
             transition={{ duration: 0.25, ease: "easeOut" }}
-            className="relative w-full max-w-lg rounded-3xl border border-white/15 bg-gradient-to-br from-slate-950/95 via-slate-950/80 to-slate-900/85 p-6 text-white shadow-[0_30px_80px_-48px_rgba(59,130,246,0.6)]"
+            className="relative w-full max-w-lg max-h-[90vh] overflow-y-auto rounded-3xl border border-white/15 bg-gradient-to-br from-slate-950/95 via-slate-950/80 to-slate-900/85 p-6 text-white shadow-[0_30px_80px_-48px_rgba(59,130,246,0.6)]"
           >
             <div className="mb-6 flex items-start justify-between gap-4">
               <div>
@@ -140,19 +132,31 @@ export default function ShiftTemplateModal({
               </button>
             </div>
 
-            <form onSubmit={handleSubmit} className="space-y-5">
-              <div className="grid gap-4 sm:grid-cols-[auto_1fr] sm:items-center">
-                <label className="flex h-16 w-16 items-center justify-center rounded-2xl border border-white/10 bg-white/5 text-3xl shadow-inner shadow-black/30">
-                  <span className="sr-only">Icono</span>
-                  <input
-                    type="text"
-                    value={icon}
-                    onChange={(event) => setIcon(event.target.value)}
-                    maxLength={2}
-                    className="h-full w-full bg-transparent text-center text-3xl outline-none"
-                  />
-                </label>
-                <div className="space-y-2">
+            <form onSubmit={handleSubmit} className="space-y-4">
+              <div className="grid gap-4 sm:grid-cols-[auto_1fr] sm:items-start">
+                <div className="flex flex-col items-center gap-2">
+                  <label className="flex h-16 w-16 items-center justify-center rounded-2xl border border-white/10 bg-white/5 text-3xl shadow-inner shadow-black/30" style={{ backgroundColor: color + "20", borderColor: color + "40" }}>
+                    <span className="sr-only">Icono</span>
+                    <input
+                      type="text"
+                      value={icon}
+                      onChange={(event) => setIcon(event.target.value)}
+                      maxLength={2}
+                      className="h-full w-full bg-transparent text-center text-3xl outline-none"
+                    />
+                  </label>
+                  <label className="flex flex-col items-center gap-1">
+                    <span className="text-xs text-white/60">Color</span>
+                    <input
+                      type="color"
+                      value={color}
+                      onChange={(e) => setColor(e.target.value)}
+                      className="h-8 w-8 cursor-pointer rounded-lg border border-white/10 bg-white/5"
+                      title="Seleccionar color"
+                    />
+                  </label>
+                </div>
+                <div className="space-y-3">
                   <label className="block text-sm font-medium text-white/80">
                     Título
                     <input
@@ -198,68 +202,6 @@ export default function ShiftTemplateModal({
                     required
                   />
                 </label>
-              </div>
-
-              <div className="space-y-3">
-                <div className="flex items-center justify-between rounded-2xl border border-white/10 bg-white/5 px-4 py-3 text-sm">
-                  <div>
-                    <p className="font-medium text-white">Descanso programado</p>
-                    <p className="text-xs text-white/60">Añade minutos de pausa para calcular el total efectivo.</p>
-                  </div>
-                  <button
-                    type="button"
-                    onClick={() => setIncludeBreak((value) => !value)}
-                    className={`relative inline-flex h-8 w-14 items-center rounded-full border border-white/10 transition ${includeBreak ? "bg-sky-500/70" : "bg-white/10"}`}
-                    aria-pressed={includeBreak}
-                  >
-                    <span
-                      className={`inline-block h-6 w-6 translate-x-1 rounded-full bg-white transition ${includeBreak ? "translate-x-7" : "translate-x-1"}`}
-                    />
-                  </button>
-                </div>
-                {includeBreak ? (
-                  <label className="block text-sm text-white/80">
-                    Minutos de descanso
-                    <input
-                      type="number"
-                      min={0}
-                      value={breakMinutes ?? 0}
-                      onChange={(event) => setBreakMinutes(Number.parseInt(event.target.value, 10) || 0)}
-                      className="mt-1 w-full rounded-2xl border border-white/15 bg-white/5 px-4 py-2 text-sm text-white focus:border-sky-400 focus:outline-none focus:ring-2 focus:ring-sky-400/40"
-                    />
-                  </label>
-                ) : null}
-              </div>
-
-              <div className="space-y-3">
-                <div className="flex items-center justify-between rounded-2xl border border-white/10 bg-white/5 px-4 py-3 text-sm">
-                  <div>
-                    <p className="font-medium text-white">Recordatorio</p>
-                    <p className="text-xs text-white/60">Define una alerta relativa al inicio del turno.</p>
-                  </div>
-                  <button
-                    type="button"
-                    onClick={() => setIncludeAlert((value) => !value)}
-                    className={`relative inline-flex h-8 w-14 items-center rounded-full border border-white/10 transition ${includeAlert ? "bg-emerald-500/70" : "bg-white/10"}`}
-                    aria-pressed={includeAlert}
-                  >
-                    <span
-                      className={`inline-block h-6 w-6 translate-x-1 rounded-full bg-white transition ${includeAlert ? "translate-x-7" : "translate-x-1"}`}
-                    />
-                  </button>
-                </div>
-                {includeAlert ? (
-                  <label className="block text-sm text-white/80">
-                    Minutos antes del turno
-                    <input
-                      type="number"
-                      min={0}
-                      value={alertMinutes ?? 0}
-                      onChange={(event) => setAlertMinutes(Number.parseInt(event.target.value, 10) || 0)}
-                      className="mt-1 w-full rounded-2xl border border-white/15 bg-white/5 px-4 py-2 text-sm text-white focus:border-sky-400 focus:outline-none focus:ring-2 focus:ring-sky-400/40"
-                    />
-                  </label>
-                ) : null}
               </div>
 
               {error ? (

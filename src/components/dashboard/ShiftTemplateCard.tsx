@@ -25,7 +25,13 @@ const ShiftTemplateCard: FC<ShiftTemplateCardProps> = ({
     >
       <div className="flex items-start justify-between gap-3">
         <div className="flex items-center gap-3">
-          <div className="grid h-12 w-12 place-items-center rounded-2xl border border-white/10 bg-white/5 text-2xl shadow-inner shadow-slate-900/50">
+          <div 
+            className="grid h-12 w-12 place-items-center rounded-2xl border text-2xl shadow-inner shadow-slate-900/50"
+            style={{
+              backgroundColor: template.color ? `${template.color}20` : 'rgba(255, 255, 255, 0.05)',
+              borderColor: template.color ? `${template.color}40` : 'rgba(255, 255, 255, 0.1)',
+            }}
+          >
             {template.icon ?? "🗓️"}
           </div>
           <div>

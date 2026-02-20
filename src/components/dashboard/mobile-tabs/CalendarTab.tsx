@@ -1,7 +1,7 @@
 "use client"
 
 import type { FC } from "react"
-import { useState, useCallback } from "react"
+import { useState, useCallback, useEffect } from "react"
 import {
   addMonths,
   isAfter,
@@ -9,7 +9,10 @@ import {
   startOfMonth,
   subMonths,
 } from "date-fns"
+import { motion, AnimatePresence } from "framer-motion"
+import { MoreVertical, X } from "lucide-react"
 import ShiftPlannerLab from "@/components/ShiftPlannerLab"
+import PlanLoopLogo from "@/components/PlanLoopLogo"
 import type { ManualRotationDay } from "@/components/ManualRotationBuilder"
 import NextShiftCard from "@/components/dashboard/NextShiftCard"
 import type { ShiftEvent, ShiftType } from "@/types/shifts"
@@ -36,6 +39,7 @@ type CalendarTabProps = CalendarSidebarProps & {
   onUpdateShift?: (shift: ShiftEvent, updates: { startTime?: string; endTime?: string }) => Promise<void>
   calendarView?: "day" | "monthly"
   onCalendarViewChange?: (view: "day" | "monthly") => void
+  userId?: string | null
 }
 
 const upcomingShiftsFromOrdered = (
@@ -136,9 +140,22 @@ const CalendarTab: FC<CalendarTabProps> = ({
   onAddShiftForDate,
   onUpdateShift,
   calendarView = "day",
+  userId = null,
 }) => {
   const [currentMonth, setCurrentMonth] = useState(() => startOfMonth(new Date()))
   const [selectedDate, setSelectedDate] = useState<Date | null>(() => new Date())
+  const [isSidebarOpen, setIsSidebarOpen] = useState(true)
+  const [isMobile, setIsMobile] = useState(true)
+
+  useEffect(() => {
+    const checkMobile = () => {
+      setIsMobile(window.innerWidth < 1024)
+    }
+    
+    checkMobile()
+    window.addEventListener("resize", checkMobile)
+    return () => window.removeEventListener("resize", checkMobile)
+  }, [])
 
   const handlePrevMonth = useCallback(() => {
     setCurrentMonth((m) => subMonths(m, 1))
@@ -156,49 +173,113 @@ const CalendarTab: FC<CalendarTabProps> = ({
   const upcomingShifts = upcomingShiftsFromOrdered(orderedShifts)
 
   return (
-    <div className="flex flex-col gap-6 lg:flex-row lg:items-stretch lg:gap-0">
+    <div className="flex flex-col gap-1 lg:flex-row lg:items-stretch lg:gap-1">
+      {/* Botón para abrir sidebar (móviles y desktop) */}
+      {!isSidebarOpen && (
+        <button
+          type="button"
+          onClick={() => setIsSidebarOpen(true)}
+          className={`fixed z-50 flex h-10 w-10 items-center justify-center rounded-lg border border-white/20 bg-white/10 text-white/80 shadow-lg transition hover:bg-white/20 hover:text-white active:scale-95 ${
+            isMobile ? "right-2 top-16" : "left-2 top-4"
+          }`}
+          aria-label="Abrir menú lateral"
+        >
+          <MoreVertical size={20} />
+        </button>
+      )}
+
+      {/* Overlay para cerrar sidebar (solo en móviles) */}
+      <AnimatePresence>
+        {isSidebarOpen && isMobile && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            onClick={() => setIsSidebarOpen(false)}
+            className="fixed inset-0 z-40 bg-black/60 backdrop-blur-sm"
+          />
+        )}
+      </AnimatePresence>
+
       {/* Columna izquierda tipo Google Calendar: scroll con calendario + próximos turnos */}
-      <aside className="order-2 w-full shrink-0 lg:order-none lg:flex lg:min-h-0 lg:w-[280px] xl:w-[300px] lg:flex-col lg:border-r lg:border-white/10">
-        <div className="flex flex-col gap-4 overflow-y-auto rounded-2xl border border-white/10 bg-slate-950/50 py-4 lg:max-h-[calc(100vh-12rem)] lg:rounded-none lg:border-0 lg:border-r lg:border-white/10 lg:bg-slate-950/30 lg:py-5 lg:pr-3">
+      <AnimatePresence mode="wait">
+        {isSidebarOpen && (
+          <motion.aside
+            key="sidebar"
+            initial={isMobile ? { x: "-100%" } : { x: "-100%" }}
+            animate={{ x: 0 }}
+            exit={{ x: "-100%" }}
+            transition={{ type: "spring", stiffness: 300, damping: 30 }}
+            className={`${
+              isMobile
+                ? "fixed left-0 top-0 z-50 h-full w-[280px] shrink-0 border-r border-white/10 bg-slate-950 shadow-2xl"
+                : "order-none flex min-h-0 w-[200px] flex-col"
+            }`}
+          >
+            <div className="flex h-full flex-col gap-1 overflow-y-auto py-1 lg:max-h-[calc(100vh-2rem)] lg:pr-1">
+              {/* Header del sidebar con logo y botón de cerrar */}
+              <div className="flex items-center justify-between border-b border-white/10 px-3 py-2">
+                <PlanLoopLogo size="sm" showText={true} />
+                <button
+                  type="button"
+                  onClick={() => setIsSidebarOpen(false)}
+                  className="flex h-8 w-8 items-center justify-center rounded-lg text-white/70 transition hover:bg-white/10 hover:text-white"
+                  aria-label="Cerrar menú lateral"
+                >
+                  <X size={18} />
+                </button>
+              </div>
           {onAddShiftForDate && (
-            <div className="px-4 lg:px-3">
+            <div className="px-1">
               <button
                 type="button"
-                onClick={() => onAddShiftForDate(displayDate)}
-                className="flex w-full items-center justify-center gap-2 rounded-xl border border-sky-400/50 bg-sky-500/20 py-2.5 text-sm font-bold text-sky-100 transition hover:border-sky-400/70 hover:bg-sky-500/30 hover:text-white"
+                onClick={() => {
+                  onAddShiftForDate(displayDate)
+                  // Cerrar sidebar en móviles al crear turno
+                  if (isMobile) {
+                    setIsSidebarOpen(false)
+                  }
+                }}
+                className="flex w-full items-center justify-center gap-2 rounded-lg bg-sky-500 py-2 text-sm font-semibold text-white shadow-md shadow-sky-500/30 transition hover:bg-sky-400 hover:shadow-sky-400/40"
               >
-                <span className="text-lg leading-none">+</span>
-                Crear
+                <span className="text-base leading-none">+</span>
+                Crear Turno
               </button>
             </div>
           )}
-          <div className="px-2 lg:px-0">
+          <div className="px-1">
             <MiniCalendar
               currentMonth={currentMonth}
               selectedDate={selectedDate}
-              onSelectDate={setSelectedDate}
+              onSelectDate={(date) => {
+                setSelectedDate(date)
+                // Cerrar sidebar en móviles al seleccionar fecha
+                if (isMobile) {
+                  setIsSidebarOpen(false)
+                }
+              }}
               onPrevMonth={handlePrevMonth}
               onNextMonth={handleNextMonth}
               onGoToday={handleGoToday}
               shifts={orderedShifts}
             />
           </div>
-          <div className="mt-2 flex flex-col gap-4 px-4 lg:px-3">
+          <div className="mt-1 flex flex-col gap-1 px-1">
             <NextShiftCard
               nextShift={nextShift ?? undefined}
               daysUntilNextShift={daysUntilNextShift}
               shiftTypeLabels={shiftTypeLabels}
             />
-            <section className="rounded-2xl border border-white/10 bg-white/5 py-3 px-3 lg:bg-white/[0.04]">
-              <div className="flex items-center justify-between gap-2 px-1">
-                <p className="text-xs font-semibold uppercase tracking-wider text-white/60">
-                  Próximos turnos
+            <section className="py-1">
+              <div className="flex items-center justify-between gap-1">
+                <p className="text-[9px] font-semibold uppercase text-white/50">
+                  Próximos
                 </p>
-                <span className="rounded-full border border-white/10 px-2 py-0.5 text-[10px] font-semibold text-white/50">
+                <span className="text-[9px] font-semibold text-white/40">
                   {upcomingShifts.length}
                 </span>
               </div>
-              <ul className="mt-3 space-y-2">
+              <ul className="mt-1 space-y-0.5">
                 {upcomingShifts.length > 0 ? (
                   upcomingShifts.map((shift) => {
                     const typeLabel = shift.label ?? shiftTypeLabels[shift.type] ?? shift.type
@@ -207,47 +288,53 @@ const CalendarTab: FC<CalendarTabProps> = ({
                       <li key={shift.id}>
                         <button
                           type="button"
-                          onClick={() => onSelectEvent(shift)}
-                          className="group flex w-full items-center justify-between gap-2 rounded-xl border border-white/10 bg-slate-950/50 px-3 py-2.5 text-left text-sm text-white/80 transition hover:border-sky-400/40 hover:bg-sky-500/10"
+                          onClick={() => {
+                            onSelectEvent(shift)
+                            // Cerrar sidebar en móviles al seleccionar turno
+                            if (isMobile) {
+                              setIsSidebarOpen(false)
+                            }
+                          }}
+                          className="group flex w-full items-center justify-between gap-1 rounded bg-white/5 px-1.5 py-1 text-left text-[9px] text-white/70 transition hover:bg-white/10 hover:text-white"
                         >
                           <div className="min-w-0 flex-1">
-                            <span className="block text-[11px] uppercase tracking-wide text-white/50">{dateLabel}</span>
+                            <span className="block text-[8px] text-white/50">{dateLabel}</span>
                             <span className="block font-semibold text-white truncate">{typeLabel}</span>
                             {shift.startTime && shift.endTime && (
-                              <span className="mt-0.5 block text-[10px] text-white/50">
+                              <span className="mt-0.5 block text-[8px] text-white/40">
                                 {shift.startTime} – {shift.endTime}
                               </span>
                             )}
                           </div>
-                          <span className="shrink-0 text-[10px] font-medium text-white/50 group-hover:text-sky-200">Ver</span>
                         </button>
                       </li>
                     )
                   })
                 ) : (
                   <li>
-                    <p className="rounded-xl border border-dashed border-white/10 bg-white/5 px-3 py-4 text-center text-xs text-white/50">
-                      No hay turnos próximos
+                    <p className="px-1 py-1 text-center text-[8px] text-white/40">
+                      Sin turnos
                     </p>
                   </li>
                 )}
               </ul>
             </section>
           </div>
-        </div>
-      </aside>
+            </div>
+          </motion.aside>
+        )}
+      </AnimatePresence>
 
       {/* Área principal: una sola vista (día o plan mensual) */}
-      <div className="order-1 min-w-0 flex-1 lg:min-h-[520px] lg:pl-6">
+      <div className={`order-1 min-w-0 flex-1 transition-all lg:pl-1 ${isSidebarOpen ? 'lg:pl-1' : ''}`}>
         {calendarView === "monthly" ? (
-          <div className="rounded-2xl border border-white/10 bg-slate-950/60 backdrop-blur-sm shadow-lg p-5">
-            <ShiftPlannerLab
-              initialEntries={plannerDays}
-              onCommit={onCommitPlanner}
-              isCommitting={isCommittingPlanner}
-              errorMessage={plannerError}
-            />
-          </div>
+          <ShiftPlannerLab
+            initialEntries={plannerDays}
+            onCommit={onCommitPlanner}
+            isCommitting={isCommittingPlanner}
+            errorMessage={plannerError}
+            userId={userId}
+          />
         ) : (
           <DayView
             date={displayDate}

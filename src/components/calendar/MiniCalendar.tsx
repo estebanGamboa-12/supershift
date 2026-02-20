@@ -55,40 +55,40 @@ const MiniCalendar: FC<MiniCalendarProps> = ({
   const shiftDates = new Set(shifts.map((s) => s.date))
 
   return (
-    <div className="flex flex-col rounded-3xl border border-white/10 bg-slate-950/80 backdrop-blur-sm p-4 shadow-[0_8px_32px_-8px_rgba(0,0,0,0.3)] lg:p-5">
-      <div className="mb-4 flex items-center justify-between">
+    <div className="flex flex-col p-1">
+      <div className="mb-1 flex items-center justify-between">
         <button
           type="button"
           onClick={onPrevMonth}
-          className="flex h-8 w-8 items-center justify-center rounded-lg text-white/60 transition-all hover:bg-white/10 hover:text-white active:scale-95"
+          className="flex h-5 w-5 items-center justify-center text-white/60 transition hover:text-white"
           aria-label="Mes anterior"
         >
-          <span className="text-lg leading-none">‹</span>
+          <span className="text-xs leading-none">‹</span>
         </button>
-        <span className="text-sm font-bold tracking-tight text-white">
+        <span className="text-[9px] font-semibold text-white">
           {formatCompactMonth(currentMonth)}
         </span>
         <button
           type="button"
           onClick={onNextMonth}
-          className="flex h-8 w-8 items-center justify-center rounded-lg text-white/60 transition-all hover:bg-white/10 hover:text-white active:scale-95"
+          className="flex h-5 w-5 items-center justify-center text-white/60 transition hover:text-white"
           aria-label="Mes siguiente"
         >
-          <span className="text-lg leading-none">›</span>
+          <span className="text-xs leading-none">›</span>
         </button>
       </div>
       <button
         type="button"
         onClick={onGoToday}
-        className="mb-3 w-full rounded-xl bg-gradient-to-r from-sky-500/90 to-sky-400/90 py-2 text-xs font-bold text-white shadow-lg shadow-sky-500/25 transition-all hover:from-sky-400 hover:to-sky-300 hover:shadow-sky-400/40 active:scale-[0.98]"
+        className="mb-1 w-full rounded bg-white/5 py-0.5 text-[8px] font-semibold text-white/80 transition hover:bg-white/10 hover:text-white"
       >
         Hoy
       </button>
-      <div className="grid grid-cols-7 gap-1">
+      <div className="grid grid-cols-7 gap-0.5">
         {["L", "M", "X", "J", "V", "S", "D"].map((d) => (
           <div
             key={d}
-            className="py-2 text-center text-[10px] font-bold uppercase tracking-wider text-white/40"
+            className="py-0.5 text-center text-[7px] font-semibold uppercase text-white/40"
           >
             {d}
           </div>
@@ -103,23 +103,20 @@ const MiniCalendar: FC<MiniCalendarProps> = ({
               key={day.getTime()}
               type="button"
               onClick={() => onSelectDate(day)}
-              className={`group relative flex min-h-[36px] flex-col items-center justify-center gap-0.5 rounded-lg text-xs font-medium transition-all duration-200 lg:min-h-[40px] ${
+              className={`group relative flex min-h-[24px] flex-col items-center justify-center gap-0 text-[8px] font-medium transition ${
                 !inMonth
-                  ? "text-white/25"
+                  ? "text-white/20"
                   : selected
-                    ? "bg-gradient-to-br from-sky-500 to-sky-600 text-white shadow-lg shadow-sky-500/40 ring-2 ring-sky-400/50 scale-105"
+                    ? "bg-white/10 text-white"
                     : today
-                      ? "bg-sky-500/30 font-bold text-sky-200 ring-1 ring-sky-400/40 hover:bg-sky-500/40"
-                      : "text-white/80 hover:bg-white/10 hover:text-white"
+                      ? "bg-white/5 font-bold text-white"
+                      : "text-white/70 hover:bg-white/5 hover:text-white"
               } ${hasShift && inMonth && !selected && !today ? "font-semibold" : ""}`}
             >
-              <span className="relative z-10">{format(day, "d", { locale: es })}</span>
+              <span>{format(day, "d", { locale: es })}</span>
               {hasShift && inMonth && !selected && !today ? (
-                <span className="relative z-10 h-1.5 w-1.5 rounded-full bg-sky-400 shadow-sm shadow-sky-400/50" />
+                <span className="h-0.5 w-0.5 rounded-full bg-white/60" />
               ) : null}
-              {selected && (
-                <span className="absolute inset-0 rounded-lg bg-gradient-to-br from-sky-400/20 to-sky-600/20 blur-sm" />
-              )}
             </button>
           )
         })}

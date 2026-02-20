@@ -7,6 +7,9 @@ export type ShiftPluses = {
   other: number
 }
 
+// Nuevo sistema: extras seleccionados por ID
+export type ShiftExtras = string[] // Array de IDs de extras seleccionados
+
 export type ShiftEvent = {
   id: number
   date: string

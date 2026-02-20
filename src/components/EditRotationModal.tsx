@@ -251,7 +251,7 @@ export default function EditRotationModal({
     <AnimatePresence>
       {open ? (
         <motion.div
-          className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950 px-3 py-4 backdrop-blur-2xl sm:px-4 sm:py-6"
+          className="fixed inset-0 z-50 flex items-start justify-center bg-slate-950 px-3 py-4 backdrop-blur-2xl sm:px-4 sm:py-6 pb-[calc(6rem+env(safe-area-inset-bottom))] overflow-y-auto"
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
           exit={{ opacity: 0 }}
@@ -262,14 +262,13 @@ export default function EditRotationModal({
               onClose()
             }
           }}
-          style={{ overflow: "hidden" }}
         >
           <motion.div
             initial={{ opacity: 0, scale: 0.95, y: 16 }}
             animate={{ opacity: 1, scale: 1, y: 0 }}
             exit={{ opacity: 0, scale: 0.95, y: 16 }}
             transition={{ duration: 0.25, ease: "easeOut" }}
-            className="relative flex h-full w-full flex-col overflow-hidden rounded-2xl border border-white/15 bg-gradient-to-br from-slate-950 via-slate-950 to-slate-900 text-white shadow-[0_40px_100px_-60px_rgba(56,189,248,0.65)] sm:rounded-3xl sm:h-auto sm:max-h-[95vh] sm:max-w-[95vw] lg:max-w-[1400px]"
+            className="relative flex w-full flex-col rounded-2xl border border-white/15 bg-gradient-to-br from-slate-950 via-slate-950 to-slate-900 text-white shadow-[0_40px_100px_-60px_rgba(56,189,248,0.65)] sm:rounded-3xl sm:max-w-[95vw] lg:max-w-[1400px] my-4"
             onClick={(e) => e.stopPropagation()}
           >
             <header className="flex flex-shrink-0 items-center justify-between border-b border-white/10 bg-slate-950 px-3 py-2 sm:px-4 sm:py-3">
@@ -286,10 +285,10 @@ export default function EditRotationModal({
               </button>
             </header>
 
-            <div className="flex flex-1 flex-col overflow-hidden px-3 py-2 sm:px-4 sm:py-3">
+            <div className="flex flex-1 flex-col px-3 py-2 sm:px-4 sm:py-3">
               <form id="rotation-form" onSubmit={handleSubmit} className="flex h-full min-h-0 flex-col gap-3 sm:gap-4">
               {/* Layout dividido: círculo a la izquierda, formulario a la derecha */}
-              <div className="grid min-h-0 flex-1 gap-3 overflow-hidden sm:gap-4 lg:grid-cols-[1fr_1fr]">
+              <div className="grid min-h-0 flex-1 gap-3 sm:gap-4 lg:grid-cols-[1fr_1fr]">
                 {/* Mitad izquierda: Círculo de días */}
                 <div className="flex flex-col items-center justify-center overflow-hidden min-h-0 order-2 lg:order-1">
                   <div
@@ -463,7 +462,7 @@ export default function EditRotationModal({
 
                   <div className="space-y-0.5">
                     <p className="text-[9px] text-white/60 sm:text-[10px]">Seleccionar plantilla</p>
-                    <div className="flex flex-col gap-0.5 overflow-y-auto max-h-[140px] sm:max-h-[180px]">
+                    <div className="flex flex-col gap-0.5">
                       <button
                         type="button"
                         onClick={() => handleSelectTemplate(null)}

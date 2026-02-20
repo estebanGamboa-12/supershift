@@ -912,9 +912,10 @@ const ConfigurationPanel: FC<ConfigurationPanelProps> = ({
                       <button
                         type="button"
                         onClick={onLogout}
-                        className="inline-flex w-full items-center justify-center rounded-full border border-white/15 px-4 py-2 font-semibold uppercase tracking-wide text-white/70 transition hover:border-rose-400/60 hover:text-rose-200"
+                        className="inline-flex w-full items-center justify-center gap-2 rounded-xl border-2 border-red-500/50 bg-red-500/20 px-4 py-3 text-sm font-bold text-red-200 transition hover:border-red-400 hover:bg-red-500/30 hover:text-red-100 active:scale-95 shadow-lg shadow-red-500/20"
                       >
-                        Cerrar sesión
+                        <span className="text-lg">🚪</span>
+                        <span>Cerrar sesión</span>
                       </button>
                     ) : null}
                   </div>
@@ -1192,7 +1193,7 @@ const ConfigurationPanel: FC<ConfigurationPanelProps> = ({
               </button>
             </div>
 
-            <div className="mt-4 max-h-[60vh] space-y-4 overflow-y-auto pr-2">
+            <div className="mt-4 space-y-4 pr-2">
               {isHistoryLoading ? (
                 <p className="text-sm text-white/60">
                   Cargando historial de cambios...

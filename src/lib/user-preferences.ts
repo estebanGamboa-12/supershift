@@ -1,4 +1,4 @@
-import { DEFAULT_USER_PREFERENCES, type UserPreferences } from "@/types/preferences"
+import { DEFAULT_USER_PREFERENCES, type UserPreferences, type ShiftExtra } from "@/types/preferences"
 
 const STORAGE_KEY = "supershift::user-preferences"
 const STORAGE_VERSION = 1
@@ -84,6 +84,20 @@ function normalizeStartOfWeek(value: unknown): UserPreferences["startOfWeek"] {
   return DEFAULT_USER_PREFERENCES.startOfWeek
 }
 
+function normalizeShiftExtra(x: unknown): ShiftExtra | null {
+  if (!x || typeof x !== "object") return null
+  const o = x as Record<string, unknown>
+  if (typeof o.id !== "string" || typeof o.name !== "string") return null
+  const value = Number(o.value)
+  if (Number.isNaN(value)) return null
+  return {
+    id: o.id,
+    name: o.name,
+    value,
+    color: typeof o.color === "string" ? o.color : undefined,
+  }
+}
+
 function normalizePreferences(raw: unknown): UserPreferences {
   if (!raw || typeof raw !== "object") {
     return DEFAULT_USER_PREFERENCES
@@ -91,6 +105,16 @@ function normalizePreferences(raw: unknown): UserPreferences {
 
   const candidate = raw as Partial<UserPreferences>
   const notifications = candidate.notifications ?? DEFAULT_USER_PREFERENCES.notifications
+
+  const shiftExtrasRaw = candidate.shiftExtras
+  const shiftExtras = Array.isArray(shiftExtrasRaw)
+    ? (shiftExtrasRaw.map(normalizeShiftExtra).filter((e): e is ShiftExtra => e != null) as UserPreferences["shiftExtras"])
+    : (DEFAULT_USER_PREFERENCES.shiftExtras ?? [])
+
+  const hourlyRate =
+    typeof candidate.hourlyRate === "number" && !Number.isNaN(candidate.hourlyRate)
+      ? candidate.hourlyRate
+      : DEFAULT_USER_PREFERENCES.hourlyRate ?? 0
 
   return {
     startOfWeek: normalizeStartOfWeek(candidate.startOfWeek),
@@ -102,6 +126,8 @@ function normalizePreferences(raw: unknown): UserPreferences {
         DEFAULT_USER_PREFERENCES.notifications.reminders,
       ),
     },
+    shiftExtras,
+    hourlyRate,
   }
 }
 

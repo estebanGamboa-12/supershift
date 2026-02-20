@@ -16,6 +16,7 @@ import {
 import { es } from "date-fns/locale"
 import { AnimatePresence, motion } from "framer-motion"
 import { formatCompactDate, formatCompactMonth } from "@/lib/formatDate"
+import { useConfirmDelete } from "@/lib/ConfirmDeleteContext"
 
 const WEEK_STARTS_ON = 1
 
@@ -314,6 +315,7 @@ export function ManualRotationBuilder({
   const [editor, setEditor] = useState<EditorState | null>(null)
   const [isPending, startTransition] = useTransition()
   const [isLoading, setIsLoading] = useState(false)
+  const { confirmDelete } = useConfirmDelete()
 
   const summary = useMemo<RotationSummary>(() => {
     const totals = {
@@ -416,8 +418,24 @@ export function ManualRotationBuilder({
     setDays((prev) => prev.filter((item) => item.date !== date))
   }
 
+  const removeDayWithConfirm = (day: RotationDay) => {
+    const parsed = parseISO(day.date)
+    const label = Number.isNaN(parsed.getTime()) ? day.date : formatCompactDate(parsed)
+    confirmDelete({
+      itemName: `el día ${label}`,
+      onConfirm: () => handleRemoveDay(day.date),
+    })
+  }
+
   const handleClear = () => {
     setDays([])
+  }
+
+  const clearWithConfirm = () => {
+    confirmDelete({
+      itemName: "todos los días seleccionados",
+      onConfirm: handleClear,
+    })
   }
 
   const handleConfirm = () => {
@@ -471,7 +489,7 @@ export function ManualRotationBuilder({
               <h3 className="text-lg font-semibold text-white">Días seleccionados</h3>
               <button
                 type="button"
-                onClick={handleClear}
+                onClick={clearWithConfirm}
                 disabled={days.length === 0}
                 className="inline-flex items-center gap-2 rounded-full border border-white/10 bg-white/5 px-3 py-1.5 text-xs font-semibold uppercase tracking-wide text-slate-100 transition hover:bg-white/10 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:ring-offset-slate-900 focus-visible:ring-sky-400 disabled:cursor-not-allowed disabled:opacity-40"
               >
@@ -547,7 +565,7 @@ export function ManualRotationBuilder({
                           </button>
                           <button
                             type="button"
-                            onClick={() => handleRemoveDay(day.date)}
+                            onClick={() => removeDayWithConfirm(day)}
                             className="inline-flex items-center gap-2 rounded-full bg-white/5 px-3 py-1.5 text-xs font-semibold uppercase tracking-wide text-rose-200 transition hover:bg-white/10 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-rose-400 focus-visible:ring-offset-2 focus-visible:ring-offset-slate-900"
                           >
                             Quitar

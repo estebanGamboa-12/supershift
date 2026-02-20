@@ -64,3 +64,21 @@ export function getSupabaseBrowserClient(): SupabaseClient {
 
   return browserClient
 }
+
+/**
+ * Crea un cliente de Supabase que actúa como el usuario dado por el JWT.
+ * Usar en rutas API para que RLS vea auth.uid() correctamente.
+ */
+export function createSupabaseClientForUser(accessToken: string): SupabaseClient {
+  return createClient(getSupabaseUrl(), getSupabaseAnonKey(), {
+    global: {
+      headers: {
+        Authorization: `Bearer ${accessToken}`,
+      },
+    },
+    auth: {
+      persistSession: false,
+      autoRefreshToken: false,
+    },
+  })
+}

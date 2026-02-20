@@ -1,6 +1,7 @@
 "use client"
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react"
+import Link from "next/link"
 import { AnimatePresence, motion } from "framer-motion"
 import { Loader2 } from "lucide-react"
 import {
@@ -27,6 +28,7 @@ import { useRotationTemplates } from "@/lib/useRotationTemplates"
 import type { RotationTemplate, ShiftTemplate } from "@/types/templates"
 import { loadUserPreferences } from "@/lib/user-preferences"
 import { DEFAULT_USER_PREFERENCES, type UserPreferences } from "@/types/preferences"
+import { useConfirmDelete } from "@/lib/ConfirmDeleteContext"
 
 type PlannerPluses = {
   night: number
@@ -92,6 +94,7 @@ type ShiftPlannerLabProps = {
   errorMessage?: string | null
   resetSignal?: number
   userId?: string | null
+  shiftTemplates?: ShiftTemplate[]
 }
 
 function toIsoDate(date: Date) {
@@ -178,6 +181,7 @@ export default function ShiftPlannerLab({
   errorMessage = null,
   resetSignal,
   userId = null,
+  shiftTemplates: shiftTemplatesProp = [],
 }: ShiftPlannerLabProps) {
   const stableInitialEntries = useMemo(
     () => initialEntries ?? [],
@@ -196,14 +200,16 @@ export default function ShiftPlannerLab({
   const toastTimeoutsRef = useRef<Map<number, number>>(new Map())
 
   const {
-    templates: shiftTemplates,
+    templates: shiftTemplatesFromHook,
     isLoading: isLoadingShiftTemplates,
   } = useShiftTemplates(userId)
+  const shiftTemplates = shiftTemplatesProp.length > 0 ? shiftTemplatesProp : shiftTemplatesFromHook
   const {
     templates: rotationTemplates,
     isLoading: isLoadingRotationTemplates,
     error: rotationTemplatesError,
   } = useRotationTemplates(userId)
+  const { confirmDelete } = useConfirmDelete()
 
   // Debug: Log para verificar que las rotaciones se carguen
   useEffect(() => {
@@ -1174,9 +1180,15 @@ export default function ShiftPlannerLab({
               </div>
 
               <EditorForm
+                customShiftTypes={shiftTemplates.map((t) => ({ id: String(t.id), name: t.title, color: t.color ?? "#3b82f6", defaultStartTime: t.startTime, defaultEndTime: t.endTime }))}
                 defaults={editorDefaults}
                 dayEntries={Object.values(entries).filter(e => e.date === editorDefaults.date)}
-                onRemove={() => handleRemoveEntry(editorDefaults.date)}
+                onRemove={() =>
+                  confirmDelete({
+                    itemName: `el día ${editorDefaults.display}`,
+                    onConfirm: () => handleRemoveEntry(editorDefaults.date),
+                  })
+                }
                 onSave={(data) =>
                   handleSaveEntry({
                     date: editorDefaults.date,
@@ -1200,6 +1212,7 @@ export default function ShiftPlannerLab({
 
 
 type EditorFormProps = {
+  customShiftTypes: Array<{ id: string; name: string; color: string; icon?: string; defaultStartTime?: string | null; defaultEndTime?: string | null }>
   defaults: {
     date: string
     display: string
@@ -1224,7 +1237,7 @@ type EditorFormProps = {
   onRemove: () => void
 }
 
-function EditorForm({ defaults, dayEntries, onSave, onRemove }: EditorFormProps) {
+function EditorForm({ customShiftTypes, defaults, dayEntries, onSave, onRemove }: EditorFormProps) {
   const [type, setType] = useState<ShiftType>(defaults.type)
   const [note, setNote] = useState(defaults.note)
   const [color, setColor] = useState(defaults.color)
@@ -1324,34 +1337,38 @@ function EditorForm({ defaults, dayEntries, onSave, onRemove }: EditorFormProps)
       <div className="space-y-2">
         <div>
           <p className="text-[10px] uppercase tracking-wide text-white/40">Tipo de turno</p>
-          <div className="mt-1.5 grid grid-cols-2 gap-1.5 sm:grid-cols-3">
-            {SHIFT_TYPES.map((option) => (
-              <button
-                key={option.value}
-                type="button"
-                onClick={() => {
-                  setType(option.value)
-                  const isUsingDefaultColor =
-                    color === defaults.color ||
-                    color === SHIFT_TYPES.find((item) => item.value === type)?.defaultColor
-                  if (!defaults.color || defaults.type === option.value || isUsingDefaultColor) {
-                    setColor(option.defaultColor)
-                  }
-                  if (
-                    label.trim().length === 0 ||
-                    label === SHIFT_LABELS[type] ||
-                    label === defaults.label
-                  ) {
-                    setLabel(SHIFT_LABELS[option.value])
-                  }
-                }}
-                className={`rounded-lg border px-1.5 py-1 text-left text-[10px] font-semibold transition ${type === option.value ? "border-white/80 bg-white/10" : "border-white/10 bg-white/5 hover:border-sky-400/40"}`}
-                style={{ color: option.defaultColor }}
-              >
-                {SHIFT_LABELS[option.value]}
-              </button>
-            ))}
-          </div>
+          {customShiftTypes.length === 0 ? (
+            <p className="mt-1.5 rounded-lg border border-dashed border-white/15 bg-white/5 px-3 py-2 text-[10px] text-white/50">
+              No tienes plantillas de turno. Créalas en{" "}
+              <Link href="/templates" className="font-semibold text-sky-400 hover:text-sky-300 underline">
+                Plantillas
+              </Link>{" "}
+              y aparecerán aquí.
+            </p>
+          ) : (
+            <div className="mt-1.5 grid grid-cols-2 gap-1.5 sm:grid-cols-3">
+              {customShiftTypes.map((ct) => {
+                const isSelected = type === "CUSTOM" && label === ct.name && color === ct.color
+                return (
+                  <button
+                    key={ct.id}
+                    type="button"
+                    onClick={() => {
+                      setType("CUSTOM")
+                      setLabel(ct.name)
+                      setColor(ct.color)
+                      if (ct.defaultStartTime) setStartTime(ct.defaultStartTime)
+                      if (ct.defaultEndTime) setEndTime(ct.defaultEndTime)
+                    }}
+                    className={`rounded-lg border px-1.5 py-1 text-left text-[10px] font-semibold transition ${isSelected ? "border-white/80 bg-white/10" : "border-white/10 bg-white/5 hover:border-sky-400/40"}`}
+                    style={{ color: ct.color }}
+                  >
+                    {ct.icon ? `${ct.icon} ` : ""}{ct.name}
+                  </button>
+                )
+              })}
+            </div>
+          )}
         </div>
 
         <label className="flex flex-col gap-1 text-[10px] text-white/70">
@@ -1421,56 +1438,65 @@ function EditorForm({ defaults, dayEntries, onSave, onRemove }: EditorFormProps)
 
         <div>
           <p className="mb-2 text-[10px] uppercase tracking-wide text-white/40">Extras</p>
-          <div className="rounded-lg border border-white/10 bg-white/5 p-2">
-            <div className="grid grid-cols-2 gap-1.5 sm:grid-cols-3">
-              {(userPreferences.shiftExtras ?? DEFAULT_USER_PREFERENCES.shiftExtras ?? []).map((extra, index) => {
-                // Mapear extras a campos de pluses: primeros 4 extras van a night, holiday, availability, other
-                const plusKeys: (keyof PlannerPluses)[] = ["night", "holiday", "availability", "other"]
-                const key = index < 4 ? plusKeys[index] : "other"
-                const isSelected = pluses[key] > 0 && index < 4
-                // Si hay más de 4 extras, solo mostrar los primeros 4 para evitar problemas de mapeo
-                if (index >= 4) return null
-                
-                return (
-                  <label
-                    key={extra.id}
-                    className={`flex items-center gap-1.5 rounded-lg border px-2 py-1.5 text-[10px] transition cursor-pointer ${
-                      isSelected
-                        ? "border-white/30 bg-white/10"
-                        : "border-white/10 bg-white/5 hover:border-white/20"
-                    }`}
-                    style={isSelected ? { borderColor: extra.color + "60", backgroundColor: extra.color + "15" } : {}}
-                  >
-                    <input
-                      type="checkbox"
-                      checked={isSelected}
-                      onChange={(event) =>
-                        setPluses((prev) => ({
-                          ...prev,
-                          [key]: event.target.checked ? 1 : 0,
-                        }))
-                      }
-                      className="h-3 w-3 rounded border-white/20 bg-white/5 accent-sky-500 flex-shrink-0"
-                    />
-                    <span className="flex-1 font-medium text-white/90 truncate text-[9px]">{extra.name}</span>
-                    <span className="text-[9px] font-semibold text-white/60 whitespace-nowrap">{extra.value}€</span>
-                  </label>
-                )
-              })}
-            </div>
-          </div>
-          {(userPreferences.shiftExtras ?? []).length > 4 && (
-            <p className="mt-2 text-[8px] text-white/40 italic">
-              Nota: Solo los primeros 4 extras se pueden asignar por turno. Gestiona tus extras en /extras
+          {(userPreferences.shiftExtras ?? []).length === 0 ? (
+            <p className="rounded-lg border border-dashed border-white/15 bg-white/5 px-3 py-2 text-[10px] text-white/50">
+              Si quieres añadir extras, créalos en{" "}
+              <Link href="/extras" className="font-semibold text-sky-400 hover:text-sky-300 underline">
+                Extras
+              </Link>{" "}
+              y aparecerán aquí.
             </p>
-          )}
-          {selectedExtras.length > 0 && (
-            <p className="mt-2 text-[9px] text-white/50">
-              Extras: {selectedExtras.map(id => {
-                const extra = userPreferences.shiftExtras?.find(e => e.id === id)
-                return extra ? `${extra.name} (+${extra.value}€)` : null
-              }).filter(Boolean).join(", ")}
-            </p>
+          ) : (
+            <>
+              <div className="rounded-lg border border-white/10 bg-white/5 p-2">
+                <div className="grid grid-cols-2 gap-1.5 sm:grid-cols-3">
+                  {(userPreferences.shiftExtras ?? []).map((extra, index) => {
+                    const plusKeys: (keyof PlannerPluses)[] = ["night", "holiday", "availability", "other"]
+                    const key = index < 4 ? plusKeys[index] : "other"
+                    const isSelected = pluses[key] > 0 && index < 4
+                    if (index >= 4) return null
+                    return (
+                      <label
+                        key={extra.id}
+                        className={`flex items-center gap-1.5 rounded-lg border px-2 py-1.5 text-[10px] transition cursor-pointer ${
+                          isSelected
+                            ? "border-white/30 bg-white/10"
+                            : "border-white/10 bg-white/5 hover:border-white/20"
+                        }`}
+                        style={isSelected ? { borderColor: (extra.color ?? "#3b82f6") + "60", backgroundColor: (extra.color ?? "#3b82f6") + "15" } : {}}
+                      >
+                        <input
+                          type="checkbox"
+                          checked={isSelected}
+                          onChange={(event) =>
+                            setPluses((prev) => ({
+                              ...prev,
+                              [key]: event.target.checked ? 1 : 0,
+                            }))
+                          }
+                          className="h-3 w-3 rounded border-white/20 bg-white/5 accent-sky-500 flex-shrink-0"
+                        />
+                        <span className="flex-1 font-medium text-white/90 truncate text-[9px]">{extra.name}</span>
+                        <span className="text-[9px] font-semibold text-white/60 whitespace-nowrap">{extra.value}€</span>
+                      </label>
+                    )
+                  })}
+                </div>
+              </div>
+              {(userPreferences.shiftExtras ?? []).length > 4 && (
+                <p className="mt-2 text-[8px] text-white/40 italic">
+                  Nota: Solo los primeros 4 extras se pueden asignar por turno. Gestiona tus extras en Extras.
+                </p>
+              )}
+              {selectedExtras.length > 0 && (
+                <p className="mt-2 text-[9px] text-white/50">
+                  Extras: {selectedExtras.map(id => {
+                    const extra = userPreferences.shiftExtras?.find(e => e.id === id)
+                    return extra ? `${extra.name} (+${extra.value}€)` : null
+                  }).filter(Boolean).join(", ")}
+                </p>
+              )}
+            </>
           )}
         </div>
 

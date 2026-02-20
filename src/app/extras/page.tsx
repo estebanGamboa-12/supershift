@@ -1,16 +1,33 @@
 "use client"
 
-import { useEffect, useState, useMemo, useCallback } from "react"
+import { useEffect, useState, useMemo, useCallback, useMemo as useMemoHook } from "react"
 import { useRouter } from "next/navigation"
 import { motion } from "framer-motion"
 import { Plus, Trash2, Save, X, Check } from "lucide-react"
 import { loadUserPreferences, saveUserPreferences } from "@/lib/user-preferences"
 import { DEFAULT_USER_PREFERENCES, type UserPreferences, type ShiftExtra } from "@/types/preferences"
 import type { ShiftType } from "@/types/shifts"
-import FloatingParticlesLoader from "@/components/FloatingParticlesLoader"
 import MobileNavigation, { type MobileTab } from "@/components/dashboard/MobileNavigation"
 import PlanLoopLogo from "@/components/PlanLoopLogo"
 import NumberInput from "@/components/NumberInput"
+import { getSupabaseBrowserClient } from "@/lib/supabase"
+import { exchangeAccessToken } from "@/lib/auth-client"
+import type { Session } from "@supabase/supabase-js"
+import type { UserSummary } from "@/types/users"
+import { useConfirmDelete } from "@/lib/ConfirmDeleteContext"
+import { useToast } from "@/lib/ToastContext"
+
+// Loader mínimo inline: sin componente pesado para que la ruta cargue rápido
+function ExtrasPageLoader() {
+  return (
+    <div className="flex min-h-screen items-center justify-center bg-slate-950">
+      <div className="flex flex-col items-center gap-3">
+        <div className="h-8 w-8 animate-spin rounded-full border-2 border-white/20 border-t-sky-400" />
+        <p className="text-sm text-white/60">Cargando...</p>
+      </div>
+    </div>
+  )
+}
 
 const shiftTypeLabels: Record<ShiftType, string> = {
   WORK: "Trabajo",
@@ -30,8 +47,11 @@ const shiftTypeColors: Record<ShiftType, string> = {
 
 export default function ExtrasPage() {
   const router = useRouter()
-  
+  const { confirmDelete } = useConfirmDelete()
+  const { showToast } = useToast()
+
   const [preferences, setPreferences] = useState<UserPreferences>(DEFAULT_USER_PREFERENCES)
+  const [currentUser, setCurrentUser] = useState<UserSummary | null>(null)
   const [isLoading, setIsLoading] = useState(true)
   const [isSaving, setIsSaving] = useState(false)
   const [editingId, setEditingId] = useState<string | null>(null)
@@ -40,6 +60,15 @@ export default function ExtrasPage() {
     value: 0,
     color: "#3b82f6",
   })
+
+  const supabase = useMemoHook(() => {
+    if (typeof window === "undefined") return null
+    try {
+      return getSupabaseBrowserClient()
+    } catch {
+      return null
+    }
+  }, [])
 
   const handleNavigateTab = useCallback((tab: MobileTab) => {
     if (tab === "calendar") {
@@ -61,14 +90,70 @@ export default function ExtrasPage() {
   const [exampleEndTime, setExampleEndTime] = useState("17:00")
   const [examplePluses, setExamplePluses] = useState({ night: 0, holiday: 0, availability: 0, other: 0 })
 
+  // Cargar sesión y usuario
+  useEffect(() => {
+    if (!supabase) {
+      setIsLoading(false)
+      return
+    }
+
+    let isMounted = true
+
+    const resolveSession = async (session: Session | null) => {
+      if (!session?.access_token) {
+        if (isMounted) {
+          setCurrentUser(null)
+          setIsLoading(false)
+        }
+        return
+      }
+
+      try {
+        const user = await exchangeAccessToken(session.access_token)
+        if (isMounted) {
+          setCurrentUser(user)
+        }
+      } catch (error) {
+        console.error("No se pudo intercambiar el token de Supabase", error)
+        if (isMounted) {
+          setCurrentUser(null)
+          setIsLoading(false)
+        }
+      }
+    }
+
+    const loadInitialSession = async () => {
+      try {
+        const { data } = await supabase.auth.getSession()
+        await resolveSession(data.session ?? null)
+      } finally {
+        if (isMounted) {
+          setIsLoading(false)
+        }
+      }
+    }
+
+    void loadInitialSession()
+
+    const { data: subscription } = supabase.auth.onAuthStateChange((_event, session) => {
+      void resolveSession(session)
+    })
+
+    return () => {
+      isMounted = false
+      subscription?.subscription.unsubscribe()
+    }
+  }, [supabase])
+
+  // Cargar preferencias de localStorage (para extras y tarifa)
   useEffect(() => {
     const loaded = loadUserPreferences()
     if (loaded) {
       setPreferences(loaded.preferences)
     }
-    setIsLoading(false)
   }, [])
 
+  // Cargar tipos de turnos personalizados desde Supabase
   const handleAddExtra = () => {
     if (!newExtra.name || newExtra.value === undefined) return
 
@@ -86,14 +171,23 @@ export default function ExtrasPage() {
 
     setPreferences(updated)
     setNewExtra({ name: "", value: 0, color: "#3b82f6" })
+    showToast({ type: "create", message: "Extra creado" })
   }
 
   const handleDeleteExtra = (id: string) => {
-    const updated = {
-      ...preferences,
-      shiftExtras: (preferences.shiftExtras ?? []).filter((e) => e.id !== id),
-    }
-    setPreferences(updated)
+    const extra = preferences.shiftExtras?.find((e) => e.id === id)
+    const itemName = extra ? `el extra "${extra.name}"` : "este extra"
+    confirmDelete({
+      itemName,
+      onConfirm: () => {
+        const updated = {
+          ...preferences,
+          shiftExtras: (preferences.shiftExtras ?? []).filter((e) => e.id !== id),
+        }
+        setPreferences(updated)
+        showToast({ type: "delete", message: "Extra eliminado" })
+      },
+    })
   }
 
   // Guardar el estado original cuando se inicia la edición
@@ -135,6 +229,7 @@ export default function ExtrasPage() {
     setIsSaving(true)
     try {
       saveUserPreferences(preferences)
+      showToast({ type: "update", message: "Cambios guardados" })
       setTimeout(() => setIsSaving(false), 500)
     } catch (error) {
       console.error("Error guardando preferencias:", error)
@@ -184,7 +279,7 @@ export default function ExtrasPage() {
   }, [exampleShiftHours, selectedExtras, preferences])
 
   if (isLoading) {
-    return <FloatingParticlesLoader />
+    return <ExtrasPageLoader />
   }
 
   return (
@@ -311,7 +406,7 @@ export default function ExtrasPage() {
                 <p className="mb-2 text-[10px] uppercase tracking-wide text-white/40">Extras</p>
                 <div className="max-h-[200px] overflow-y-auto rounded-lg border border-white/10 bg-white/5 p-2">
                   <div className="grid grid-cols-2 gap-2 sm:grid-cols-3">
-                    {(preferences.shiftExtras ?? DEFAULT_USER_PREFERENCES.shiftExtras ?? []).slice(0, 4).map((extra, index) => {
+                    {(preferences.shiftExtras ?? []).slice(0, 4).map((extra, index) => {
                       const plusKeys: (keyof typeof examplePluses)[] = ["night", "holiday", "availability", "other"]
                       const key = plusKeys[index]
                       const isSelected = examplePluses[key] > 0
@@ -468,6 +563,7 @@ export default function ExtrasPage() {
                         Editar
                       </button>
                       <button
+                        type="button"
                         onClick={() => handleDeleteExtra(extra.id)}
                         className="rounded-lg border border-red-400/30 bg-red-500/10 p-2 text-red-300 transition hover:bg-red-500/20"
                       >

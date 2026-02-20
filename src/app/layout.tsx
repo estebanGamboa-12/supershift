@@ -3,6 +3,7 @@ import "./globals.css"
 import type { Metadata, Viewport } from "next"
 import { ReactNode } from "react"
 
+import { AppProviders } from "@/components/providers/AppProviders"
 import { ServiceWorkerRegistration } from "@/components/pwa/service-worker-registration"
 import { InstallPromptBanner } from "@/components/pwa/install-prompt"
 
@@ -35,9 +36,11 @@ export default function RootLayout({ children }: { children: ReactNode }) {
   return (
     <html lang="es" className="h-full dark" data-theme="dark">
       <body className="min-h-screen overflow-x-hidden bg-slate-950 text-slate-100 antialiased">
-        {children}
-        <InstallPromptBanner />
-        <ServiceWorkerRegistration />
+        <AppProviders>
+          {children}
+          <InstallPromptBanner />
+          <ServiceWorkerRegistration />
+        </AppProviders>
       </body>
     </html>
   )

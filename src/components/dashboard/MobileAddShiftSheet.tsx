@@ -1,16 +1,10 @@
 "use client"
 
 import { useEffect, useMemo, useState } from "react"
+import Link from "next/link"
 import { motion } from "framer-motion"
 import type { ShiftType } from "@/types/shifts"
-
-const SHIFT_TYPE_LABELS: Record<ShiftType, string> = {
-  WORK: "Trabajo",
-  REST: "Descanso",
-  NIGHT: "Nocturno",
-  VACATION: "Vacaciones",
-  CUSTOM: "Personalizado",
-}
+import type { ShiftTemplate } from "@/types/templates"
 
 type MobileAddShiftSheetProps = {
   open: boolean
@@ -19,6 +13,8 @@ type MobileAddShiftSheetProps = {
     date: string
     type: ShiftType
     note?: string
+    label?: string
+    color?: string
     startTime: string
     endTime: string
   }) => Promise<void>
@@ -26,6 +22,8 @@ type MobileAddShiftSheetProps = {
   initialStartTime?: string
   initialEndTime?: string
   onDateConsumed?: () => void
+  userId?: string | null
+  shiftTemplates?: ShiftTemplate[]
 }
 
 export default function MobileAddShiftSheet({
@@ -36,9 +34,12 @@ export default function MobileAddShiftSheet({
   initialStartTime,
   initialEndTime,
   onDateConsumed,
+  userId,
+  shiftTemplates = [],
 }: MobileAddShiftSheetProps) {
   const [date, setDate] = useState("")
-  const [type, setType] = useState<ShiftType>("WORK")
+  const [type, setType] = useState<ShiftType>("CUSTOM")
+  const [selectedTemplateId, setSelectedTemplateId] = useState<number | null>(null)
   const [note, setNote] = useState("")
   const [startTime, setStartTime] = useState("09:00")
   const [endTime, setEndTime] = useState("17:00")
@@ -61,13 +62,21 @@ export default function MobileAddShiftSheet({
     if (initialEndTime) {
       setEndTime(initialEndTime)
     }
-  }, [open, selectedDate, initialStartTime, initialEndTime, onDateConsumed])
+    if (shiftTemplates.length > 0 && selectedTemplateId === null) {
+      const first = shiftTemplates[0]
+      setSelectedTemplateId(first.id)
+      setType("CUSTOM")
+      if (!initialStartTime) setStartTime(first.startTime)
+      if (!initialEndTime) setEndTime(first.endTime)
+    }
+  }, [open, selectedDate, initialStartTime, initialEndTime, onDateConsumed, shiftTemplates, selectedTemplateId])
 
   useEffect(() => {
     if (!open) {
       const timeout = setTimeout(() => {
         setDate("")
-        setType("WORK")
+        setType("CUSTOM")
+        setSelectedTemplateId(null)
         setNote("")
         setStartTime("09:00")
         setEndTime("17:00")
@@ -107,10 +116,13 @@ export default function MobileAddShiftSheet({
     setSubmitError("")
     try {
       setIsSubmitting(true)
+      const tpl = selectedTemplateId != null ? shiftTemplates.find((t) => t.id === selectedTemplateId) : null
       await onAdd({
         date,
-        type,
+        type: "CUSTOM",
         note: note.trim() ? note.trim() : undefined,
+        label: tpl?.title,
+        color: tpl?.color ?? "#3b82f6",
         startTime,
         endTime,
       })
@@ -171,17 +183,46 @@ export default function MobileAddShiftSheet({
             </div>
           </div>
 
-          <div>
-            <label className="mb-1 block text-xs font-semibold uppercase tracking-wider text-white/50">Tipo de turno</label>
-            <select
-              value={type}
-              onChange={(e) => setType(e.target.value as ShiftType)}
-              className="input-field w-full text-sm min-h-[40px] touch-manipulation"
-            >
-              {Object.entries(SHIFT_TYPE_LABELS).map(([value, label]) => (
-                <option key={value} value={value}>{label}</option>
-              ))}
-            </select>
+          <div className="space-y-3">
+            <p className="text-xs font-semibold uppercase tracking-wider text-white/50">Tipo de turno</p>
+            {shiftTemplates.length === 0 ? (
+              <p className="rounded-lg border border-dashed border-white/15 bg-white/5 px-3 py-3 text-[11px] text-white/50">
+                No tienes plantillas de turno. Créalas en{" "}
+                <Link href="/templates" className="font-semibold text-sky-400 hover:text-sky-300 underline">
+                  Plantillas
+                </Link>{" "}
+                (Trabajo, Nocturno, Descanso, etc.) y aparecerán aquí.
+              </p>
+            ) : (
+              <div className="flex flex-wrap gap-2">
+                {shiftTemplates.map((tpl) => {
+                  const tplColor = tpl.color ?? "#3b82f6"
+                  const isSelected = selectedTemplateId === tpl.id
+                  return (
+                    <button
+                      key={tpl.id}
+                      type="button"
+                      onClick={() => {
+                        setSelectedTemplateId(tpl.id)
+                        setType("CUSTOM")
+                        setStartTime(tpl.startTime)
+                        setEndTime(tpl.endTime)
+                      }}
+                      className={`rounded-xl border-2 px-3 py-2 text-xs font-semibold transition touch-manipulation ${
+                        isSelected ? "border-white/40 text-white" : "border-white/15 bg-white/5 text-white/80 hover:bg-white/10"
+                      }`}
+                      style={
+                        isSelected
+                          ? { backgroundColor: tplColor + "40", borderColor: tplColor }
+                          : undefined
+                      }
+                    >
+                      {tpl.icon ? `${tpl.icon} ` : ""}{tpl.title}
+                    </button>
+                  )
+                })}
+              </div>
+            )}
           </div>
 
           <div className="rounded-xl border border-white/10 bg-white/5 p-2.5">
@@ -231,10 +272,10 @@ export default function MobileAddShiftSheet({
         <motion.button
           whileTap={{ scale: 0.98 }}
           type="submit"
-          disabled={isSubmitting}
+          disabled={isSubmitting || shiftTemplates.length === 0}
           className="w-full rounded-xl bg-gradient-to-r from-sky-500 to-sky-600 py-3 text-base font-bold text-white shadow-lg shadow-sky-500/25 hover:from-sky-400 hover:to-sky-500 disabled:opacity-60 touch-manipulation min-h-[44px]"
         >
-          {isSubmitting ? "Guardando…" : "Guardar turno"}
+          {isSubmitting ? "Guardando…" : shiftTemplates.length === 0 ? "Crea plantillas en Plantillas" : "Guardar turno"}
         </motion.button>
       </form>
     </div>

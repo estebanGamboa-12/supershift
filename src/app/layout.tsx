@@ -15,7 +15,6 @@ export const metadata: Metadata = {
   description: "Planificador de turnos optimizado para equipos de Planloop.",
   manifest: "/manifest.webmanifest",
   applicationName: "Planloop",
-  themeColor: "#0f172a",
   icons: {
     icon: [{ url: "/planloop-logo.svg", sizes: "any", type: "image/svg+xml" }],
     apple: [{ url: "/planloop-logo.svg", sizes: "any", type: "image/svg+xml" }]

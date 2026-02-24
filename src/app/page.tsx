@@ -806,14 +806,13 @@ export default function Home() {
   const navItems = useMemo(
     () => [
       { id: "calendar", label: "Calendario", description: "Planificación" },
-      { id: "insights", label: "Resumen", description: "Indicadores y registros" },
       { id: "settings", label: "Preferencias", description: "Perfil y cuenta" },
     ],
     [],
   )
 
   const handleNavigateTab = useCallback((sectionId: string) => {
-    setActiveTab(sectionId as MobileTab)
+    setActiveTab(sectionId === "settings" ? "settings" : "calendar")
   }, [])
 
   useEffect(() => {

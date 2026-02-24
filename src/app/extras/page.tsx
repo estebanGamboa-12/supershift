@@ -17,18 +17,6 @@ import type { UserSummary } from "@/types/users"
 import { useConfirmDelete } from "@/lib/ConfirmDeleteContext"
 import { useToast } from "@/lib/ToastContext"
 
-// Loader mínimo inline: sin componente pesado para que la ruta cargue rápido
-function ExtrasPageLoader() {
-  return (
-    <div className="flex min-h-screen items-center justify-center bg-slate-950">
-      <div className="flex flex-col items-center gap-3">
-        <div className="h-8 w-8 animate-spin rounded-full border-2 border-white/20 border-t-sky-400" />
-        <p className="text-sm text-white/60">Cargando...</p>
-      </div>
-    </div>
-  )
-}
-
 export default function ExtrasPage() {
   const router = useRouter()
   const { confirmDelete } = useConfirmDelete()

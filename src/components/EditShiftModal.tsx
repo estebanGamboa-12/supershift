@@ -59,7 +59,7 @@ const shiftTypeColors: Record<ShiftType, string> = {
   CUSTOM: "#f59e0b",
 }
 
-export default function EditShiftModal({ shift, dayShifts = [], onSave, onDelete, onClose, userId, shiftTemplates = [] }: Props) {
+export default function EditShiftModal({ shift, dayShifts = [], onSave, onDelete, onClose, shiftTemplates = [] }: Props) {
   const [date, setDate] = useState("")
   const [type, setType] = useState<ShiftType>("CUSTOM")
   const [label, setLabel] = useState("")

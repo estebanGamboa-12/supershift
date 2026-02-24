@@ -48,7 +48,6 @@ export default function MobileAddShiftSheet({
   shiftTemplates = [],
 }: MobileAddShiftSheetProps) {
   const [date, setDate] = useState("")
-  const [type, setType] = useState<ShiftType>("CUSTOM")
   const [selectedTemplateId, setSelectedTemplateId] = useState<number | null>(null)
   const [note, setNote] = useState("")
   const [startTime, setStartTime] = useState("09:00")
@@ -76,7 +75,6 @@ export default function MobileAddShiftSheet({
     if (shiftTemplates.length > 0 && selectedTemplateId === null) {
       const first = shiftTemplates[0]
       setSelectedTemplateId(first.id)
-      setType("CUSTOM")
       if (!initialStartTime) setStartTime(first.startTime)
       if (!initialEndTime) setEndTime(first.endTime)
       const defaultPluses = getTemplateDefaultPluses(first.id)
@@ -88,7 +86,6 @@ export default function MobileAddShiftSheet({
     if (!open) {
       const timeout = setTimeout(() => {
         setDate("")
-        setType("CUSTOM")
         setSelectedTemplateId(null)
         setNote("")
         setStartTime("09:00")
@@ -123,7 +120,7 @@ export default function MobileAddShiftSheet({
   }, [open])
 
   const plusKeys: (keyof ShiftPluses)[] = ["night", "holiday", "availability", "other"]
-  const { durationMinutes, durationLabel, estimatedEur, extrasEur } = useMemo(() => {
+  const { durationLabel, estimatedEur, extrasEur } = useMemo(() => {
     const start = startTime ? new Date(`1970-01-01T${startTime}:00`) : null
     const end = endTime ? new Date(`1970-01-01T${endTime}:00`) : null
     if (!start || !end) {
@@ -144,7 +141,6 @@ export default function MobileAddShiftSheet({
       extrasSum += count * extra.value
     })
     return {
-      durationMinutes: minutes,
       durationLabel: label,
       estimatedEur: fromHours + extrasSum,
       extrasEur: extrasSum,
@@ -258,7 +254,6 @@ export default function MobileAddShiftSheet({
                       type="button"
                       onClick={() => {
                         setSelectedTemplateId(tpl.id)
-                        setType("CUSTOM")
                         setStartTime(tpl.startTime)
                         setEndTime(tpl.endTime)
                         const defaultPluses = getTemplateDefaultPluses(tpl.id)

@@ -99,7 +99,7 @@ export default function EditRotationModal({
     const maxB = (MOBILE_BOX - (n * spacing) / Math.PI) / (n / Math.PI + 1)
     const minSize = n >= 28 ? 18 : n > 14 ? 22 : 28
     return Math.max(minSize, Math.min(36, Math.floor(maxB)))
-  }, [n])
+  }, [n, spacing])
 
   const mobileRadius = useMemo(() => {
     const circumference = n * (mobileButtonSize + spacing)

@@ -806,14 +806,24 @@ export default function Home() {
   const navItems = useMemo(
     () => [
       { id: "calendar", label: "Calendario", description: "Planificación" },
-      { id: "insights", label: "Resumen", description: "Indicadores y registros" },
       { id: "settings", label: "Preferencias", description: "Perfil y cuenta" },
     ],
     [],
   )
 
   const handleNavigateTab = useCallback((sectionId: string) => {
-    setActiveTab(sectionId as MobileTab)
+    setActiveTab(sectionId === "settings" ? "settings" : "calendar")
+  }, [])
+
+  useEffect(() => {
+    if (typeof window === "undefined") {
+      return
+    }
+
+    const tab = new URLSearchParams(window.location.search).get("tab")
+    if (tab === "calendar" || tab === "settings") {
+      setActiveTab(tab)
+    }
   }, [])
 
   const handleNavigateLink = useCallback(

@@ -17,18 +17,6 @@ import type { UserSummary } from "@/types/users"
 import { useConfirmDelete } from "@/lib/ConfirmDeleteContext"
 import { useToast } from "@/lib/ToastContext"
 
-// Loader mínimo inline: sin componente pesado para que la ruta cargue rápido
-function ExtrasPageLoader() {
-  return (
-    <div className="flex min-h-screen items-center justify-center bg-slate-950">
-      <div className="flex flex-col items-center gap-3">
-        <div className="h-8 w-8 animate-spin rounded-full border-2 border-white/20 border-t-sky-400" />
-        <p className="text-sm text-white/60">Cargando...</p>
-      </div>
-    </div>
-  )
-}
-
 export default function ExtrasPage() {
   const router = useRouter()
   const { confirmDelete } = useConfirmDelete()
@@ -36,7 +24,7 @@ export default function ExtrasPage() {
 
   const [preferences, setPreferences] = useState<UserPreferences>(DEFAULT_USER_PREFERENCES)
   const [currentUser, setCurrentUser] = useState<UserSummary | null>(null)
-  const [isLoading, setIsLoading] = useState(true)
+  const [isLoading, setIsLoading] = useState(false)
   const [editingId, setEditingId] = useState<string | null>(null)
   const [newExtra, setNewExtra] = useState<Partial<ShiftExtra>>({
     name: "",
@@ -99,6 +87,9 @@ export default function ExtrasPage() {
 
     const loadInitialSession = async () => {
       try {
+        if (isMounted) {
+          setIsLoading(true)
+        }
         const { data } = await supabase.auth.getSession()
         await resolveSession(data.session ?? null)
       } finally {
@@ -128,22 +119,124 @@ export default function ExtrasPage() {
     }
   }, [])
 
-  // Cargar tipos de turnos personalizados desde Supabase
-  const handleAddExtra = () => {
+  // Si hay sesión, cargar extras y tarifa desde Supabase (fuente de verdad) y actualizar estado
+  useEffect(() => {
+    if (!supabase || !currentUser?.id) return
+
+    let isMounted = true
+
+    const syncFromDb = async () => {
+      const userId = currentUser.id
+      const [extrasRes, rateRes] = await Promise.all([
+        supabase.from("user_shift_extras").select("id, name, value, color").eq("user_id", userId).order("created_at", { ascending: true }),
+        supabase.from("user_hourly_rates").select("hourly_rate").eq("user_id", userId).maybeSingle(),
+      ])
+
+      if (!isMounted) return
+
+      const localLoaded = loadUserPreferences()
+      const localExtras = localLoaded?.preferences.shiftExtras ?? []
+      const dbExtras = extrasRes.data && Array.isArray(extrasRes.data) ? extrasRes.data : null
+
+      // Si en BD no hay extras pero en localStorage sí, migrar una vez a la BD
+      if (dbExtras && dbExtras.length === 0 && localExtras.length > 0) {
+        const toInsert = localExtras
+          .filter((e) => e.name?.trim())
+          .map((e) => ({ user_id: userId, name: e.name.trim(), value: e.value, color: e.color ?? "#3b82f6" }))
+        if (toInsert.length > 0) {
+          const { data: inserted } = await supabase.from("user_shift_extras").insert(toInsert).select("id, name, value, color")
+          if (inserted?.length && isMounted) {
+            const migrated = inserted.map((row: { id: string; name: string; value: number; color?: string | null }) => ({
+              id: row.id,
+              name: row.name,
+              value: Number(row.value),
+              color: row.color ?? undefined,
+            }))
+            setPreferences((prev) => ({ ...prev, shiftExtras: migrated }))
+            saveUserPreferences({ ...localLoaded!.preferences, shiftExtras: migrated })
+            return
+          }
+        }
+      }
+
+      const mappedExtras =
+        dbExtras?.map((row: { id: string; name: string; value: number; color?: string | null }) => ({
+          id: row.id,
+          name: row.name,
+          value: Number(row.value),
+          color: row.color ?? undefined,
+        })) ?? null
+
+      setPreferences((prev) => {
+        const next = { ...prev }
+        if (mappedExtras !== null) next.shiftExtras = mappedExtras
+        if (rateRes.data && typeof rateRes.data.hourly_rate === "number") next.hourlyRate = rateRes.data.hourly_rate
+        return next
+      })
+
+      if (localLoaded) {
+        const merged = {
+          ...localLoaded.preferences,
+          shiftExtras: mappedExtras ?? localLoaded.preferences.shiftExtras,
+          hourlyRate: rateRes.data && typeof rateRes.data.hourly_rate === "number" ? rateRes.data.hourly_rate : localLoaded.preferences.hourlyRate,
+        }
+        saveUserPreferences(merged)
+      }
+    }
+
+    void syncFromDb()
+    return () => {
+      isMounted = false
+    }
+  }, [supabase, currentUser?.id])
+
+  const handleAddExtra = async () => {
     if (!newExtra.name || newExtra.value === undefined) return
+
+    const name = newExtra.name.trim()
+    const value = newExtra.value
+    const color = newExtra.color ?? "#3b82f6"
+
+    if (currentUser?.id && supabase) {
+      const { data, error } = await supabase
+        .from("user_shift_extras")
+        .insert({ user_id: currentUser.id, name, value, color })
+        .select("id")
+        .single()
+
+      if (error) {
+        console.error("Error al guardar extra en la base de datos", error)
+        showToast({ type: "error", message: "No se pudo guardar el extra. Inténtalo de nuevo." })
+        return
+      }
+
+      const extra: ShiftExtra = {
+        id: data.id,
+        name,
+        value,
+        color,
+      }
+      const updated = {
+        ...preferences,
+        shiftExtras: [...(preferences.shiftExtras ?? []), extra],
+      }
+      setPreferences(updated)
+      saveUserPreferences(updated)
+      setNewExtra({ name: "", value: 0, color: "#3b82f6" })
+      showToast({ type: "create", message: "Extra creado" })
+      return
+    }
 
     const extra: ShiftExtra = {
       id: `extra-${Date.now()}`,
-      name: newExtra.name,
-      value: newExtra.value,
-      color: newExtra.color ?? "#3b82f6",
+      name,
+      value,
+      color,
     }
-
     const updated = {
       ...preferences,
       shiftExtras: [...(preferences.shiftExtras ?? []), extra],
     }
-
     setPreferences(updated)
     saveUserPreferences(updated)
     setNewExtra({ name: "", value: 0, color: "#3b82f6" })
@@ -155,7 +248,15 @@ export default function ExtrasPage() {
     const itemName = extra ? `el extra "${extra.name}"` : "este extra"
     confirmDelete({
       itemName,
-      onConfirm: () => {
+      onConfirm: async () => {
+        if (currentUser?.id && supabase && /^[0-9a-f-]{36}$/i.test(id)) {
+          const { error } = await supabase.from("user_shift_extras").delete().eq("id", id).eq("user_id", currentUser.id)
+          if (error) {
+            console.error("Error al eliminar extra en la base de datos", error)
+            showToast({ type: "error", message: "No se pudo eliminar el extra." })
+            return
+          }
+        }
         const updated = {
           ...preferences,
           shiftExtras: (preferences.shiftExtras ?? []).filter((e) => e.id !== id),
@@ -171,7 +272,7 @@ export default function ExtrasPage() {
   // Guardar el estado original cuando se inicia la edición
   const [originalPreferences, setOriginalPreferences] = useState<UserPreferences | null>(null)
 
-  const handleUpdateExtra = (id: string, updates: Partial<ShiftExtra>) => {
+  const handleUpdateExtra = async (id: string, updates: Partial<ShiftExtra>) => {
     const updated = {
       ...preferences,
       shiftExtras: (preferences.shiftExtras ?? []).map((e) =>
@@ -179,6 +280,16 @@ export default function ExtrasPage() {
       ),
     }
     setPreferences(updated)
+    if (currentUser?.id && supabase && /^[0-9a-f-]{36}$/i.test(id)) {
+      const payload: { name?: string; value?: number; color?: string } = {}
+      if (updates.name !== undefined) payload.name = updates.name
+      if (updates.value !== undefined) payload.value = updates.value
+      if (updates.color !== undefined) payload.color = updates.color
+      if (Object.keys(payload).length > 0) {
+        const { error } = await supabase.from("user_shift_extras").update(payload).eq("id", id).eq("user_id", currentUser.id)
+        if (error) console.error("Error al actualizar extra en la base de datos", error)
+      }
+    }
     saveUserPreferences(updated)
   }
   
@@ -203,12 +314,18 @@ export default function ExtrasPage() {
     showToast({ type: "update", message: "Guardado" })
   }
 
-  const handleSetHourlyRate = (rate: number) => {
-    setPreferences({ ...preferences, hourlyRate: rate })
-  }
+  const handleSetHourlyRate = async (rate: number) => {
+    const updated = { ...preferences, hourlyRate: rate }
+    setPreferences(updated)
+    saveUserPreferences(updated)
 
-  if (isLoading) {
-    return <ExtrasPageLoader />
+    if (currentUser?.id && supabase) {
+      const { error } = await supabase.from("user_hourly_rates").upsert(
+        { user_id: currentUser.id, hourly_rate: rate, updated_at: new Date().toISOString() },
+        { onConflict: "user_id" },
+      )
+      if (error) console.error("Error al guardar tarifa en la base de datos", error)
+    }
   }
 
   return (
@@ -222,6 +339,12 @@ export default function ExtrasPage() {
           {/* Header */}
           <div className="mb-3 flex items-center justify-between">
             <PlanLoopLogo size="sm" showText={true} />
+            {isLoading ? (
+              <div className="flex items-center gap-2 text-xs font-semibold text-white/60">
+                <span className="h-3 w-3 animate-spin rounded-full border border-white/20 border-t-sky-400" />
+                Cargando sesión…
+              </div>
+            ) : null}
             <button
               onClick={() => window.history.back()}
               className="rounded-lg border border-white/10 bg-white/5 px-3 py-1.5 text-xs font-semibold text-white/70 transition hover:bg-white/10 hover:text-white"

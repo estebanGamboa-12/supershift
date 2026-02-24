@@ -171,7 +171,12 @@ export async function POST(
 
     // Si falla por columnas inexistentes (tabla sin migración), intentar sin default_start_time / default_end_time
     if (result.error && /column.*does not exist|default_start_time|default_end_time/i.test(result.error.message)) {
-      const { default_start_time: _s, default_end_time: _e, ...payloadWithoutTimes } = insertPayload as Record<string, unknown> & { default_start_time?: unknown; default_end_time?: unknown }
+      const payloadWithoutTimes = { ...insertPayload } as Record<string, unknown> & {
+        default_start_time?: unknown
+        default_end_time?: unknown
+      }
+      delete payloadWithoutTimes.default_start_time
+      delete payloadWithoutTimes.default_end_time
       result = await supabase
         .from("user_custom_shift_types")
         .insert(payloadWithoutTimes)

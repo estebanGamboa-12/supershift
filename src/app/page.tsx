@@ -2,7 +2,7 @@
 
 import { useState, useMemo, useCallback, useEffect, useRef } from "react"
 import Link from "next/link"
-import { useRouter } from "next/navigation"
+import { useRouter, useSearchParams } from "next/navigation"
 import { differenceInCalendarDays, format } from "date-fns"
 import { es } from "date-fns/locale"
 import { AnimatePresence, motion } from "framer-motion"
@@ -455,6 +455,7 @@ function createPendingRequestId(): string {
 
 export default function Home() {
   const router = useRouter()
+  const searchParams = useSearchParams()
   const [shifts, setShifts] = useState<ShiftEvent[]>([])
   const [selectedShift, setSelectedShift] = useState<ShiftEvent | null>(null)
   const [selectedDateFromCalendar, setSelectedDateFromCalendar] =
@@ -815,6 +816,13 @@ export default function Home() {
   const handleNavigateTab = useCallback((sectionId: string) => {
     setActiveTab(sectionId as MobileTab)
   }, [])
+
+  useEffect(() => {
+    const tab = searchParams.get("tab")
+    if (tab === "calendar" || tab === "insights" || tab === "settings") {
+      setActiveTab(tab)
+    }
+  }, [searchParams])
 
   const handleNavigateLink = useCallback(
     (href: string) => {

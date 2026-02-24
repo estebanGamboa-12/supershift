@@ -102,7 +102,7 @@ export default function TemplatesPage() {
   }, [router])
 
   const [currentUser, setCurrentUser] = useState<UserSummary | null>(null)
-  const [isCheckingSession, setIsCheckingSession] = useState(true)
+  const [isCheckingSession, setIsCheckingSession] = useState(false)
   const [users, setUsers] = useState<UserSummary[]>([])
   const [isLoadingUsers, setIsLoadingUsers] = useState(true)
   const [userError, setUserError] = useState<string | null>(null)
@@ -368,14 +368,6 @@ export default function TemplatesPage() {
     setRotationModalTemplate(null)
   }
 
-  if (isCheckingSession) {
-    return (
-      <div className="flex min-h-screen items-center justify-center bg-slate-950 text-white">
-        <FloatingParticlesLoader />
-      </div>
-    )
-  }
-
   if (!currentUser) {
     return (
       <div className="min-h-screen bg-slate-950 text-white">
@@ -387,7 +379,7 @@ export default function TemplatesPage() {
               </div>
             ) : null}
             <div className="rounded-3xl border border-white/10 bg-slate-950/70 p-6 shadow-[0_30px_80px_-48px_rgba(59,130,246,0.6)]">
-              {isLoadingUsers ? (
+              {isCheckingSession || isLoadingUsers ? (
                 <div className="flex justify-center py-12">
                   <FloatingParticlesLoader />
                 </div>

@@ -59,6 +59,8 @@ export function buildUpdatePasswordUrl(options?: { redirect?: string | null }): 
 export function buildRecoveryCallbackUrl(_options?: {
   redirect?: string | null
 }): string {
+  // Mantener la firma, pero no usamos redirect aquí para que Supabase acepte la URL.
+  void _options?.redirect
   const siteUrl = getSiteUrl()
   return `${siteUrl}/auth/callback`
 }

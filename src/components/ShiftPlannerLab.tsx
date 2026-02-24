@@ -7,7 +7,6 @@ import { Loader2 } from "lucide-react"
 import {
   addDays,
   addMonths,
-  eachDayOfInterval,
   endOfMonth,
   format,
   getDay,
@@ -364,15 +363,6 @@ export default function ShiftPlannerLab({
   const calendarConfig = useMemo(
     () => getCalendarConfigForMonth(currentMonth),
     [currentMonth, getCalendarConfigForMonth],
-  )
-
-  const monthDays = useMemo(
-    () =>
-      eachDayOfInterval({
-        start: startOfMonth(currentMonth),
-        end: endOfMonth(currentMonth),
-      }),
-    [currentMonth],
   )
 
   const orderedEntries = useMemo(() => {

@@ -4,7 +4,6 @@ import { useState, useMemo, useCallback, useEffect, useRef } from "react"
 import Link from "next/link"
 import { useRouter } from "next/navigation"
 import { differenceInCalendarDays, format } from "date-fns"
-import { es } from "date-fns/locale"
 import { AnimatePresence, motion } from "framer-motion"
 import type { ShiftEvent, ShiftPluses, ShiftType } from "@/types/shifts"
 import EditShiftModal from "@/components/EditShiftModal"
@@ -1830,9 +1829,6 @@ export default function Home() {
     [currentUser, parseJsonResponse, persistSession],
   )
 
-  const weekStartsOn: 0 | 1 =
-    userPreferences.startOfWeek === "monday" ? 1 : 0
-
   const orderedShifts = useMemo(
     () => sortByDate(shifts),
     [shifts, sortByDate]
@@ -1888,30 +1884,6 @@ export default function Home() {
       {} as Record<ShiftType, number>
     )
   }, [orderedShifts])
-
-  const currentMonthShifts = useMemo(() => {
-    const now = new Date()
-    const month = now.getMonth()
-    const year = now.getFullYear()
-    return orderedShifts.filter((shift) => {
-      const date = new Date(shift.date)
-      return date.getMonth() === month && date.getFullYear() === year
-    })
-  }, [orderedShifts])
-
-  const activeShiftTypes = Object.keys(typeCounts).length
-
-  const nextShiftCountdownLabel = useMemo(() => {
-    if (daysUntilNextShift === null) {
-      return "Sin turno programado"
-    }
-
-    if (daysUntilNextShift === 0) {
-      return "Hoy"
-    }
-
-    return `En ${daysUntilNextShift} día${daysUntilNextShift === 1 ? "" : "s"}`
-  }, [daysUntilNextShift])
 
   useEffect(() => {
     if (!selectedDateFromCalendar) return

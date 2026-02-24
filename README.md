@@ -1,5 +1,7 @@
 # Planloop
 
+Repositorio: **https://github.com/estebanGamboa-12/supershift**
+
 Aplicación Next.js que muestra la planificación de turnos bajo la marca Planloop y obtiene los datos desde una base de datos MySQL alojada en Supabase a través de una API interna. La base de datos mantiene el nombre original (`supershift`) y el volcado incluido en el repositorio para conservar compatibilidad.
 
 ## Requisitos

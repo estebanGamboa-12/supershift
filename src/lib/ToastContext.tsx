@@ -11,9 +11,9 @@ import {
 } from "react"
 import { createPortal } from "react-dom"
 import { motion, AnimatePresence } from "framer-motion"
-import { CheckCircle2, Save, Trash2 } from "lucide-react"
+import { CheckCircle2, Save, Trash2, XCircle } from "lucide-react"
 
-export type ToastType = "create" | "update" | "delete"
+export type ToastType = "create" | "update" | "delete" | "error"
 
 type ToastState = {
   id: number
@@ -26,12 +26,44 @@ const defaultMessages: Record<ToastType, string> = {
   create: "Se ha creado correctamente",
   update: "Se ha modificado correctamente",
   delete: "Se ha eliminado correctamente",
+  error: "Ha ocurrido un error",
 }
 
 const iconByType: Record<ToastType, typeof CheckCircle2> = {
   create: CheckCircle2,
   update: Save,
   delete: Trash2,
+  error: XCircle,
+}
+
+const chromeByType: Record<
+  ToastType,
+  { border: string; iconBg: string; iconColor: string; secondaryText: string }
+> = {
+  create: {
+    border: "border-sky-400/30",
+    iconBg: "bg-sky-500/20",
+    iconColor: "text-sky-200",
+    secondaryText: "Acción aplicada correctamente",
+  },
+  update: {
+    border: "border-sky-400/30",
+    iconBg: "bg-sky-500/20",
+    iconColor: "text-sky-200",
+    secondaryText: "Acción aplicada correctamente",
+  },
+  delete: {
+    border: "border-sky-400/30",
+    iconBg: "bg-sky-500/20",
+    iconColor: "text-sky-200",
+    secondaryText: "Acción aplicada correctamente",
+  },
+  error: {
+    border: "border-red-400/40",
+    iconBg: "bg-red-500/15",
+    iconColor: "text-red-200",
+    secondaryText: "No se pudo completar la acción",
+  },
 }
 
 type ShowOptions = {
@@ -116,12 +148,21 @@ export function ToastProvider({ children }: { children: ReactNode }) {
                 aria-live="polite"
                 className="pointer-events-none fixed inset-0 z-[90] flex items-center justify-center p-4"
               >
-                <div className="w-full max-w-md rounded-2xl border border-sky-400/30 bg-slate-950/95 p-4 text-white shadow-2xl shadow-sky-500/20 backdrop-blur">
+                <div
+                  className={`w-full max-w-md rounded-2xl border ${chromeByType[toast.type].border} bg-slate-950/95 p-4 text-white shadow-2xl shadow-sky-500/20 backdrop-blur`}
+                >
                   <div className="flex items-center gap-3">
-                    <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-sky-500/20">
+                    <div
+                      className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-xl ${chromeByType[toast.type].iconBg}`}
+                    >
                       {(() => {
                         const Icon = iconByType[toast.type]
-                        return <Icon className="h-5 w-5 text-sky-200" aria-hidden />
+                        return (
+                          <Icon
+                            className={`h-5 w-5 ${chromeByType[toast.type].iconColor}`}
+                            aria-hidden
+                          />
+                        )
                       })()}
                     </div>
                     <div className="min-w-0 flex-1">
@@ -132,7 +173,7 @@ export function ToastProvider({ children }: { children: ReactNode }) {
                         </p>
                       ) : (
                         <p className="mt-0.5 text-xs text-white/70">
-                          Acción aplicada correctamente
+                          {chromeByType[toast.type].secondaryText}
                         </p>
                       )}
                     </div>

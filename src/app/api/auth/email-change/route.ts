@@ -5,6 +5,7 @@ import { buildEmailChangeEmail } from "@/lib/email-templates"
 import { buildAuthCallbackUrl } from "@/lib/auth-links"
 
 export const runtime = "nodejs"
+export const dynamic = "force-dynamic"
 
 type EmailChangePayload = {
   accessToken?: unknown

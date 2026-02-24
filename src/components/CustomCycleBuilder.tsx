@@ -165,18 +165,16 @@ export type CalendarGeneratedPayload = {
   startDate: string
 }
 
-type UsageScenario = "personal" | "work" | "team"
+type UsageScenario = "personal" | "work"
 
 const USAGE_SCENARIO_LABELS: Record<UsageScenario, string> = {
   personal: "Uso personal",
   work: "Para mi trabajo",
-  team: "Crear turnos para mi equipo",
 }
 
 const USAGE_SCENARIO_DESCRIPTIONS: Record<UsageScenario, string> = {
   personal: "Gestiona tus propios turnos y descansos de forma individual.",
   work: "Planifica tus turnos profesionales sin coordinar a otras personas.",
-  team: "Organiza rotaciones y calendarios compartidos para un equipo completo.",
 }
 
 const USAGE_SCENARIO_HEADLINES: Record<UsageScenario, { title: string; subtitle: string }> = {
@@ -189,11 +187,6 @@ const USAGE_SCENARIO_HEADLINES: Record<UsageScenario, { title: string; subtitle:
     title: "Planifica tus turnos profesionales",
     subtitle:
       "Organiza jornadas laborales, descansos y noches según las necesidades de tu puesto. Personaliza la rotación a tu ritmo.",
-  },
-  team: {
-    title: "Da forma al calendario de tu equipo",
-    subtitle:
-      "Distribuye responsabilidades, noches y descansos para varias personas. Ajusta los bloques antes de publicar el plan.",
   },
 }
 

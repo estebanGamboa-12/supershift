@@ -30,6 +30,8 @@ Variables disponibles:
 - `DEFAULT_CALENDAR_ID`: identificador del calendario por defecto al crear turnos (usa `2` para el calendario de Esteban incluido en la base de datos de ejemplo)
 - `NEXT_PUBLIC_SUPABASE_URL`: URL del proyecto Supabase si deseas habilitar integraciones desde el cliente
 - `NEXT_PUBLIC_SUPABASE_ANON_KEY`: clave pública (anon) del proyecto Supabase
+- `NEXT_PUBLIC_VAPID_PUBLIC_KEY`: (opcional) clave pública VAPID para notificaciones push. Genera un par con `npx web-push generate-vapid-keys` y pon la clave pública aquí
+- `NEXT_PUBLIC_SITE_URL` o `SITE_URL`: (recomendado para recuperación de contraseña) URL base de la app (ej. `https://tudominio.com` o `http://localhost:3000`). El correo de recuperación enviará un enlace a `{SITE_URL}/auth/callback`. En el dashboard de Supabase (Authentication → URL Configuration) añade esa URL en **Redirect URLs** (ej. `https://tudominio.com/auth/callback`).
 
 ### Usuarios de ejemplo
 

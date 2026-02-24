@@ -6,7 +6,8 @@
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
-    "lint": "eslint"
+    "lint": "eslint",
+    "clean": "node -e \"const fs=require('fs'),path=require('path'); const d=path.join(process.cwd(),'.next'); if(fs.existsSync(d)){ fs.rmSync(d,{recursive:true}); console.log('Removed .next'); } const c=path.join(process.cwd(),'node_modules','.cache'); if(fs.existsSync(c)){ fs.rmSync(c,{recursive:true}); console.log('Removed node_modules/.cache'); }\""
   },
   "dependencies": {
     "@dnd-kit/core": "^6.3.1",

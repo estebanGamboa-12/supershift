@@ -16,14 +16,6 @@ function normalizeUserId(userId: string): string {
   return trimmed
 }
 
-function normalizeTeamId(teamId: string): string {
-  const trimmed = teamId.trim()
-  if (!trimmed) {
-    throw new Error("El identificador del equipo no es válido")
-  }
-  return trimmed
-}
-
 export async function ensureCalendarForUser(
   userId: string,
   name: string,
@@ -117,62 +109,5 @@ export async function findCalendarIdForUser(
   }
 
   return normalizeCalendarId(data?.id)
-}
-
-export async function findCalendarIdForTeam(
-  teamId: string,
-): Promise<number | null> {
-  const normalizedTeamId = normalizeTeamId(teamId)
-  const supabase = getSupabaseClient()
-  const { data, error } = await supabase
-    .from("calendars")
-    .select("id")
-    .eq("team_id", normalizedTeamId)
-    .order("id", { ascending: true })
-    .limit(1)
-    .maybeSingle()
-
-  if (error) {
-    console.error("Error buscando calendario de equipo en Supabase", error)
-    return null
-  }
-
-  return normalizeCalendarId(data?.id)
-}
-
-export async function ensureCalendarForTeam(
-  teamId: string,
-  name: string,
-  timezone: string,
-): Promise<number> {
-  const normalizedTeamId = normalizeTeamId(teamId)
-  const existing = await findCalendarIdForTeam(normalizedTeamId)
-  if (existing) {
-    return existing
-  }
-
-  const supabase = getSupabaseClient()
-  const { data, error } = await supabase
-    .from("calendars")
-    .insert({
-      name,
-      team_id: normalizedTeamId,
-      timezone,
-      color: "#22c55e",
-    })
-    .select("id")
-    .maybeSingle()
-
-  if (error) {
-    console.error("Error creando calendario de equipo en Supabase", error)
-    throw new Error("No se pudo crear el calendario del equipo")
-  }
-
-  const calendarId = normalizeCalendarId(data?.id)
-  if (!calendarId) {
-    throw new Error("Supabase no devolvió un identificador de calendario válido")
-  }
-
-  return calendarId
 }
 

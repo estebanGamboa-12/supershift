@@ -28,6 +28,8 @@ import { useRotationTemplates } from "@/lib/useRotationTemplates"
 import type { RotationTemplate, ShiftTemplate } from "@/types/templates"
 import { loadUserPreferences } from "@/lib/user-preferences"
 import { DEFAULT_USER_PREFERENCES, type UserPreferences } from "@/types/preferences"
+import { isFestiveDate } from "@/lib/festive-dates"
+import { getTemplateDefaultPluses } from "@/lib/template-default-pluses"
 import { useConfirmDelete } from "@/lib/ConfirmDeleteContext"
 
 type PlannerPluses = {
@@ -198,6 +200,14 @@ export default function ShiftPlannerLab({
   const [isConfirmingRotation, setIsConfirmingRotation] = useState(false)
   const [toasts, setToasts] = useState<ToastMessage[]>([])
   const toastTimeoutsRef = useRef<Map<number, number>>(new Map())
+  const [userPreferences, setUserPreferences] = useState<UserPreferences>(DEFAULT_USER_PREFERENCES)
+
+  useEffect(() => {
+    const loaded = loadUserPreferences()
+    if (loaded?.preferences) {
+      setUserPreferences(loaded.preferences)
+    }
+  }, [])
 
   const {
     templates: shiftTemplatesFromHook,
@@ -398,6 +408,38 @@ export default function ShiftPlannerLab({
     return summary
   }, [orderedEntries])
 
+  const monthMoneySummary = useMemo(() => {
+    const monthStart = startOfMonth(currentMonth)
+    const monthEnd = endOfMonth(currentMonth)
+    let totalMinutes = 0
+    let extrasEur = 0
+    const extras = userPreferences.shiftExtras ?? []
+    const plusKeys: (keyof PlannerPluses)[] = ["night", "holiday", "availability", "other"]
+
+    for (const entry of orderedEntries) {
+      const d = parseISO(entry.date)
+      if (d >= monthStart && d <= monthEnd) {
+        const { minutes } = getShiftDuration(entry.startTime, entry.endTime)
+        totalMinutes += minutes
+        plusKeys.forEach((key, i) => {
+          const count = entry.pluses[key] ?? 0
+          const extra = extras[i]
+          if (extra?.value != null && count > 0) {
+            extrasEur += count * extra.value
+          }
+        })
+      }
+    }
+    const hours = totalMinutes / 60
+    const rate = userPreferences.hourlyRate ?? 0
+    const baseEur = hours * rate
+    const estimatedEur = baseEur + extrasEur
+    const h = Math.floor(hours)
+    const m = Math.round((hours % 1) * 60)
+    const hoursLabel = `${h}h ${String(m).padStart(2, "0")}m`
+    return { hoursLabel, extrasEur, estimatedEur }
+  }, [orderedEntries, currentMonth, userPreferences.hourlyRate, userPreferences.shiftExtras])
+
   const monthLabel = useMemo(
     () => formatCompactMonth(currentMonth),
     [currentMonth],
@@ -534,13 +576,21 @@ export default function ShiftPlannerLab({
             endTime: existing?.endTime ?? DEFAULT_PLANNER_END_TIME,
           }
         } else {
+          const defaultPluses = getTemplateDefaultPluses(template.id)
           updates[iso] = {
             date: iso,
             type: "WORK",
             note: "",
-            color: SHIFT_TYPES.find(({ value }) => value === "WORK")?.defaultColor ?? "#2563eb",
+            color: template.color ?? SHIFT_TYPES.find(({ value }) => value === "WORK")?.defaultColor ?? "#2563eb",
             label: template.title,
-            pluses: { ...INITIAL_PLUSES },
+            pluses: defaultPluses
+              ? {
+                  night: defaultPluses.night ?? 0,
+                  holiday: defaultPluses.holiday ?? 0,
+                  availability: defaultPluses.availability ?? 0,
+                  other: defaultPluses.other ?? 0,
+                }
+              : { ...INITIAL_PLUSES },
             startTime: template.startTime || existing?.startTime || DEFAULT_PLANNER_START_TIME,
             endTime: template.endTime || existing?.endTime || DEFAULT_PLANNER_END_TIME,
           }
@@ -763,6 +813,23 @@ export default function ShiftPlannerLab({
             <div>
               <p className="text-white/40">Plan</p>
               <p className="text-xs font-semibold text-white">{orderedEntries.length}</p>
+            </div>
+          </div>
+          {/* Mini resumen conversión: horas / extras / estimado € */}
+          <div className="rounded-lg border border-white/10 bg-white/5 px-2.5 py-1.5 text-[9px] sm:text-[10px]">
+            <p className="mb-0.5 font-semibold uppercase tracking-wider text-white/50">Este mes</p>
+            <div className="flex flex-wrap items-center gap-x-3 gap-y-0.5">
+              <span className="font-semibold text-white">
+                Horas: <span className="text-sky-200">{monthMoneySummary.hoursLabel}</span>
+              </span>
+              <span className="text-white/60">·</span>
+              <span className="font-semibold text-white">
+                Extras: <span className="text-amber-200">{monthMoneySummary.extrasEur.toFixed(2)}€</span>
+              </span>
+              <span className="text-white/60">·</span>
+              <span className="font-semibold text-white">
+                Estimado: <span className="text-emerald-300">{monthMoneySummary.estimatedEur.toFixed(2)}€</span>
+              </span>
             </div>
           </div>
 
@@ -1019,6 +1086,8 @@ export default function ShiftPlannerLab({
                       const timeRange = entry?.startTime && entry?.endTime 
                         ? `${entry.startTime}-${entry.endTime}` 
                         : null
+                      const showFestive = (userPreferences.showFestiveDays ?? true) && isFestiveDate(day)
+                      const festiveColor = userPreferences.festiveDayColor ?? DEFAULT_USER_PREFERENCES.festiveDayColor ?? "#dc2626"
                       
                       return (
                         <button
@@ -1036,6 +1105,11 @@ export default function ShiftPlannerLab({
                                     ? "py-1.5 px-1.5 text-white font-semibold hover:bg-white/10"
                                     : "py-1.5 px-1.5 text-white/70 hover:bg-white/5 hover:text-white"
                           }`}
+                          style={
+                            showFestive && isCurrentMonth
+                              ? { borderLeft: `3px solid ${festiveColor}` }
+                              : undefined
+                          }
                         >
                           {/* Número del día */}
                           <span className={`text-xs font-medium sm:text-sm ${isCurrentDay ? "text-white" : "text-white/90"}`}>

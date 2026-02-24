@@ -39,8 +39,11 @@ type NavItem = (typeof NAV_ITEMS)[number]
 
 export type MobileTab = Extract<NavItem, { type: "tab" }>["tab"]
 
+/** Qué pantalla está activa: solo uno iluminado en el nav */
+export type NavActive = "calendar" | "templates" | "extras" | "settings"
+
 type MobileNavigationProps = {
-  active: MobileTab
+  active: NavActive
   onChange: (tab: MobileTab) => void
   onNavigateLink?: (href: string) => void
 }
@@ -65,7 +68,7 @@ const MobileNavigation: FC<MobileNavigationProps> = ({
           <div className="flex-1 grid grid-cols-4 gap-1.5 py-1">
             {NAV_ITEMS.map((item) => {
               const isTab = item.type === "tab"
-              const isActive = isTab && item.tab === active
+              const isActive = item.value === active
               const handleClick = () => {
                 if (isTab) {
                   onChange(item.tab)
@@ -89,9 +92,7 @@ const MobileNavigation: FC<MobileNavigationProps> = ({
                   className={`group relative flex w-full flex-col items-center gap-0.5 rounded-xl px-2 py-1.5 text-[10px] font-semibold uppercase tracking-wide transition-all duration-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sky-400/60 ${
                     isActive
                       ? "bg-gradient-to-br from-sky-500/25 via-blue-600/25 to-indigo-500/30 text-white shadow-[0_8px_25px_-12px_rgba(56,189,248,0.75)]"
-                      : item.type === "link"
-                        ? "border border-sky-400/40 bg-sky-500/10 text-sky-100 shadow-[0_6px_20px_-12px_rgba(56,189,248,0.55)] hover:bg-sky-500/15 hover:text-sky-50"
-                        : "text-white/70 hover:text-white"
+                      : "text-white/50 hover:text-white/80"
                   }`}
                   aria-current={isActive ? "page" : undefined}
                 >
@@ -100,7 +101,7 @@ const MobileNavigation: FC<MobileNavigationProps> = ({
                       className={`text-base transition-transform ${
                         isActive
                           ? "scale-105 drop-shadow-[0_0_12px_rgba(59,130,246,0.75)]"
-                          : "scale-95 opacity-80"
+                          : "opacity-70 group-hover:opacity-90"
                       }`}
                     >
                       {item.icon}

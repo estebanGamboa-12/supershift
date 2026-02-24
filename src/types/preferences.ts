@@ -4,6 +4,8 @@ export type NotificationPreferences = {
   email: boolean
   push: boolean
   reminders: boolean
+  /** Minutos antes del turno para enviar el recordatorio (15, 30, 60). */
+  reminderMinutesBefore?: number
 }
 
 export type ShiftExtra = {
@@ -28,6 +30,10 @@ export type UserPreferences = {
   shiftExtras?: ShiftExtra[] // Extras personalizados del usuario
   customShiftTypes?: CustomShiftType[] // Tipos de turnos personalizados del usuario
   hourlyRate?: number // Tarifa por hora base
+  /** Mostrar días festivos en calendario (mes y día) */
+  showFestiveDays?: boolean
+  /** Color para resaltar días festivos (hex) */
+  festiveDayColor?: string
 }
 
 export const DEFAULT_USER_PREFERENCES: UserPreferences = {
@@ -36,8 +42,11 @@ export const DEFAULT_USER_PREFERENCES: UserPreferences = {
     email: true,
     push: true,
     reminders: false,
+    reminderMinutesBefore: 30,
   },
-  shiftExtras: [], // Sin extras por defecto; el usuario los crea en Extras
-  customShiftTypes: [], // Sin tipos personalizados por defecto; el usuario los crea en Extras
+  shiftExtras: [],
+  customShiftTypes: [],
   hourlyRate: 0,
+  showFestiveDays: true,
+  festiveDayColor: "#dc2626",
 }

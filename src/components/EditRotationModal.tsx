@@ -64,73 +64,57 @@ export default function EditRotationModal({
 
   const maxDays = isMobile ? MAX_ROTATION_DAYS_MOBILE : MAX_ROTATION_DAYS_DESKTOP
 
-  const circleButtonSize = useMemo(() => {
-    // En desktop, hacer botones más pequeños para 31 días pero mantener legibilidad
-    if (isMobile) {
-      if (assignments.length >= 25) return 28
-      if (assignments.length > 20) return 32
-      if (assignments.length > 14) return 36
-      return 40
-    }
-    // Desktop: tamaño optimizado para círculo perfecto con 31 días
-    if (assignments.length === 31) return 36
-    if (assignments.length >= 25) return 38
-    if (assignments.length > 20) return 40
-    if (assignments.length > 14) return 44
+  const n = assignments.length
+  const spacing = n >= 28 ? 3 : 4
+
+  // Desktop: círculo grande, misma lógica de siempre
+  const desktopButtonSize = useMemo(() => {
+    if (n >= 28) return 30
+    if (n >= 25) return 32
+    if (n > 20) return 36
+    if (n > 14) return 42
     return 48
-  }, [assignments.length, isMobile])
+  }, [n])
 
-  const circleSpacing = isMobile ? 3 : 4
-  const circleRadius = useMemo(() => {
-    // Calcular radio perfecto para distribución uniforme
-    const circumference = assignments.length * (circleButtonSize + circleSpacing)
-    const calculatedRadius = circumference / (2 * Math.PI)
-    
-    if (isMobile) {
-      const maxRadius = assignments.length >= 25 ? 75 : assignments.length > 20 ? 85 : 95
-      const minRadius = 55
-      return Math.min(maxRadius, Math.max(minRadius, calculatedRadius))
-    }
-    
-    // Desktop: radio optimizado para círculo perfecto
-    if (assignments.length === 31) {
-      // Para 31 días, usar un radio que permita distribución perfecta
-      return Math.max(140, Math.min(180, calculatedRadius))
-    }
-    if (assignments.length >= 25) {
-      return Math.max(130, Math.min(170, calculatedRadius))
-    }
-    if (assignments.length > 20) {
-      return Math.max(120, Math.min(160, calculatedRadius))
-    }
-    return Math.max(100, calculatedRadius)
-  }, [assignments.length, circleButtonSize, circleSpacing, isMobile])
+  const desktopRadius = useMemo(() => {
+    const circumference = n * (desktopButtonSize + spacing)
+    const r = circumference / (2 * Math.PI)
+    if (n >= 28) return Math.max(130, Math.min(200, r))
+    if (n >= 25) return Math.max(120, Math.min(180, r))
+    if (n > 20) return Math.max(110, Math.min(165, r))
+    return Math.max(100, r)
+  }, [n, desktopButtonSize, spacing])
 
-  const circleSize = useMemo(
-    () => {
-      const baseSize = circleRadius * 2 + circleButtonSize
-      
-      if (isMobile) {
-        if (assignments.length >= 25) return Math.min(baseSize, 190)
-        if (assignments.length > 20) return Math.min(baseSize, 210)
-        return baseSize + 12
-      }
-      
-      // Desktop: tamaño perfecto para círculo con 31 días
-      if (assignments.length === 31) {
-        return Math.max(320, Math.min(400, baseSize))
-      }
-      if (assignments.length >= 25) {
-        return Math.max(300, Math.min(380, baseSize))
-      }
-      if (assignments.length > 20) {
-        return Math.max(280, Math.min(360, baseSize))
-      }
-      return baseSize + 20
-    },
-    [circleButtonSize, circleRadius, isMobile, assignments.length],
-  )
-  const circleCenter = useMemo(() => circleSize / 2, [circleSize])
+  const desktopSize = useMemo(() => {
+    const base = desktopRadius * 2 + desktopButtonSize
+    if (n >= 28) return Math.max(320, Math.min(450, base))
+    if (n >= 25) return Math.max(300, Math.min(420, base))
+    if (n > 20) return Math.max(280, Math.min(380, base))
+    return base + 20
+  }, [desktopButtonSize, desktopRadius, n])
+
+  // Móvil: contenedor fijo (cabe en pantalla), botones y radio calculados para una sola circunferencia perfecta
+  const MOBILE_BOX = 268
+  const mobileButtonSize = useMemo(() => {
+    const maxB = (MOBILE_BOX - (n * spacing) / Math.PI) / (n / Math.PI + 1)
+    const minSize = n >= 28 ? 18 : n > 14 ? 22 : 28
+    return Math.max(minSize, Math.min(36, Math.floor(maxB)))
+  }, [n])
+
+  const mobileRadius = useMemo(() => {
+    const circumference = n * (mobileButtonSize + spacing)
+    return circumference / (2 * Math.PI)
+  }, [n, mobileButtonSize, spacing])
+
+  const mobileSize = MOBILE_BOX
+  const mobileCenter = MOBILE_BOX / 2
+
+  const circleButtonSize = isMobile ? mobileButtonSize : desktopButtonSize
+  const circleRadius = isMobile ? mobileRadius : desktopRadius
+  const circleSize = isMobile ? mobileSize : desktopSize
+  const circleCenter = isMobile ? mobileCenter : desktopSize / 2
+
+  const showIconOnCircle = n <= 18
 
   useEffect(() => {
     if (!open) {
@@ -278,101 +262,90 @@ export default function EditRotationModal({
               <form id="rotation-form" onSubmit={handleSubmit} className="flex h-full min-h-0 flex-col gap-3 sm:gap-4">
               {/* Layout dividido: círculo a la izquierda, formulario a la derecha */}
               <div className="grid min-h-0 flex-1 gap-3 sm:gap-4 lg:grid-cols-[1fr_1fr]">
-                {/* Mitad izquierda: Círculo de días */}
-                <div className="flex flex-col items-center justify-center overflow-hidden min-h-0 order-2 lg:order-1">
+                {/* Mitad izquierda: Círculo de días. En móvil mismo círculo perfecto en caja fija 268px */}
+                <div className="flex flex-col items-center justify-center min-h-0 order-2 lg:order-1 overflow-visible">
                   <div
                     className="relative flex-shrink-0 mx-auto"
-                    style={{ 
-                      width: isMobile 
-                        ? (assignments.length >= 25 ? "min(100%, 200px)" : assignments.length > 20 ? "min(100%, 220px)" : "min(100%, 260px)")
-                        : `${circleSize}px`,
-                      height: isMobile 
-                        ? (assignments.length >= 25 ? "min(100%, 200px)" : assignments.length > 20 ? "min(100%, 220px)" : "min(100%, 260px)")
-                        : `${circleSize}px`,
-                      aspectRatio: "1 / 1",
-                      maxWidth: isMobile ? "100%" : "none",
-                      maxHeight: isMobile 
-                        ? (assignments.length >= 25 ? "min(200px, 35vh)" : assignments.length > 20 ? "min(220px, 38vh)" : "min(260px, 42vh)")
-                        : "none"
+                    style={{
+                      width: `${circleSize}px`,
+                      height: `${circleSize}px`,
                     }}
                   >
                     {/* Círculo de fondo decorativo */}
                     <div
                       className="absolute rounded-full border border-sky-400/30 bg-sky-500/10"
-                      style={{ 
-                        inset: isMobile 
-                          ? `${Math.max(18, circleButtonSize * 0.9)}px`
-                          : `${Math.max(20, circleButtonSize * 0.85)}px`
-                      }}
+                      style={{ inset: `${Math.max(20, circleButtonSize * 0.85)}px` }}
                       aria-hidden
                     />
                     {assignments.map((assignment, index) => {
-                      // Calcular ángulo para distribución perfecta empezando desde arriba (12 en punto)
                       const angle = (index / assignments.length) * Math.PI * 2 - Math.PI / 2
-                      // Usar el centro exacto del círculo
                       const x = circleCenter + Math.cos(angle) * circleRadius
                       const y = circleCenter + Math.sin(angle) * circleRadius
                       const isActive = activeDay === index
-                      const templateIcon =
+                      const shiftTpl =
                         assignment.shiftTemplateId != null
-                          ? shiftTemplateMap.get(assignment.shiftTemplateId)?.icon ?? "○"
-                          : "○"
+                          ? shiftTemplateMap.get(assignment.shiftTemplateId)
+                          : null
+                      const templateIcon = shiftTpl?.icon ?? "○"
+                      const dayColor = shiftTpl?.color ?? null
                       const dayNumber = index + 1
+                      const bgStyle = dayColor
+                        ? { backgroundColor: `${dayColor}40`, borderColor: `${dayColor}99` }
+                        : {}
                       return (
                         <button
                           key={assignment.dayIndex}
                           type="button"
                           onClick={() => setActiveDay(index)}
-                          className={`absolute flex -translate-x-1/2 -translate-y-1/2 flex-col items-center justify-center rounded-full border transition ${
+                          className={`absolute -translate-x-1/2 -translate-y-1/2 flex rounded-full border p-0 transition ${
                             isActive
-                              ? "border-sky-400 bg-sky-500/30 text-white shadow-lg shadow-sky-500/40"
-                              : "border-white/10 bg-white/5 text-white/70 hover:border-sky-400/40 hover:text-white"
-                          }`}
+                              ? "border-sky-400 text-white shadow-lg shadow-sky-500/40"
+                              : "border-white/10 text-white/70 hover:border-sky-400/40 hover:text-white"
+                          } ${!dayColor && !isActive ? "bg-white/5" : ""} ${isActive && !dayColor ? "bg-sky-500/30" : ""}`}
                           style={{
                             left: `${x}px`,
                             top: `${y}px`,
                             width: circleButtonSize,
                             height: circleButtonSize,
+                            ...(dayColor ? (isActive ? { backgroundColor: `${dayColor}70`, borderColor: dayColor } : bgStyle) : {}),
                           }}
                           aria-label={`Día ${dayNumber}`}
                         >
-                          <span 
-                            className="font-black leading-none text-white select-none"
-                            style={{ 
-                              fontSize: isMobile 
-                                ? `${Math.max(14, circleButtonSize * 0.4)}px`
-                                : assignments.length === 31 
-                                  ? `${Math.max(12, circleButtonSize * 0.35)}px`
-                                  : `${Math.max(14, circleButtonSize * 0.4)}px`, 
-                              lineHeight: 1,
-                              fontWeight: 800,
-                              textShadow: "0 1px 3px rgba(0,0,0,0.8), 0 0 2px rgba(0,0,0,0.6)"
-                            }}
-                          >
-                            {dayNumber}
-                          </span>
-                          {templateIcon !== "○" && (
-                            <span 
-                              className="mt-0.5 leading-none opacity-70 select-none"
-                              style={{ fontSize: `${Math.max(8, circleButtonSize * 0.2)}px` }}
+                          <span className="flex h-full w-full flex-col items-center justify-center gap-0 text-center">
+                            <span
+                              className="flex items-center justify-center font-black leading-none text-white select-none tabular-nums"
+                              style={{
+                                fontSize: `${Math.max(11, Math.min(18, circleButtonSize * 0.5))}px`,
+                                lineHeight: 1,
+                                fontWeight: 800,
+                                textShadow: "0 1px 3px rgba(0,0,0,0.8), 0 0 2px rgba(0,0,0,0.6)",
+                              }}
                             >
-                              {templateIcon}
+                              {dayNumber}
                             </span>
-                          )}
+                            {showIconOnCircle && templateIcon !== "○" && (
+                              <span
+                                className="flex items-center justify-center leading-none opacity-70 select-none"
+                                style={{ fontSize: `${Math.max(6, circleButtonSize * 0.22)}px` }}
+                              >
+                                {templateIcon}
+                              </span>
+                            )}
+                          </span>
                         </button>
                       )
                     })}
                     <div className="pointer-events-none absolute inset-0 flex items-center justify-center">
                       <div
-                        className="flex flex-col items-center rounded-full border border-white/10 bg-white/5 px-2 py-2 text-center text-white/70 sm:px-4 sm:py-4"
+                        className="flex flex-col items-center justify-center rounded-full border border-white/10 bg-white/5 px-3 py-3 text-center text-white/70 sm:px-4 sm:py-4"
                         style={{ 
-                          minWidth: circleButtonSize * (isMobile ? 1.6 : 2), 
-                          minHeight: circleButtonSize * (isMobile ? 1.6 : 2),
-                          fontSize: isMobile ? "0.7rem" : "0.8rem"
+                          minWidth: circleButtonSize * 2, 
+                          minHeight: circleButtonSize * 2,
+                          fontSize: "0.8rem"
                         }}
                       >
-                        <span className={isMobile ? "text-lg" : "text-2xl"}>{icon}</span>
-                        <span className={isMobile ? "text-[10px]" : "text-xs"}>{daysCount} días</span>
+                        <span className="text-2xl">{icon}</span>
+                        <span className="text-xs">{daysCount} días</span>
                       </div>
                     </div>
                   </div>
@@ -407,21 +380,39 @@ export default function EditRotationModal({
                     <div className="flex items-center gap-2">
                       <label className="flex-1 flex flex-col gap-0.5">
                         <span className="text-[10px] text-white/60 sm:text-xs">Días</span>
-                        <input
-                          type="number"
-                          min={1}
-                          max={maxDays}
-                          value={daysCount}
-                          onChange={(event) =>
-                            setDaysCount(
-                              Math.min(
-                                maxDays,
-                                Math.max(1, Number.parseInt(event.target.value, 10) || 1),
-                              ),
-                            )
-                          }
-                          className="rounded-lg border border-white/15 bg-white/5 px-2 py-1 text-xs text-white focus:border-sky-400 focus:outline-none focus:ring-1 focus:ring-sky-400/40 sm:px-3 sm:py-1.5 sm:text-sm"
-                        />
+                        <div className="flex items-center gap-1 rounded-lg border border-white/15 bg-white/5 focus-within:border-sky-400 focus-within:ring-1 focus-within:ring-sky-400/40">
+                          <button
+                            type="button"
+                            onClick={() => setDaysCount((c) => Math.max(1, c - 1))}
+                            disabled={daysCount <= 1}
+                            className="flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-l-md text-white/80 transition hover:bg-white/10 hover:text-white disabled:opacity-40 disabled:hover:bg-transparent sm:h-9 sm:w-9"
+                            aria-label="Menos días"
+                          >
+                            <span className="text-lg font-bold leading-none">−</span>
+                          </button>
+                          <input
+                            type="number"
+                            min={1}
+                            max={maxDays}
+                            value={daysCount}
+                            onChange={(event) => {
+                              const v = Number.parseInt(event.target.value, 10)
+                              if (!Number.isNaN(v)) {
+                                setDaysCount(Math.min(maxDays, Math.max(1, v)))
+                              }
+                            }}
+                            className="w-12 flex-1 border-0 bg-transparent py-1 text-center text-xs font-semibold tabular-nums text-white outline-none [appearance:textfield] [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none sm:py-1.5 sm:text-sm"
+                          />
+                          <button
+                            type="button"
+                            onClick={() => setDaysCount((c) => Math.min(maxDays, c + 1))}
+                            disabled={daysCount >= maxDays}
+                            className="flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-r-md text-white/80 transition hover:bg-white/10 hover:text-white disabled:opacity-40 disabled:hover:bg-transparent sm:h-9 sm:w-9"
+                            aria-label="Más días"
+                          >
+                            <span className="text-lg font-bold leading-none">+</span>
+                          </button>
+                        </div>
                       </label>
                     </div>
                     <label className="flex flex-col gap-0.5">

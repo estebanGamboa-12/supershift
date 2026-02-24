@@ -136,10 +136,10 @@ export default function NumberInput({
           onChange={handleChange}
           onBlur={handleBlur}
           placeholder={placeholder || "0"}
-          className={`w-full rounded-xl border-2 border-white/20 bg-white/10 px-3 py-2.5 text-sm font-medium text-white focus:border-sky-400 focus:bg-white/15 focus:outline-none focus:ring-2 focus:ring-sky-400/40 ${suffix ? 'pr-20' : 'pr-16'}`}
+          className={`w-full min-w-0 rounded-xl border-2 border-white/20 bg-white/10 px-3 py-2.5 text-base font-semibold tabular-nums text-white focus:border-sky-400 focus:bg-white/15 focus:outline-none focus:ring-2 focus:ring-sky-400/40 ${suffix ? "pr-16" : "pr-14"}`}
         />
         {suffix && (
-          <span className="absolute right-12 text-sm font-medium text-white/70 pointer-events-none">{suffix}</span>
+          <span className="absolute right-12 top-1/2 -translate-y-1/2 text-base font-semibold tabular-nums text-emerald-300 pointer-events-none select-none">{suffix}</span>
         )}
         <div className="absolute right-1 flex flex-col gap-px">
           <button

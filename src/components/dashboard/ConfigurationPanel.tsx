@@ -9,6 +9,7 @@ import {
   useRef,
   useState,
 } from "react"
+import { ChevronRight } from "lucide-react"
 import { POPULAR_TIMEZONES } from "@/data/timezones"
 import { DEFAULT_USER_PREFERENCES, type UserPreferences } from "@/types/preferences"
 import type { UserProfileHistoryEntry, UserSummary } from "@/types/users"
@@ -96,6 +97,7 @@ const ConfigurationPanel: FC<ConfigurationPanelProps> = ({
   const [preferences, setPreferences] = useState<UserPreferences>(defaultPreferences)
   const [status, setStatus] = useState<SaveStatus>("idle")
   const [errorMessage, setErrorMessage] = useState<string | null>(null)
+  const [showFestiveDaysModal, setShowFestiveDaysModal] = useState(false)
 
   const [profileForm, setProfileForm] = useState({
     name: user?.name ?? "",
@@ -124,13 +126,8 @@ const ConfigurationPanel: FC<ConfigurationPanelProps> = ({
       }
     | null
   >(null)
-  const [latestApiKey, setLatestApiKey] = useState<string | null>(null)
   const [isSyncingCalendar, setIsSyncingCalendar] = useState(false)
-  const [isActivatingApiKey, setIsActivatingApiKey] = useState(false)
   const [isExportingMonthlyReport, setIsExportingMonthlyReport] = useState(false)
-  const [apiClipboardStatus, setApiClipboardStatus] = useState<
-    "idle" | "copied" | "error"
-  >("idle")
 
   useEffect(() => {
     setPreferences(defaultPreferences)
@@ -147,52 +144,6 @@ const ConfigurationPanel: FC<ConfigurationPanelProps> = ({
     setProfileStatus("idle")
     setProfileError(null)
   }, [user])
-
-  useEffect(() => {
-    let cancelled = false
-
-    async function loadActiveApiKey() {
-      if (!user?.id) {
-        setLatestApiKey(null)
-        setApiClipboardStatus("idle")
-        return
-      }
-
-      try {
-        const response = await fetch(
-          `/api/integrations/team-api?userId=${encodeURIComponent(user.id)}`,
-          { cache: "no-store" },
-        )
-
-        if (!response.ok) {
-          return
-        }
-
-        const payload = (await response.json().catch(() => null)) as
-          | { keys?: Array<{ token?: string | null; is_active?: boolean | null }> }
-          | null
-
-        const activeKey = (payload?.keys ?? []).find((candidate) => candidate?.is_active)
-
-        if (!cancelled) {
-          if (activeKey?.token && typeof activeKey.token === "string") {
-            setLatestApiKey(activeKey.token)
-          } else {
-            setLatestApiKey(null)
-          }
-          setApiClipboardStatus("idle")
-        }
-      } catch (error) {
-        console.warn("No se pudo cargar la clave API activa", error)
-      }
-    }
-
-    loadActiveApiKey()
-
-    return () => {
-      cancelled = true
-    }
-  }, [user?.id])
 
   const savedAtLabel = useMemo(() => formatSavedAt(lastSavedAt), [lastSavedAt])
   const canEditProfile = Boolean(user && onUpdateProfile)
@@ -269,8 +220,9 @@ const ConfigurationPanel: FC<ConfigurationPanelProps> = ({
     }
 
     if (field === "reminders") {
+      const advanceMinutes = preferences.notifications.reminderMinutesBefore ?? 30
       const result = enabled
-        ? await enableShiftReminders({ userId: user?.id ?? null })
+        ? await enableShiftReminders({ userId: user?.id ?? null, advanceMinutes })
         : disableShiftReminders()
       setIntegrationStatus({
         tone: result.ok ? "success" : "error",
@@ -311,6 +263,22 @@ const ConfigurationPanel: FC<ConfigurationPanelProps> = ({
     setPreferences((current) => ({
       ...current,
       startOfWeek,
+    }))
+  }
+
+  function handleFestiveDaysChange(showFestiveDays: boolean) {
+    resetPreferenceFeedback()
+    setPreferences((current) => ({
+      ...current,
+      showFestiveDays,
+    }))
+  }
+
+  function handleFestiveDayColorChange(festiveDayColor: string) {
+    resetPreferenceFeedback()
+    setPreferences((current) => ({
+      ...current,
+      festiveDayColor,
     }))
   }
 
@@ -406,76 +374,6 @@ const ConfigurationPanel: FC<ConfigurationPanelProps> = ({
     }
   }
 
-  async function handleActivateApiAccess() {
-    if (isActivatingApiKey) {
-      return
-    }
-
-    setIntegrationStatus(null)
-    setApiClipboardStatus("idle")
-    setIsActivatingApiKey(true)
-
-    try {
-      const response = await fetch("/api/integrations/team-api", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          userId: user?.id ?? null,
-          label: `Token generado ${new Date().toISOString()}`,
-        }),
-      })
-
-      const payload = await response.json()
-
-      if (!response.ok) {
-        throw new Error(
-          typeof payload.error === "string"
-            ? payload.error
-            : "No se pudo activar la API para tu equipo.",
-        )
-      }
-
-      const keyToken =
-        payload?.key?.token && typeof payload.key.token === "string"
-          ? payload.key.token.trim()
-          : ""
-
-      if (keyToken.length > 0) {
-        setLatestApiKey(keyToken)
-
-        if (typeof navigator !== "undefined" && navigator.clipboard?.writeText) {
-          try {
-            await navigator.clipboard.writeText(keyToken)
-            setApiClipboardStatus("copied")
-          } catch (clipboardError) {
-            console.warn("No se pudo copiar la clave API al portapapeles", clipboardError)
-            setApiClipboardStatus("error")
-          }
-        } else {
-          setApiClipboardStatus("error")
-        }
-      }
-
-      setIntegrationStatus({
-        tone: "success",
-        message:
-          typeof payload.message === "string"
-            ? payload.message
-            : "Generamos una nueva clave API. Copia y guarda el token en un lugar seguro.",
-      })
-    } catch (error) {
-      setIntegrationStatus({
-        tone: "error",
-        message:
-          error instanceof Error
-            ? error.message
-            : "No se pudo activar la API para tu equipo.",
-      })
-    } finally {
-      setIsActivatingApiKey(false)
-    }
-  }
-
   async function handleExportMonthlyReport() {
     if (isExportingMonthlyReport) {
       return
@@ -562,41 +460,6 @@ const ConfigurationPanel: FC<ConfigurationPanelProps> = ({
       })
     } finally {
       setIsExportingMonthlyReport(false)
-    }
-  }
-
-  async function handleCopyApiKey() {
-    if (!latestApiKey) {
-      return
-    }
-
-    if (typeof navigator === "undefined" || !navigator.clipboard?.writeText) {
-      setApiClipboardStatus("error")
-      setIntegrationStatus({
-        tone: "error",
-        message:
-          "Tu navegador no permite copiar automáticamente la clave API. Selecciónala manualmente y cópiala.",
-      })
-      return
-    }
-
-    try {
-      await navigator.clipboard.writeText(latestApiKey)
-      setApiClipboardStatus("copied")
-      setIntegrationStatus({
-        tone: "success",
-        message: "La clave API se copió al portapapeles.",
-      })
-    } catch (error) {
-      console.error("No se pudo copiar la clave API", error)
-      setApiClipboardStatus("error")
-      setIntegrationStatus({
-        tone: "error",
-        message:
-          error instanceof Error
-            ? error.message
-            : "No se pudo copiar la clave API. Selecciónala manualmente.",
-      })
     }
   }
 
@@ -769,7 +632,7 @@ const ConfigurationPanel: FC<ConfigurationPanelProps> = ({
     sizeClass = "h-12 w-12",
   ) => (
     <div
-      className={`relative grid ${sizeClass} place-items-center overflow-hidden rounded-xl border border-white/10 bg-white/5 shadow-inner shadow-blue-500/10`}
+      className={`relative grid ${sizeClass} place-items-center overflow-hidden rounded-xl bg-white/5 shadow-inner shadow-blue-500/10`}
     >
       {url ? (
         // eslint-disable-next-line @next/next/no-img-element
@@ -790,13 +653,13 @@ const ConfigurationPanel: FC<ConfigurationPanelProps> = ({
 
   return (
     <div
-      className={`configuration-panel relative overflow-hidden rounded-3xl border border-white/10 bg-slate-950/70 text-white shadow-[0_40px_90px_-35px_rgba(15,23,42,0.95)] ${className ?? ""}`}
+      className={`configuration-panel relative overflow-hidden rounded-3xl bg-slate-950/70 text-white shadow-[0_40px_90px_-35px_rgba(15,23,42,0.95)] ${className ?? ""}`}
     >
       <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_top,_rgba(59,130,246,0.18),transparent_60%),_radial-gradient(circle_at_bottom_right,_rgba(236,72,153,0.14),transparent_55%)]" />
       <div className="relative space-y-8 p-4 sm:p-6">
         <form
           onSubmit={handleProfileSubmit}
-          className="space-y-7 rounded-3xl border border-white/10 bg-slate-950/60 p-4 sm:p-6"
+          className="space-y-7 rounded-3xl bg-slate-950/60 p-4 sm:p-6"
         >
           <header className="flex flex-col gap-2 border-b border-white/10 pb-4 sm:flex-row sm:items-center sm:justify-between">
             <div>
@@ -808,7 +671,7 @@ const ConfigurationPanel: FC<ConfigurationPanelProps> = ({
               </h2>
             </div>
             {savedAtLabel ? (
-              <span className="rounded-full border border-white/10 px-3 py-1 text-[11px] font-semibold uppercase tracking-wide text-white/60">
+              <span className="rounded-full bg-white/5 px-3 py-1 text-[11px] font-semibold uppercase tracking-wide text-white/60">
                 Preferencias guardadas {savedAtLabel}
               </span>
             ) : null}
@@ -828,7 +691,7 @@ const ConfigurationPanel: FC<ConfigurationPanelProps> = ({
                       onChange={(event) => handleNameChange(event.target.value)}
                       placeholder="Tu nombre para el equipo"
                       disabled={!canEditProfile || isSavingProfile}
-                      className="mt-2 w-full rounded-2xl border border-white/10 bg-white/5 px-3 py-2 text-sm text-white placeholder:text-white/40 focus:outline-none focus:ring-2 focus:ring-sky-500/60 disabled:cursor-not-allowed disabled:opacity-60"
+                      className="mt-2 w-full rounded-2xl bg-white/5 px-3 py-2 text-sm text-white placeholder:text-white/40 focus:outline-none focus:ring-2 focus:ring-sky-500/60 disabled:cursor-not-allowed disabled:opacity-60"
                     />
                   </label>
 
@@ -840,7 +703,7 @@ const ConfigurationPanel: FC<ConfigurationPanelProps> = ({
                       type="email"
                       value={profileForm.email}
                       readOnly
-                      className="mt-2 w-full cursor-not-allowed rounded-2xl border border-white/10 bg-white/5 px-3 py-2 text-sm text-white/70"
+                      className="mt-2 w-full cursor-not-allowed rounded-2xl bg-white/5 px-3 py-2 text-sm text-white/70"
                     />
                   </label>
 
@@ -854,7 +717,7 @@ const ConfigurationPanel: FC<ConfigurationPanelProps> = ({
                       onChange={(event) => handleTimezoneChange(event.target.value)}
                       placeholder="Europe/Madrid"
                       disabled={!canEditProfile || isSavingProfile}
-                      className="mt-2 w-full rounded-2xl border border-white/10 bg-white/5 px-3 py-2 text-sm text-white placeholder:text-white/40 focus:outline-none focus:ring-2 focus:ring-sky-500/60 disabled:cursor-not-allowed disabled:opacity-60"
+                      className="mt-2 w-full rounded-2xl bg-white/5 px-3 py-2 text-sm text-white placeholder:text-white/40 focus:outline-none focus:ring-2 focus:ring-sky-500/60 disabled:cursor-not-allowed disabled:opacity-60"
                     />
                     <datalist id="timezone-options">
                       {POPULAR_TIMEZONES.map((timezone) => (
@@ -871,7 +734,7 @@ const ConfigurationPanel: FC<ConfigurationPanelProps> = ({
                   </p>
                 </div>
 
-                <div className="flex flex-col items-center gap-5 rounded-2xl border border-white/10 bg-slate-950/50 p-4 sm:p-5">
+                <div className="flex flex-col items-center gap-5 rounded-2xl bg-slate-950/50 p-4 sm:p-5">
                   {renderAvatar(
                     avatarPreview,
                     profileForm.name || user.name || user.email,
@@ -889,7 +752,7 @@ const ConfigurationPanel: FC<ConfigurationPanelProps> = ({
                       type="button"
                       onClick={() => fileInputRef.current?.click()}
                       disabled={!canEditProfile || isSavingProfile}
-                      className="inline-flex w-full items-center justify-center rounded-full border border-white/15 px-4 py-2 font-semibold uppercase tracking-wide text-white/70 transition hover:border-sky-400/40 hover:text-sky-200 disabled:cursor-not-allowed disabled:opacity-60"
+                      className="inline-flex w-full items-center justify-center rounded-full bg-white/5 px-4 py-2 font-semibold uppercase tracking-wide text-white/70 transition hover:bg-white/10 hover:text-sky-200 disabled:cursor-not-allowed disabled:opacity-60"
                     >
                       Subir nueva foto
                     </button>
@@ -897,14 +760,14 @@ const ConfigurationPanel: FC<ConfigurationPanelProps> = ({
                       type="button"
                       onClick={handleClearAvatar}
                       disabled={!canEditProfile || isSavingProfile}
-                      className="inline-flex w-full items-center justify-center rounded-full border border-white/10 px-4 py-2 font-semibold uppercase tracking-wide text-white/60 transition hover:border-white/30 hover:text-white disabled:cursor-not-allowed disabled:opacity-60"
+                      className="inline-flex w-full items-center justify-center rounded-full bg-white/5 px-4 py-2 font-semibold uppercase tracking-wide text-white/60 transition hover:bg-white/10 hover:text-white disabled:cursor-not-allowed disabled:opacity-60"
                     >
                       Quitar foto
                     </button>
                     <button
                       type="button"
                       onClick={handleOpenHistory}
-                      className="inline-flex w-full items-center justify-center rounded-full border border-white/10 px-4 py-2 font-semibold uppercase tracking-wide text-white/70 transition hover:border-amber-300/40 hover:text-amber-200"
+                      className="inline-flex w-full items-center justify-center rounded-full bg-white/5 px-4 py-2 font-semibold uppercase tracking-wide text-white/70 transition hover:bg-white/10 hover:text-amber-200"
                     >
                       Ver historial de cambios
                     </button>
@@ -929,7 +792,7 @@ const ConfigurationPanel: FC<ConfigurationPanelProps> = ({
                       onChange={(event) => handleAvatarUrlChange(event.target.value)}
                       placeholder="https://tu-imagen..."
                       disabled={!canEditProfile || isSavingProfile}
-                      className="mt-2 w-full rounded-2xl border border-white/10 bg-white/5 px-3 py-2 text-sm text-white placeholder:text-white/40 focus:outline-none focus:ring-2 focus:ring-sky-500/60 disabled:cursor-not-allowed disabled:opacity-60"
+                      className="mt-2 w-full rounded-2xl bg-white/5 px-3 py-2 text-sm text-white placeholder:text-white/40 focus:outline-none focus:ring-2 focus:ring-sky-500/60 disabled:cursor-not-allowed disabled:opacity-60"
                     />
                   </label>
                   <p className="text-[11px] text-center text-white/40">
@@ -962,7 +825,7 @@ const ConfigurationPanel: FC<ConfigurationPanelProps> = ({
               </footer>
             </>
           ) : (
-            <p className="rounded-2xl border border-dashed border-white/10 bg-slate-950/50 p-4 text-sm text-white/60">
+            <p className="rounded-2xl bg-slate-950/50 p-4 text-sm text-white/60">
               Inicia sesión para personalizar tu perfil, foto y preferencias avanzadas.
             </p>
           )}
@@ -970,7 +833,7 @@ const ConfigurationPanel: FC<ConfigurationPanelProps> = ({
 
         <form
           onSubmit={handlePreferencesSubmit}
-          className="grid gap-7 rounded-3xl border border-white/10 bg-slate-950/60 p-4 sm:p-6 lg:grid-cols-[1.1fr_0.9fr]"
+          className="grid gap-7 rounded-3xl bg-slate-950/60 p-4 sm:p-6 lg:grid-cols-[1.1fr_0.9fr]"
         >
           <section className="space-y-5">
             <header className="flex flex-col gap-2 border-b border-white/10 pb-4 sm:flex-row sm:items-center sm:justify-between">
@@ -983,39 +846,117 @@ const ConfigurationPanel: FC<ConfigurationPanelProps> = ({
                 </h2>
               </div>
               {savedAtLabel ? (
-                <span className="rounded-full border border-white/10 px-3 py-1 text-[11px] font-semibold uppercase tracking-wide text-white/60">
+                <span className="rounded-full bg-white/5 px-3 py-1 text-[11px] font-semibold uppercase tracking-wide text-white/60">
                   Guardado {savedAtLabel}
                 </span>
               ) : null}
             </header>
 
-            <div className="space-y-4 rounded-2xl border border-white/10 bg-slate-950/50 p-4">
-              <p className="text-xs uppercase tracking-wide text-white/40">
-                Inicio de semana
+            <div className="space-y-1 rounded-2xl bg-slate-950/50 p-2">
+              <p className="px-2 py-2 text-xs uppercase tracking-wide text-white/40">
+                Calendario
               </p>
-              <div className="inline-flex gap-2 rounded-full bg-white/5 p-1 text-xs font-semibold uppercase tracking-wide text-white/60">
-                {(["monday", "sunday"] as const).map((option) => (
-                  <button
-                    key={option}
-                    type="button"
-                    onClick={() => handleStartOfWeekChange(option)}
-                    className={`rounded-full px-4 py-1 transition ${
-                      preferences.startOfWeek === option
-                        ? "bg-sky-500 text-white shadow shadow-sky-500/40"
-                        : "hover:bg-white/10"
-                    }`}
-                  >
-                    {option === "monday" ? "Comenzar lunes" : "Comenzar domingo"}
-                  </button>
-                ))}
+              <button
+                type="button"
+                onClick={() => setShowFestiveDaysModal(true)}
+                className="flex w-full items-center justify-between gap-3 rounded-xl bg-white/5 px-4 py-3 text-left transition hover:bg-white/10"
+              >
+                <span className="font-semibold text-white">Días festivos</span>
+                <div className="flex items-center gap-2">
+                  {preferences.showFestiveDays ?? true ? (
+                    <>
+                      <span className="text-xs text-white/50">Activado</span>
+                      <span
+                        className="h-4 w-4 rounded-full border border-white/20"
+                        style={{ backgroundColor: preferences.festiveDayColor ?? "#dc2626" }}
+                        title={preferences.festiveDayColor ?? "#dc2626"}
+                      />
+                    </>
+                  ) : (
+                    <span className="text-xs text-white/50">Desactivado</span>
+                  )}
+                  <ChevronRight className="h-5 w-5 shrink-0 text-white/40" />
+                </div>
+              </button>
+              <div className="rounded-xl bg-white/5 px-4 py-3">
+                <p className="text-xs uppercase tracking-wide text-white/40">Inicio de semana</p>
+                <div className="mt-2 inline-flex gap-2 rounded-full bg-white/5 p-1 text-xs font-semibold uppercase tracking-wide text-white/60">
+                  {(["monday", "sunday"] as const).map((option) => (
+                    <button
+                      key={option}
+                      type="button"
+                      onClick={() => handleStartOfWeekChange(option)}
+                      className={`rounded-full px-4 py-1 transition ${
+                        preferences.startOfWeek === option
+                          ? "bg-sky-500 text-white shadow shadow-sky-500/40"
+                          : "hover:bg-white/10"
+                      }`}
+                    >
+                      {option === "monday" ? "Lunes" : "Domingo"}
+                    </button>
+                  ))}
+                </div>
+                <p className="mt-1.5 text-xs text-white/50">
+                  Afecta al orden en el calendario.
+                </p>
               </div>
-              <p className="text-xs text-white/50">
-                Afecta al orden en el calendario y resúmenes semanales compartidos con tu equipo.
-              </p>
             </div>
+
+            {showFestiveDaysModal && (
+              <div
+                className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4"
+                onClick={() => setShowFestiveDaysModal(false)}
+                role="dialog"
+                aria-modal="true"
+                aria-labelledby="festive-days-modal-title"
+              >
+                <div
+                  className="w-full max-w-sm rounded-2xl bg-slate-900 p-5 shadow-xl"
+                  onClick={(e) => e.stopPropagation()}
+                >
+                  <h3 id="festive-days-modal-title" className="text-lg font-semibold text-white">
+                    Días festivos
+                  </h3>
+                  <p className="mt-1 text-xs text-white/50">
+                    Festivos nacionales (España) en el calendario.
+                  </p>
+                  <label className="mt-4 flex items-center justify-between gap-4 rounded-xl bg-white/5 px-4 py-3">
+                    <span className="font-semibold text-white">Mostrar días festivos</span>
+                    <input
+                      type="checkbox"
+                      checked={preferences.showFestiveDays ?? true}
+                      onChange={() => handleFestiveDaysChange(!(preferences.showFestiveDays ?? true))}
+                      className="h-6 w-11 cursor-pointer rounded-full bg-slate-900/60 transition-all checked:bg-sky-500"
+                    />
+                  </label>
+                  {(preferences.showFestiveDays ?? true) && (
+                    <div className="mt-3 flex flex-wrap items-center gap-3 rounded-xl bg-white/5 px-4 py-3">
+                      <span className="text-xs text-white/70">Color</span>
+                      <input
+                        type="color"
+                        value={preferences.festiveDayColor ?? "#dc2626"}
+                        onChange={(e) => handleFestiveDayColorChange(e.target.value)}
+                        className="h-9 w-14 cursor-pointer rounded-lg border-0 bg-transparent p-0"
+                        title="Color días festivos"
+                      />
+                      <span className="text-xs text-white/50">
+                        {preferences.festiveDayColor ?? "#dc2626"}
+                      </span>
+                    </div>
+                  )}
+                  <button
+                    type="button"
+                    onClick={() => setShowFestiveDaysModal(false)}
+                    className="mt-4 w-full rounded-xl bg-sky-500 py-2.5 text-sm font-semibold text-white transition hover:bg-sky-400"
+                  >
+                    Cerrar
+                  </button>
+                </div>
+              </div>
+            )}
           </section>
 
-          <aside className="space-y-5 rounded-2xl border border-white/10 bg-slate-950/50 p-4 sm:p-5">
+          <aside className="space-y-5 rounded-2xl bg-slate-950/50 p-4 sm:p-5">
             <section className="space-y-4">
               <header>
                 <p className="text-xs uppercase tracking-[0.35em] text-white/40">
@@ -1027,7 +968,7 @@ const ConfigurationPanel: FC<ConfigurationPanelProps> = ({
               </header>
 
               <div className="space-y-3 text-sm text-white/70">
-                <label className="flex items-center justify-between gap-4 rounded-2xl border border-white/10 bg-white/5 px-4 py-3">
+                <label className="flex items-center justify-between gap-4 rounded-2xl bg-white/5 px-4 py-3">
                   <div>
                     <p className="font-semibold text-white">Correo electrónico</p>
                     <p className="text-xs text-white/50">Recibe un resumen semanal con los turnos asignados.</p>
@@ -1036,11 +977,11 @@ const ConfigurationPanel: FC<ConfigurationPanelProps> = ({
                     type="checkbox"
                     checked={preferences.notifications.email}
                     onChange={() => handleToggle("email")}
-                    className="h-6 w-11 cursor-pointer rounded-full border border-white/20 bg-slate-900/60 transition-all checked:bg-sky-500"
+                    className="h-6 w-11 cursor-pointer rounded-full bg-slate-900/60 transition-all checked:bg-sky-500"
                   />
                 </label>
 
-                <label className="flex items-center justify-between gap-4 rounded-2xl border border-white/10 bg-white/5 px-4 py-3">
+                <label className="flex items-center justify-between gap-4 rounded-2xl bg-white/5 px-4 py-3">
                   <div>
                     <p className="font-semibold text-white">Avisos push</p>
                     <p className="text-xs text-white/50">Entérate de cambios críticos en tiempo real.</p>
@@ -1049,11 +990,11 @@ const ConfigurationPanel: FC<ConfigurationPanelProps> = ({
                     type="checkbox"
                     checked={preferences.notifications.push}
                     onChange={() => handleToggle("push")}
-                    className="h-6 w-11 cursor-pointer rounded-full border border-white/20 bg-slate-900/60 transition-all checked:bg-sky-500"
+                    className="h-6 w-11 cursor-pointer rounded-full bg-slate-900/60 transition-all checked:bg-sky-500"
                   />
                 </label>
 
-                <label className="flex items-center justify-between gap-4 rounded-2xl border border-white/10 bg-white/5 px-4 py-3">
+                <label className="flex items-center justify-between gap-4 rounded-2xl bg-white/5 px-4 py-3">
                   <div>
                     <p className="font-semibold text-white">Recordatorios</p>
                     <p className="text-xs text-white/50">Recibe alertas antes de iniciar tu siguiente turno.</p>
@@ -1062,9 +1003,49 @@ const ConfigurationPanel: FC<ConfigurationPanelProps> = ({
                     type="checkbox"
                     checked={preferences.notifications.reminders}
                     onChange={() => handleToggle("reminders")}
-                    className="h-6 w-11 cursor-pointer rounded-full border border-white/20 bg-slate-900/60 transition-all checked:bg-sky-500"
+                    className="h-6 w-11 cursor-pointer rounded-full bg-slate-900/60 transition-all checked:bg-sky-500"
                   />
                 </label>
+                {preferences.notifications.reminders ? (
+                  <div className="flex flex-wrap items-center gap-2 rounded-2xl bg-white/5 px-4 py-3">
+                    <p className="text-xs text-white/70">Avisar</p>
+                    {([15, 30, 60] as const).map((mins) => (
+                      <button
+                        key={mins}
+                        type="button"
+                        onClick={() => {
+                          const next = preferences.notifications.reminderMinutesBefore ?? 30
+                          if (next === mins) return
+                          setPreferences((curr) => ({
+                            ...curr,
+                            notifications: {
+                              ...curr.notifications,
+                              reminderMinutesBefore: mins,
+                            },
+                          }))
+                          queueMicrotask(() => {
+                            void enableShiftReminders({
+                              userId: user?.id ?? null,
+                              advanceMinutes: mins,
+                            }).then((result) => {
+                              setIntegrationStatus({
+                                tone: result.ok ? "success" : "error",
+                                message: result.message,
+                              })
+                            })
+                          })
+                        }}
+                        className={`rounded-full px-3 py-1 text-xs font-semibold transition ${
+                          (preferences.notifications.reminderMinutesBefore ?? 30) === mins
+                            ? "bg-sky-500 text-white"
+                            : "bg-white/10 text-white/70 hover:bg-white/15"
+                        }`}
+                      >
+                        {mins} min antes
+                      </button>
+                    ))}
+                  </div>
+                ) : null}
               </div>
             </section>
 
@@ -1083,19 +1064,9 @@ const ConfigurationPanel: FC<ConfigurationPanelProps> = ({
                   onClick={handleSyncGoogleCalendar}
                   disabled={isSyncingCalendar}
                   aria-busy={isSyncingCalendar}
-                  className={`flex w-full items-center justify-between rounded-2xl border border-white/10 bg-white/5 px-4 py-3 font-semibold uppercase tracking-wide transition hover:border-sky-400/40 hover:text-sky-200 disabled:cursor-not-allowed disabled:opacity-60 ${isSyncingCalendar ? "pointer-events-none" : ""}`}
+                  className={`flex w-full items-center justify-between rounded-2xl bg-white/5 px-4 py-3 font-semibold uppercase tracking-wide transition hover:bg-white/10 hover:text-sky-200 disabled:cursor-not-allowed disabled:opacity-60 ${isSyncingCalendar ? "pointer-events-none" : ""}`}
                 >
                   {isSyncingCalendar ? "Generando archivo..." : "Sincronizar con Google Calendar"}
-                  <span aria-hidden>→</span>
-                </button>
-                <button
-                  type="button"
-                  onClick={handleActivateApiAccess}
-                  disabled={isActivatingApiKey}
-                  aria-busy={isActivatingApiKey}
-                  className={`flex w-full items-center justify-between rounded-2xl border border-white/10 bg-white/5 px-4 py-3 font-semibold uppercase tracking-wide transition hover:border-sky-400/40 hover:text-sky-200 disabled:cursor-not-allowed disabled:opacity-60 ${isActivatingApiKey ? "pointer-events-none" : ""}`}
-                >
-                  {isActivatingApiKey ? "Activando API..." : "Activar API para tu equipo"}
                   <span aria-hidden>→</span>
                 </button>
                 <button
@@ -1103,39 +1074,12 @@ const ConfigurationPanel: FC<ConfigurationPanelProps> = ({
                   onClick={handleExportMonthlyReport}
                   disabled={isExportingMonthlyReport}
                   aria-busy={isExportingMonthlyReport}
-                  className={`flex w-full items-center justify-between rounded-2xl border border-white/10 bg-white/5 px-4 py-3 font-semibold uppercase tracking-wide transition hover:border-sky-400/40 hover:text-sky-200 disabled:cursor-not-allowed disabled:opacity-60 ${isExportingMonthlyReport ? "pointer-events-none" : ""}`}
+                  className={`flex w-full items-center justify-between rounded-2xl bg-white/5 px-4 py-3 font-semibold uppercase tracking-wide transition hover:bg-white/10 hover:text-sky-200 disabled:cursor-not-allowed disabled:opacity-60 ${isExportingMonthlyReport ? "pointer-events-none" : ""}`}
                 >
                   {isExportingMonthlyReport ? "Preparando informe..." : "Exportar informe mensual (HTML/PDF)"}
                   <span aria-hidden>→</span>
                 </button>
               </div>
-
-              {latestApiKey ? (
-                <div className="space-y-2 rounded-2xl border border-sky-400/30 bg-sky-500/10 px-4 py-3 text-xs text-white/80">
-                  <p className="text-[11px] uppercase tracking-[0.3em] text-white/50">
-                    Clave API activa
-                  </p>
-                  <div className="flex flex-col gap-2 rounded-xl border border-white/10 bg-slate-950/50 p-3 sm:flex-row sm:items-center sm:justify-between">
-                    <code className="break-all font-mono text-[11px] text-sky-200">
-                      {latestApiKey}
-                    </code>
-                    <button
-                      type="button"
-                      onClick={handleCopyApiKey}
-                      className="inline-flex items-center justify-center rounded-full border border-white/20 px-3 py-1 text-[11px] font-semibold uppercase tracking-wide text-white/80 transition hover:border-sky-400/50 hover:text-sky-200"
-                    >
-                      {apiClipboardStatus === "copied" ? "Copiada" : "Copiar"}
-                    </button>
-                  </div>
-                  {apiClipboardStatus === "error" ? (
-                    <p className="text-[11px] text-rose-300">
-                      No se pudo copiar automáticamente. Selecciona la clave y cópiala manualmente.
-                    </p>
-                  ) : apiClipboardStatus === "copied" ? (
-                    <p className="text-[11px] text-emerald-300">La clave se copió al portapapeles.</p>
-                  ) : null}
-                </div>
-              ) : null}
 
               {integrationStatus ? (
                 <p
@@ -1174,7 +1118,7 @@ const ConfigurationPanel: FC<ConfigurationPanelProps> = ({
 
       {isHistoryOpen ? (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/80 px-4 py-6 backdrop-blur">
-          <div className="relative w-full max-w-3xl overflow-hidden rounded-3xl border border-white/10 bg-slate-950/95 p-6 text-white shadow-2xl">
+          <div className="relative w-full max-w-3xl overflow-hidden rounded-3xl bg-slate-950/95 p-6 text-white shadow-2xl">
             <div className="flex items-start justify-between gap-4">
               <div>
                 <h3 className="text-xl font-semibold text-white">
@@ -1187,7 +1131,7 @@ const ConfigurationPanel: FC<ConfigurationPanelProps> = ({
               <button
                 type="button"
                 onClick={handleCloseHistory}
-                className="inline-flex items-center justify-center rounded-full border border-white/15 px-3 py-1 text-xs font-semibold uppercase tracking-wide text-white/70 transition hover:border-white/40 hover:text-white"
+                className="inline-flex items-center justify-center rounded-full bg-white/5 px-3 py-1 text-xs font-semibold uppercase tracking-wide text-white/70 transition hover:bg-white/10 hover:text-white"
               >
                 Cerrar
               </button>
@@ -1211,13 +1155,13 @@ const ConfigurationPanel: FC<ConfigurationPanelProps> = ({
                   return (
                     <div
                       key={entry.id}
-                      className="rounded-2xl border border-white/10 bg-white/5 p-4"
+                      className="rounded-2xl bg-white/5 p-4"
                     >
                       <p className="text-xs uppercase tracking-wide text-white/40">
                         Guardado {formatHistoryTimestamp(entry.changedAt)}
                       </p>
                       <div className="mt-3 grid gap-4 md:grid-cols-2">
-                        <div className="space-y-3 rounded-2xl border border-white/10 bg-slate-950/50 p-3">
+                        <div className="space-y-3 rounded-2xl bg-slate-950/50 p-3">
                           <p className="text-xs font-semibold uppercase tracking-wide text-white/50">
                             Antes
                           </p>
@@ -1231,7 +1175,7 @@ const ConfigurationPanel: FC<ConfigurationPanelProps> = ({
                             </div>
                           </div>
                         </div>
-                        <div className="space-y-3 rounded-2xl border border-white/10 bg-slate-950/50 p-3">
+                        <div className="space-y-3 rounded-2xl bg-slate-950/50 p-3">
                           <p className="text-xs font-semibold uppercase tracking-wide text-white/50">
                             Ahora
                           </p>

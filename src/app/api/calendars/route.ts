@@ -1,13 +1,7 @@
 import { NextResponse } from "next/server"
 
-import {
-  ensureCalendarForTeam,
-  getOrCreateCalendarForUser,
-} from "@/lib/calendars"
-import { getSupabaseClient } from "@/lib/supabase"
+import { getOrCreateCalendarForUser } from "@/lib/calendars"
 import type { CalendarSummary } from "@/types/calendars"
-
-import { findMembershipForUser, getTeamDetails } from "../teams/teamService"
 
 export const runtime = "nodejs"
 
@@ -49,32 +43,6 @@ export async function GET(request: Request) {
         id: personalCalendarId,
         name: "Mi calendario",
         scope: "personal",
-      })
-    }
-
-    const supabase = getSupabaseClient()
-    const membership = await findMembershipForUser(supabase, userId)
-
-    if (membership.data?.team_id) {
-      const teamId = String(membership.data.team_id)
-      const teamDetails = await getTeamDetails(supabase, teamId)
-      const teamName = teamDetails?.name ?? "Equipo"
-
-      const timezoneFromOwner = teamDetails?.members.find(
-        (member) => member.id === teamDetails.ownerUserId,
-      )?.timezone
-
-      const calendarId = await ensureCalendarForTeam(
-        teamId,
-        `Calendario ${teamName}`,
-        timezoneFromOwner ?? "Europe/Madrid",
-      )
-
-      calendars.push({
-        id: calendarId,
-        name: `Equipo: ${teamName}`,
-        scope: "team",
-        teamId,
       })
     }
 

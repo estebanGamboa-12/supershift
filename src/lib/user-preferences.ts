@@ -84,6 +84,16 @@ function normalizeStartOfWeek(value: unknown): UserPreferences["startOfWeek"] {
   return DEFAULT_USER_PREFERENCES.startOfWeek
 }
 
+const REMINDER_MINUTES_OPTIONS = [15, 30, 60] as const
+
+function normalizeReminderMinutesBefore(value: unknown): number {
+  const n = typeof value === "number" && Number.isFinite(value) ? value : null
+  if (n !== null && REMINDER_MINUTES_OPTIONS.includes(n as 15 | 30 | 60)) {
+    return n
+  }
+  return DEFAULT_USER_PREFERENCES.notifications.reminderMinutesBefore ?? 30
+}
+
 function normalizeShiftExtra(x: unknown): ShiftExtra | null {
   if (!x || typeof x !== "object") return null
   const o = x as Record<string, unknown>
@@ -124,6 +134,9 @@ function normalizePreferences(raw: unknown): UserPreferences {
       reminders: normalizeBoolean(
         notifications.reminders,
         DEFAULT_USER_PREFERENCES.notifications.reminders,
+      ),
+      reminderMinutesBefore: normalizeReminderMinutesBefore(
+        (notifications as { reminderMinutesBefore?: unknown }).reminderMinutesBefore,
       ),
     },
     shiftExtras,

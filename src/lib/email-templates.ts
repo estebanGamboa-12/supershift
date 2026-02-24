@@ -199,3 +199,49 @@ export function buildEmailChangeEmail({
 
   return { subject, html, text }
 }
+
+/** Email con solo código (sin enlace con token). No pasa por tracking de Brevo/Resend. */
+export function buildPasswordResetCodeEmail({
+  code,
+  resetUrl,
+  validMinutes = 10,
+}: {
+  code: string
+  resetUrl: string
+  validMinutes?: number
+}): { subject: string; html: string; text: string } {
+  const subject = "Tu código para restablecer la contraseña - Planloop"
+  const safeCode = escapeHtml(code)
+
+  const html = `<!DOCTYPE html>
+<html lang="es" style="margin:0;padding:0;">
+  <head><meta charSet="utf-8" /><meta name="viewport" content="width=device-width, initial-scale=1" /></head>
+  <body style="margin:0;padding:0;background:${BRAND_DARK};font-family:system-ui,sans-serif;color:#f8fafc;">
+    <table role="presentation" width="100%" style="border-collapse:collapse;">
+      <tr><td align="center" style="padding:48px 16px;">
+        <table role="presentation" width="100%" style="max-width:480px;border-radius:24px;background:#0b1120;padding:40px;border:1px solid rgba(148,163,184,0.12);">
+          <tr><td style="text-align:center;padding-bottom:24px;">
+            <h1 style="margin:0;font-size:22px;color:#e2e8f0;">Restablece tu contraseña</h1>
+          </td></tr>
+          <tr><td style="text-align:center;padding-bottom:16px;">
+            <p style="margin:0;font-size:16px;color:#cbd5f5;">Tu código es:</p>
+          </td></tr>
+          <tr><td style="text-align:center;padding-bottom:24px;">
+            <p style="margin:0;font-size:32px;font-weight:700;letter-spacing:0.2em;color:${BRAND_ACCENT};">${safeCode}</p>
+          </td></tr>
+          <tr><td style="text-align:center;padding-bottom:8px;">
+            <p style="margin:0;font-size:14px;color:#94a3b8;">Entra en Planloop e introduce este código. Válido ${validMinutes} minutos.</p>
+          </td></tr>
+          <tr><td style="text-align:center;">
+            <p style="margin:0;font-size:13px;color:#64748b;">Si no has pedido restablecer la contraseña, ignora este correo.</p>
+          </td></tr>
+        </table>
+      </td></tr>
+    </table>
+  </body>
+</html>`
+
+  const text = `Restablece tu contraseña en Planloop.\n\nTu código: ${code}\n\nEntra en ${resetUrl} e introduce el código. Válido ${validMinutes} minutos.\n\nSi no has pedido esto, ignora el correo.`
+
+  return { subject, html, text }
+}

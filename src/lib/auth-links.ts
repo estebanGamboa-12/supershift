@@ -54,22 +54,13 @@ export function buildUpdatePasswordUrl(options?: { redirect?: string | null }): 
   return `${siteUrl}/reset-password${query}`
 }
 
-export function buildRecoveryCallbackUrl(options?: {
+// URL sin query para que Supabase la acepte en Redirect URLs sin problemas.
+// El callback detecta type=recovery por el hash/query que añade Supabase y redirige a /reset-password.
+export function buildRecoveryCallbackUrl(_options?: {
   redirect?: string | null
 }): string {
-  const redirectTarget = sanitizeRedirectPath(options?.redirect)
-  const params = new URLSearchParams({ type: "recovery" })
-
-  if (redirectTarget && redirectTarget !== "/") {
-    params.set("redirect", redirectTarget)
-  }
-
-  const updatePasswordPath =
-    params.toString().length > 0
-      ? `/reset-password?${params.toString()}`
-      : "/reset-password"
-
-  return buildAuthCallbackUrl({ redirect: updatePasswordPath })
+  const siteUrl = getSiteUrl()
+  return `${siteUrl}/auth/callback`
 }
 
 export function resolveRedirectPath(value: unknown): string {

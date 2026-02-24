@@ -70,6 +70,15 @@ export async function enablePushNotifications({
       }
     }
 
+    const effectiveVapidKey = vapidPublicKey ?? getVapidKey()
+    if (!effectiveVapidKey || effectiveVapidKey.trim().length === 0) {
+      return {
+        ok: false,
+        message:
+          "Falta la clave VAPID para notificaciones push. Añade NEXT_PUBLIC_VAPID_PUBLIC_KEY en .env.local (genera un par con: npx web-push generate-vapid-keys).",
+      }
+    }
+
     const permission = await Notification.requestPermission()
     if (permission !== "granted") {
       return {
@@ -85,9 +94,9 @@ export async function enablePushNotifications({
 
     let subscription = await registration.pushManager.getSubscription()
     if (!subscription) {
-      const options: PushSubscriptionOptionsInit = { userVisibleOnly: true }
-      if (vapidPublicKey) {
-        options.applicationServerKey = urlBase64ToArrayBuffer(vapidPublicKey)
+      const options: PushSubscriptionOptionsInit = {
+        userVisibleOnly: true,
+        applicationServerKey: urlBase64ToArrayBuffer(effectiveVapidKey.trim()),
       }
       subscription = await registration.pushManager.subscribe(options)
     }

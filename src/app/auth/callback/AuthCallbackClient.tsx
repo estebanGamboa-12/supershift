@@ -78,31 +78,6 @@ function removeAuthParamsFromUrl(keys: string[]) {
   window.history.replaceState({}, "", newUrl)
 }
 
-function appendParamsToPath(path: string, paramsToAdd: URLSearchParams): string {
-  if (paramsToAdd.size === 0) {
-    return path
-  }
-
-  if (typeof window === "undefined") {
-    return path
-  }
-
-  try {
-    const url = new URL(path, window.location.origin)
-    paramsToAdd.forEach((value, key) => {
-      if (!value) {
-        return
-      }
-      url.searchParams.set(key, value)
-    })
-
-    const query = url.searchParams.toString()
-    return `${url.pathname}${query ? `?${query}` : ""}${url.hash ?? ""}`
-  } catch {
-    return path
-  }
-}
-
 type AuthState =
   | {
       status: "processing"
@@ -196,33 +171,9 @@ export default function AuthCallbackClient() {
         }
       }
 
-      const recoveryParams = new URLSearchParams()
-      if (isRecoveryFlow) {
-        recoveryParams.set("type", "recovery")
-        if (accessToken) {
-          recoveryParams.set("access_token", accessToken)
-        }
-        if (refreshToken) {
-          recoveryParams.set("refresh_token", refreshToken)
-        }
-        if (exchangeCode) {
-          recoveryParams.set("code", exchangeCode)
-        }
-        if (tokenHash) {
-          recoveryParams.set("token_hash", tokenHash)
-        }
-        if (otpToken) {
-          recoveryParams.set("token", otpToken)
-        }
-        if (otpEmail) {
-          recoveryParams.set("email", otpEmail)
-        }
-      }
-
+      // Para recovery siempre vamos a /reset-password?type=recovery (ya no enviamos redirect en la URL).
       const finalRedirectTarget =
-        isRecoveryFlow && redirectTarget
-          ? appendParamsToPath(redirectTarget, recoveryParams)
-          : redirectTarget
+        isRecoveryFlow ? "/reset-password?type=recovery" : redirectTarget
 
       removeAuthParamsFromUrl([
         "access_token",
@@ -269,25 +220,25 @@ export default function AuthCallbackClient() {
       if (!accessToken || !refreshToken) {
         if (isRecoveryFlow && hasRecoveryOtpData) {
           setState({
-            status: "processing",
-            title: "Preparando restablecimiento",
+            status: "error",
+            title: "Enlace de recuperación inválido o ya usado",
             message:
-              "Estamos validando tu enlace de recuperación y en unos segundos te llevaremos al formulario para actualizar tu contraseña.",
+              "No se pudo validar el enlace (puede estar caducado o ya usado). Solicita un nuevo correo de recuperación desde la aplicación y usa el enlace en una sola pestaña.",
           })
-
-          redirectTimer = window.setTimeout(() => {
-            router.replace(finalRedirectTarget)
-          }, 600)
           return
         }
       }
 
       if (!accessToken) {
+        const siteUrl =
+          typeof window !== "undefined" ? window.location.origin : "https://planloop.app"
+        const callbackUrl = `${siteUrl}/auth/callback`
         setState({
           status: "error",
           title: "Faltan datos en el enlace",
           message:
-            "No encontramos el token de acceso necesario para validar tu cuenta. Vuelve a solicitar el enlace desde la aplicación.",
+            "El enlace no trajo el código de verificación. En Supabase: Authentication → URL Configuration → Redirect URLs, añade esta URL (cópiala tal cual, sin barra final):",
+          details: `${callbackUrl}\n\nDespués guarda, pide otro correo de recuperación y abre el enlace en una sola pestaña.`,
         })
         return
       }

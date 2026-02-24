@@ -2394,12 +2394,10 @@ export default function Home() {
             </div>
           </div>
 
-          {/* Contenido sin scroll propio: solo scroll de la ventana (derecha) */}
-          <div className="flex-1 min-h-0">
-        </div>
-
-        <main className="flex-1 pb-[calc(5rem+env(safe-area-inset-bottom))]">
-          <div className="w-full px-0 py-1 sm:px-1">
+          {/* Contenido: ocupa todo el espacio disponible */}
+          <div className="flex-1 min-h-0 flex flex-col">
+            <main className="flex-1 min-h-0 w-full pb-[calc(5rem+env(safe-area-inset-bottom))]">
+              <div className="h-full w-full px-2 py-1 sm:px-3">
             <div className="hidden lg:flex lg:flex-col lg:gap-10">
               <AnimatePresence mode="wait">
                 {activeTab === "calendar" && (
@@ -2635,8 +2633,9 @@ export default function Home() {
                   </AnimatePresence>
                 </div>
               </div>
-            </div>
-          </main>
+              </div>
+            </main>
+          </div>
         </div>
       </div>
 

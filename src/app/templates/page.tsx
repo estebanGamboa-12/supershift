@@ -7,7 +7,8 @@ import type { Session } from "@supabase/supabase-js"
 import FloatingParticlesLoader from "@/components/FloatingParticlesLoader"
 import UserAuthPanel from "@/components/auth/UserAuthPanel"
 import ShiftTemplateCard from "@/components/dashboard/ShiftTemplateCard"
-import ShiftTemplateModal from "@/components/ShiftTemplateModal"
+import ShiftTemplateModal, { type ShiftTemplateSubmitPayload } from "@/components/ShiftTemplateModal"
+import { getTemplateDefaultPluses, setTemplateDefaultPluses } from "@/lib/template-default-pluses"
 import EditRotationModal from "@/components/EditRotationModal"
 import MobileNavigation, { type MobileTab } from "@/components/dashboard/MobileNavigation"
 import PlanLoopLogo from "@/components/PlanLoopLogo"
@@ -221,6 +222,7 @@ export default function TemplatesPage() {
     templates: rotationTemplates,
     isLoading: isLoadingRotations,
     error: rotationError,
+    refetch: refetchRotations,
     createRotationTemplate,
     updateRotationTemplate,
     deleteRotationTemplate,
@@ -255,18 +257,21 @@ export default function TemplatesPage() {
     })
   }
 
-  const handleSubmitShiftTemplate = async (payload: Parameters<typeof createShiftTemplate>[0]) => {
+  const handleSubmitShiftTemplate = async (payload: ShiftTemplateSubmitPayload) => {
+    const { defaultPluses, ...input } = payload
     if (shiftModalTemplate) {
-      const result = await updateShiftTemplate(shiftModalTemplate.id, payload)
+      const result = await updateShiftTemplate(shiftModalTemplate.id, input)
       if (!result) {
         throw new Error("No se pudo actualizar la plantilla de turno")
       }
+      setTemplateDefaultPluses(shiftModalTemplate.id, defaultPluses)
       showToast({ type: "update", message: "Plantilla modificada" })
     } else {
-      const result = await createShiftTemplate(payload)
+      const result = await createShiftTemplate(input)
       if (!result) {
         throw new Error("No se pudo crear la plantilla de turno")
       }
+      setTemplateDefaultPluses(result.id, defaultPluses)
       showToast({ type: "create", message: "Plantilla creada" })
     }
     setShiftModalTemplate(null)
@@ -325,8 +330,16 @@ export default function TemplatesPage() {
     confirmDelete({
       itemName: `la rotación "${template.title}"`,
       onConfirm: async () => {
-        await deleteRotationTemplate(template.id)
-        showToast({ type: "delete", message: "Rotación eliminada" })
+        const ok = await deleteRotationTemplate(template.id)
+        if (ok) {
+          if (rotationModalTemplate?.id === template.id) {
+            closeRotationModal()
+          }
+          refetchRotations()
+          showToast({ type: "delete", message: "Rotación eliminada" })
+        } else {
+          showToast({ type: "delete", message: "No se pudo eliminar la rotación" })
+        }
       },
     })
   }
@@ -337,15 +350,17 @@ export default function TemplatesPage() {
       if (!result) {
         throw new Error("No se pudo actualizar la plantilla de rotación")
       }
+      refetchRotations()
       showToast({ type: "update", message: "Rotación modificada" })
     } else {
       const result = await createRotationTemplate(payload)
       if (!result) {
         throw new Error("No se pudo crear la plantilla de rotación")
       }
+      refetchRotations()
       showToast({ type: "create", message: "Rotación creada" })
     }
-    setRotationModalTemplate(null)
+    closeRotationModal()
   }
 
   const closeRotationModal = () => {
@@ -419,6 +434,23 @@ export default function TemplatesPage() {
           >
             Rotaciones
           </button>
+        </div>
+
+        {/* CTA fijo: llevar al "aha" rápido */}
+        <div className="sticky top-2 z-20 mb-6 flex flex-wrap items-center gap-2 rounded-2xl border border-sky-400/30 bg-sky-500/15 px-4 py-3 shadow-lg backdrop-blur-sm">
+          <span className="text-xs font-semibold text-white/80">Lleva tus plantillas al calendario:</span>
+          <Link
+            href="/"
+            className="inline-flex items-center gap-1.5 rounded-xl bg-sky-500 px-4 py-2 text-sm font-bold text-white shadow-md shadow-sky-500/30 transition hover:bg-sky-400 hover:shadow-sky-400/40"
+          >
+            Aplicar plantilla al mes
+          </Link>
+          <Link
+            href="/"
+            className="inline-flex items-center gap-1.5 rounded-xl border-2 border-emerald-400/50 bg-emerald-500/20 px-4 py-2 text-sm font-bold text-emerald-100 transition hover:bg-emerald-500/30 hover:border-emerald-400/70"
+          >
+            Generar rotación
+          </Link>
         </div>
 
         <section className="mt-8 mb-12 space-y-8">
@@ -587,6 +619,7 @@ export default function TemplatesPage() {
         onClose={closeShiftModal}
         onSubmit={handleSubmitShiftTemplate}
         template={shiftModalTemplate}
+        initialDefaultPluses={shiftModalTemplate ? getTemplateDefaultPluses(shiftModalTemplate.id) : null}
         title={shiftModalTemplate ? "Editar plantilla de turno" : "Nueva plantilla de turno"}
         customShiftTypes={shiftTemplates.map((t) => ({ id: String(t.id), name: t.title, color: t.color ?? "#3b82f6", defaultStartTime: t.startTime, defaultEndTime: t.endTime }))}
       />
@@ -618,7 +651,7 @@ export default function TemplatesPage() {
       />
 
       <MobileNavigation
-        active="calendar"
+        active="templates"
         onChange={handleNavigateTab}
         onNavigateLink={handleNavigateLink}
       />

@@ -1,8 +1,19 @@
 "use client"
 
 import { useEffect, useMemo, useState } from "react"
+import Link from "next/link"
 import { AnimatePresence, motion } from "framer-motion"
 import type { ShiftTemplate, ShiftTemplateInput } from "@/types/templates"
+import type { ShiftPluses } from "@/types/shifts"
+import { loadUserPreferences } from "@/lib/user-preferences"
+import { DEFAULT_USER_PREFERENCES, type UserPreferences } from "@/types/preferences"
+
+const DEFAULT_PLUSES: ShiftPluses = {
+  night: 0,
+  holiday: 0,
+  availability: 0,
+  other: 0,
+}
 
 type CustomShiftTypeItem = {
   id: string
@@ -13,11 +24,15 @@ type CustomShiftTypeItem = {
   defaultEndTime?: string | null
 }
 
+export type ShiftTemplateSubmitPayload = ShiftTemplateInput & { defaultPluses?: ShiftPluses }
+
 type ShiftTemplateModalProps = {
   open: boolean
   onClose: () => void
-  onSubmit: (payload: ShiftTemplateInput) => Promise<void>
+  onSubmit: (payload: ShiftTemplateSubmitPayload) => Promise<void>
   template?: ShiftTemplate | null
+  /** Extras por defecto para esta plantilla (p. ej. desde localStorage). */
+  initialDefaultPluses?: ShiftPluses | null
   title?: string
   customShiftTypes?: CustomShiftTypeItem[]
 }
@@ -27,6 +42,7 @@ export default function ShiftTemplateModal({
   onClose,
   onSubmit,
   template,
+  initialDefaultPluses,
   title = "Nueva plantilla de turno",
   customShiftTypes = [],
 }: ShiftTemplateModalProps) {
@@ -36,14 +52,19 @@ export default function ShiftTemplateModal({
   const [startTime, setStartTime] = useState("09:00")
   const [endTime, setEndTime] = useState("17:00")
   const [location, setLocation] = useState("")
+  const [defaultPluses, setDefaultPluses] = useState<ShiftPluses>({ ...DEFAULT_PLUSES })
+  const [userPreferences, setUserPreferences] = useState<UserPreferences>(DEFAULT_USER_PREFERENCES)
   const [error, setError] = useState<string | null>(null)
   const [isSubmitting, setIsSubmitting] = useState(false)
 
   useEffect(() => {
-    if (!open) {
-      return
-    }
+    if (!open) return
+    const loaded = loadUserPreferences()
+    if (loaded?.preferences) setUserPreferences(loaded.preferences)
+  }, [open])
 
+  useEffect(() => {
+    if (!open) return
     if (template) {
       setFormTitle(template.title)
       setIcon(template.icon ?? "🗓️")
@@ -51,6 +72,7 @@ export default function ShiftTemplateModal({
       setStartTime(template.startTime)
       setEndTime(template.endTime)
       setLocation(template.location ?? "")
+      setDefaultPluses(initialDefaultPluses ?? { ...DEFAULT_PLUSES })
     } else {
       setFormTitle("")
       setIcon("🗓️")
@@ -58,10 +80,11 @@ export default function ShiftTemplateModal({
       setStartTime("09:00")
       setEndTime("17:00")
       setLocation("")
+      setDefaultPluses({ ...DEFAULT_PLUSES })
     }
     setError(null)
     setIsSubmitting(false)
-  }, [open, template])
+  }, [open, template, initialDefaultPluses])
 
   const isValid = useMemo(() => {
     return formTitle.trim().length > 0 && startTime.trim() && endTime.trim()
@@ -77,7 +100,7 @@ export default function ShiftTemplateModal({
     setIsSubmitting(true)
 
     try {
-      const payload: ShiftTemplateInput = {
+      const payload: ShiftTemplateSubmitPayload = {
         title: formTitle.trim(),
         icon: icon.trim().length > 0 ? icon : "🗓️",
         color: color,
@@ -86,6 +109,7 @@ export default function ShiftTemplateModal({
         breakMinutes: null,
         alertMinutes: null,
         location: location.trim() || null,
+        defaultPluses: Object.values(defaultPluses).some((v) => v > 0) ? defaultPluses : undefined,
       }
 
       await onSubmit(payload)
@@ -245,6 +269,50 @@ export default function ShiftTemplateModal({
                     required
                   />
                 </label>
+              </div>
+
+              {/* Extras por defecto para esta plantilla */}
+              <div className="rounded-xl border border-white/10 bg-white/5 p-2.5">
+                <p className="mb-1.5 text-xs font-semibold uppercase tracking-wider text-white/50">Extras por defecto</p>
+                {(userPreferences.shiftExtras ?? []).length === 0 ? (
+                  <p className="rounded-lg border border-dashed border-white/15 bg-white/5 px-3 py-3 text-[11px] text-white/50">
+                    Si quieres que esta plantilla lleve extras (nocturno, festivo…), créalos en{" "}
+                    <Link href="/extras" className="font-semibold text-sky-400 hover:text-sky-300 underline">
+                      Extras
+                    </Link>{" "}
+                    y podrás elegirlos aquí. Al usar la plantilla en un turno se aplicarán estos extras.
+                  </p>
+                ) : (
+                  <div className="grid grid-cols-2 gap-2 sm:grid-cols-3">
+                    {(userPreferences.shiftExtras ?? []).slice(0, 4).map((extra, index) => {
+                      const plusKeys: (keyof ShiftPluses)[] = ["night", "holiday", "availability", "other"]
+                      const key = plusKeys[index]
+                      const isSelected = (defaultPluses[key] ?? 0) > 0
+                      return (
+                        <label
+                          key={extra.id}
+                          className={`flex cursor-pointer items-center gap-2 rounded-lg border-2 px-3 py-2 text-xs font-semibold transition ${
+                            isSelected
+                              ? "border-white/40 bg-white/15"
+                              : "border-white/20 bg-white/5 hover:border-white/30 hover:bg-white/10"
+                          }`}
+                          style={isSelected ? { borderColor: (extra.color ?? "#3b82f6") + "80", backgroundColor: (extra.color ?? "#3b82f6") + "20" } : {}}
+                        >
+                          <input
+                            type="checkbox"
+                            checked={isSelected}
+                            onChange={(e) =>
+                              setDefaultPluses((prev) => ({ ...prev, [key]: e.target.checked ? 1 : 0 }))
+                            }
+                            className="h-4 w-4 rounded border-2 border-white/30 bg-white/10 accent-sky-500"
+                          />
+                          <span className="flex-1 truncate text-white">{extra.name}</span>
+                          <span className="text-xs font-bold text-white/80">{extra.value}€</span>
+                        </label>
+                      )
+                    })}
+                  </div>
+                )}
               </div>
 
               {error ? (

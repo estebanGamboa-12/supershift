@@ -9,7 +9,6 @@ type DesktopOverviewCardProps = {
   nextShift?: ShiftEvent
   nextShiftCountdownLabel: string
   activeShiftTypes: number
-  teamSize: number
   shiftTypeLabels: Record<ShiftType, string>
 }
 
@@ -19,7 +18,6 @@ const DesktopOverviewCard: FC<DesktopOverviewCardProps> = ({
   nextShift,
   nextShiftCountdownLabel,
   activeShiftTypes,
-  teamSize,
   shiftTypeLabels,
 }) => {
   return (
@@ -73,13 +71,13 @@ const DesktopOverviewCard: FC<DesktopOverviewCardProps> = ({
 
           <div className="surface-card--muted px-5 py-4">
             <dt className="text-[11px] uppercase tracking-wide text-brand-muted/80">
-              Equipo activo
+              Tipos de turno
             </dt>
             <dd className="mt-2 text-3xl font-semibold text-brand-text">
-              {teamSize}
+              {activeShiftTypes}
             </dd>
             <p className="mt-1 text-xs text-brand-muted/90">
-              {activeShiftTypes} tipos en uso
+              en uso este mes
             </p>
           </div>
         </dl>

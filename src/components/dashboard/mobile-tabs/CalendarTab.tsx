@@ -3,6 +3,7 @@
 import type { FC } from "react"
 import { useState, useCallback, useEffect } from "react"
 import {
+  addDays,
   addMonths,
   isAfter,
   startOfDay,
@@ -259,13 +260,12 @@ const CalendarTab: FC<CalendarTabProps> = ({
                   <X size={18} />
                 </button>
               </div>
-          {onAddShiftForDate && (
+          {onAddShiftForDate && calendarView !== "day" && (
             <div className="px-1">
               <button
                 type="button"
                 onClick={() => {
                   onAddShiftForDate(displayDate)
-                  // Cerrar sidebar en móviles al crear turno
                   if (isMobile) {
                     setIsSidebarOpen(false)
                   }
@@ -376,6 +376,9 @@ const CalendarTab: FC<CalendarTabProps> = ({
             onSelectEvent={onSelectEvent}
             onAddSlot={onAddShiftForDate}
             onUpdateShift={onUpdateShift}
+            onPrevDay={() => setSelectedDate((prev) => addDays(prev ?? new Date(), -1))}
+            onNextDay={() => setSelectedDate((prev) => addDays(prev ?? new Date(), 1))}
+            onGoToday={handleGoToday}
           />
         )}
       </div>

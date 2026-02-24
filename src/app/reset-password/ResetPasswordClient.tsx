@@ -105,6 +105,8 @@ type ViewState =
       status: "ready"
       title: string
       message: string
+      /** Flujo por enlace mágico (tokens) vs por código de 6 dígitos */
+      mode?: "link" | "code"
     }
   | {
       status: "processing"
@@ -126,6 +128,10 @@ export default function ResetPasswordClient() {
   const [formError, setFormError] = useState("")
   const [redirectTarget, setRedirectTarget] = useState("/")
   const [tokens, setTokens] = useState<{ accessToken: string; refreshToken: string } | null>(null)
+  const [codeEmail, setCodeEmail] = useState("")
+  const [codeValue, setCodeValue] = useState("")
+  const [codePassword, setCodePassword] = useState("")
+  const [codeConfirmPassword, setCodeConfirmPassword] = useState("")
   const [state, setState] = useState<ViewState>({
     status: "loading",
     title: "Preparando actualización",
@@ -197,6 +203,20 @@ export default function ResetPasswordClient() {
       ])
       applyRedirectToUrl(redirect)
 
+      // Si es recovery, priorizar sesión ya establecida por el callback (evita "no token" cuando
+      // el callback redirige aquí sin tokens en la URL).
+      if (type === "recovery") {
+        try {
+          const { data, error } = await supabase.auth.getSession()
+          if (!error && data.session?.access_token && data.session?.refresh_token) {
+            accessToken = data.session.access_token
+            refreshToken = data.session.refresh_token
+          }
+        } catch (error) {
+          console.error("No se pudo obtener la sesión de recuperación", error)
+        }
+      }
+
       if (!accessToken || !refreshToken) {
         try {
           if (exchangeCode) {
@@ -249,9 +269,10 @@ export default function ResetPasswordClient() {
 
       if (!accessToken || !refreshToken) {
         setState({
-          status: "error",
-          title: "Faltan datos en el enlace",
-          message: "No encontramos los tokens necesarios para restablecer tu contraseña. Solicita un nuevo correo de recuperación.",
+          status: "ready",
+          title: "Restablece tu contraseña con el código",
+          message: "Introduce el código de 6 dígitos que te enviamos por correo y tu nueva contraseña.",
+          mode: "code",
         })
         return
       }
@@ -286,6 +307,7 @@ export default function ResetPasswordClient() {
           status: "ready",
           title: "Restablece tu contraseña",
           message: "Introduce una nueva contraseña para tu cuenta de Planloop.",
+          mode: "link",
         })
       } catch (error) {
         console.error("Error preparando la sesión de recuperación", error)
@@ -307,6 +329,75 @@ export default function ResetPasswordClient() {
       isActive = false
     }
   }, [searchParams, supabase])
+
+  const handleSubmitCode = async (event: React.FormEvent<HTMLFormElement>) => {
+    event.preventDefault()
+    setFormError("")
+
+    const email = codeEmail.trim().toLowerCase()
+    if (!email || !email.includes("@")) {
+      setFormError("Introduce un correo válido")
+      return
+    }
+    if (!/^\d{6}$/.test(codeValue.trim())) {
+      setFormError("El código debe ser de 6 dígitos")
+      return
+    }
+    if (codePassword.length < 6) {
+      setFormError("La contraseña debe tener al menos 6 caracteres")
+      return
+    }
+    if (codePassword !== codeConfirmPassword) {
+      setFormError("Las contraseñas no coinciden")
+      return
+    }
+
+    try {
+      setState({
+        status: "processing",
+        title: "Actualizando contraseña",
+        message: "Verificando el código y guardando tu nueva contraseña...",
+      })
+
+      const res = await fetch("/api/auth/password-recovery/verify", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          email,
+          code: codeValue.trim(),
+          newPassword: codePassword,
+        }),
+      })
+
+      const data = (await res.json()) as { success?: boolean; error?: string }
+
+      if (!res.ok) {
+        setState({
+          status: "ready",
+          title: "Restablece tu contraseña con el código",
+          message:
+            "Introduce el código de 6 dígitos que te enviamos por correo y tu nueva contraseña.",
+          mode: "code",
+        })
+        setFormError(data?.error ?? "No se pudo restablecer la contraseña")
+        return
+      }
+
+      if (data?.success) {
+        router.replace("/?reset=ok")
+      }
+    } catch (err) {
+      console.error("Error verificando código de recuperación", err)
+      setState({
+        status: "ready",
+        title: "Restablece tu contraseña con el código",
+        message:
+          "Introduce el código de 6 dígitos que te enviamos por correo y tu nueva contraseña.",
+        mode: "code",
+      })
+      setFormError("Error de conexión. Vuelve a intentarlo.")
+    }
+  }
 
   const handleSubmit = async (event: React.FormEvent<HTMLFormElement>) => {
     event.preventDefault()
@@ -393,7 +484,85 @@ export default function ResetPasswordClient() {
 
         {(state.status === "loading" || state.status === "processing") && <Spinner />}
 
-        {state.status === "ready" && (
+        {state.status === "ready" && state.mode === "code" && (
+          <form className="mt-8 space-y-5" onSubmit={handleSubmitCode}>
+            <div className="space-y-3 text-left">
+              <label className="block text-sm font-medium text-white/80" htmlFor="codeEmail">
+                Correo
+              </label>
+              <input
+                id="codeEmail"
+                name="codeEmail"
+                type="email"
+                value={codeEmail}
+                onChange={(e) => setCodeEmail(e.target.value)}
+                className="w-full rounded-2xl border border-white/10 bg-slate-900/60 px-4 py-3 text-sm text-white outline-none transition focus:border-emerald-400 focus:bg-slate-900/80"
+                placeholder="tu@empresa.com"
+                autoComplete="email"
+                required
+              />
+            </div>
+            <div className="space-y-3 text-left">
+              <label className="block text-sm font-medium text-white/80" htmlFor="codeValue">
+                Código de 6 dígitos
+              </label>
+              <input
+                id="codeValue"
+                name="codeValue"
+                type="text"
+                inputMode="numeric"
+                maxLength={6}
+                value={codeValue}
+                onChange={(e) => setCodeValue(e.target.value.replace(/\D/g, ""))}
+                className="w-full rounded-2xl border border-white/10 bg-slate-900/60 px-4 py-3 text-sm text-white outline-none transition focus:border-emerald-400 focus:bg-slate-900/80 tracking-[0.3em]"
+                placeholder="000000"
+                autoComplete="one-time-code"
+                required
+              />
+            </div>
+            <div className="space-y-3 text-left">
+              <label className="block text-sm font-medium text-white/80" htmlFor="codePassword">
+                Nueva contraseña
+              </label>
+              <input
+                id="codePassword"
+                name="codePassword"
+                type="password"
+                value={codePassword}
+                onChange={(e) => setCodePassword(e.target.value)}
+                className="w-full rounded-2xl border border-white/10 bg-slate-900/60 px-4 py-3 text-sm text-white outline-none transition focus:border-emerald-400 focus:bg-slate-900/80"
+                placeholder="Mínimo 6 caracteres"
+                autoComplete="new-password"
+                required
+              />
+            </div>
+            <div className="space-y-3 text-left">
+              <label className="block text-sm font-medium text-white/80" htmlFor="codeConfirmPassword">
+                Repetir contraseña
+              </label>
+              <input
+                id="codeConfirmPassword"
+                name="codeConfirmPassword"
+                type="password"
+                value={codeConfirmPassword}
+                onChange={(e) => setCodeConfirmPassword(e.target.value)}
+                className="w-full rounded-2xl border border-white/10 bg-slate-900/60 px-4 py-3 text-sm text-white outline-none transition focus:border-emerald-400 focus:bg-slate-900/80"
+                placeholder="Repite la nueva contraseña"
+                autoComplete="new-password"
+                required
+              />
+            </div>
+            {formError && <p className="text-sm text-red-300/90">{formError}</p>}
+            <button
+              type="submit"
+              className="w-full rounded-full bg-emerald-500 px-5 py-3 text-sm font-semibold text-slate-950 transition hover:bg-emerald-400"
+            >
+              Restablecer contraseña
+            </button>
+          </form>
+        )}
+
+        {state.status === "ready" && state.mode !== "code" && (
           <form className="mt-8 space-y-5" onSubmit={handleSubmit}>
             <div className="space-y-3 text-left">
               <label className="block text-sm font-medium text-white/80" htmlFor="password">

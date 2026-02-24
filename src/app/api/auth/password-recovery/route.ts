@@ -1,13 +1,19 @@
 import { NextResponse } from "next/server"
 import { getSupabaseClient } from "@/lib/supabase"
-import { buildRecoveryCallbackUrl } from "@/lib/auth-links"
+import { buildRecoveryCallbackUrl, getSiteUrl } from "@/lib/auth-links"
+import { sendEmail } from "@/lib/email"
+import { buildPasswordResetCodeEmail } from "@/lib/email-templates"
 
 export const runtime = "nodejs"
+
+const CODE_VALID_MINUTES = 10
 
 type RecoveryPayload = {
   email?: unknown
   redirect?: unknown
   redirectTo?: unknown
+  /** Si es true, se envía un código de 6 dígitos por Resend en lugar del enlace de Supabase. */
+  useCode?: unknown
 }
 
 function sanitizeEmail(value: unknown): string | null {
@@ -53,7 +59,67 @@ export async function POST(request: Request) {
     )
   }
 
+  const useCode = payload?.useCode === true
+
   try {
+    if (useCode) {
+      // Flujo por código: generar código, guardar en BD, enviar por Brevo o Resend (solo texto/código, sin enlace con token).
+      const code = String(Math.floor(100_000 + Math.random() * 900_000))
+      const supabase = getSupabaseClient()
+      const expiresAt = new Date(Date.now() + CODE_VALID_MINUTES * 60 * 1000).toISOString()
+
+      const { error: insertError } = await supabase
+        .from("password_reset_codes")
+        .insert({ email, code, expires_at: expiresAt })
+
+      if (insertError) {
+        console.error("Error insertando código de recuperación", insertError)
+        return NextResponse.json(
+          {
+            error:
+              "No se pudo generar el código. Asegúrate de tener la tabla public.password_reset_codes (ver docs/supabase-password-reset-codes.sql).",
+          },
+          { status: 500 },
+        )
+      }
+
+      const siteUrl = getSiteUrl()
+      const resetUrl = `${siteUrl}/reset-password`
+      const { subject, html, text } = buildPasswordResetCodeEmail({
+        code,
+        resetUrl,
+        validMinutes: CODE_VALID_MINUTES,
+      })
+
+      try {
+        await sendEmail({ to: email, subject, html, text })
+      } catch (emailError) {
+        console.error("Error enviando correo con código de recuperación", emailError)
+        const msg =
+          emailError instanceof Error ? emailError.message : "Error enviando el correo."
+        if (
+          msg.includes("BREVO_API_KEY") ||
+          msg.includes("RESEND_API_KEY") ||
+          msg.includes("EMAIL_FROM") ||
+          msg.includes("remitente")
+        ) {
+          return NextResponse.json(
+            {
+              error:
+                "Configura BREVO_API_KEY (o RESEND_API_KEY) y EMAIL_FROM para enviar el código por correo.",
+            },
+            { status: 500 },
+          )
+        }
+        return NextResponse.json(
+          { error: "No se pudo enviar el correo con el código. Intenta de nuevo." },
+          { status: 500 },
+        )
+      }
+
+      return NextResponse.json({ success: true, useCode: true })
+    }
+
     const supabase = getSupabaseClient()
     const redirect =
       resolveRedirect(payload?.redirect) ?? resolveRedirect(payload?.redirectTo)

@@ -10,6 +10,7 @@ import { es } from "date-fns/locale"
 import { loadUserPreferences } from "@/lib/user-preferences"
 import { DEFAULT_USER_PREFERENCES, type UserPreferences } from "@/types/preferences"
 import type { ShiftTemplate } from "@/types/templates"
+import { getTemplateDefaultPluses } from "@/lib/template-default-pluses"
 import { useConfirmDelete } from "@/contexts/ConfirmDeleteContext"
 
 type Props = {
@@ -80,12 +81,13 @@ export default function EditShiftModal({ shift, dayShifts = [], onSave, onDelete
   const [saveError, setSaveError] = useState("")
   const [deleteError, setDeleteError] = useState("")
 
+  // Cargar preferencias al montar y al abrir el modal (shift) para tener siempre los extras actualizados
   useEffect(() => {
     const loaded = loadUserPreferences()
     if (loaded) {
       setUserPreferences(loaded.preferences)
     }
-  }, [])
+  }, [shift])
 
   useEffect(() => {
     if (shift) {
@@ -96,13 +98,34 @@ export default function EditShiftModal({ shift, dayShifts = [], onSave, onDelete
       setNote(shift.note || "")
       setStartTime(shift.startTime ?? "09:00")
       setEndTime(shift.endTime ?? "17:00")
-      setPluses(shift.pluses || { night: 0, holiday: 0, availability: 0, other: 0 })
+      const norm = (c: string | null | undefined) =>
+        (c ?? "#3b82f6").toString().trim().toLowerCase().replace(/^(?!#)/, "#")
+      const shiftColor = norm(shift.color)
+      const match = shiftTemplates.find((t) => {
+        const sameLabel = (t.title ?? "").trim() === (shift.label ?? "").trim()
+        return sameLabel && norm(t.color) === shiftColor
+      })
+      const hasPluses = shift.pluses && Object.values(shift.pluses).some((v) => v > 0)
+      if (hasPluses) {
+        setPluses(shift.pluses!)
+      } else if (match) {
+        const defaultPluses = getTemplateDefaultPluses(match.id)
+        setPluses(
+          defaultPluses
+            ? {
+                night: defaultPluses.night ?? 0,
+                holiday: defaultPluses.holiday ?? 0,
+                availability: defaultPluses.availability ?? 0,
+                other: defaultPluses.other ?? 0,
+              }
+            : { night: 0, holiday: 0, availability: 0, other: 0 }
+        )
+      } else {
+        setPluses({ night: 0, holiday: 0, availability: 0, other: 0 })
+      }
       setIsProcessingDelete(false)
       setSaveError("")
       setDeleteError("")
-      const match = shiftTemplates.find(
-        t => t.title === (shift.label || "") && (t.color ?? "#3b82f6") === (shift.color ?? "")
-      )
       setSelectedTemplateId(match?.id ?? null)
     }
   }, [shift, shiftTemplates])
@@ -149,21 +172,22 @@ export default function EditShiftModal({ shift, dayShifts = [], onSave, onDelete
 
   const formattedTotalDayHours = shift ? `${Math.floor(totalDayHours)}h ${String(Math.round((totalDayHours % 1) * 60)).padStart(2, "0")}m` : ""
 
-  // Calcular extras seleccionados y total ganado
+  // Extras seleccionados: ids reales de userPreferences.shiftExtras (por índice con plusKeys)
   const selectedExtras = useMemo(() => {
-    const extras: string[] = []
-    if (pluses.night > 0) extras.push("night")
-    if (pluses.holiday > 0) extras.push("holiday")
-    if (pluses.availability > 0) extras.push("availability")
-    if (pluses.other > 0) extras.push("other")
-    return extras
-  }, [pluses])
+    const list = userPreferences.shiftExtras ?? []
+    const ids: string[] = []
+    const plusKeys: (keyof ShiftPluses)[] = ["night", "holiday", "availability", "other"]
+    plusKeys.forEach((key, index) => {
+      if ((pluses[key] ?? 0) > 0 && list[index]) ids.push(list[index].id)
+    })
+    return ids
+  }, [pluses, userPreferences.shiftExtras])
 
   const totalEarned = useMemo(() => {
     const hourlyRate = userPreferences.hourlyRate ?? 0
     const hoursEarned = totalDayHours * hourlyRate
     const extrasEarned = selectedExtras.reduce((total, extraId) => {
-      const extra = userPreferences.shiftExtras?.find(e => e.id === extraId)
+      const extra = userPreferences.shiftExtras?.find((e) => e.id === extraId)
       return total + (extra?.value ?? 0)
     }, 0)
     return hoursEarned + extrasEarned
@@ -278,6 +302,17 @@ export default function EditShiftModal({ shift, dayShifts = [], onSave, onDelete
                               setColor(tplColor)
                               setStartTime(tpl.startTime)
                               setEndTime(tpl.endTime)
+                              const defaultPluses = getTemplateDefaultPluses(tpl.id)
+                              setPluses(
+                                defaultPluses
+                                  ? {
+                                      night: defaultPluses.night ?? 0,
+                                      holiday: defaultPluses.holiday ?? 0,
+                                      availability: defaultPluses.availability ?? 0,
+                                      other: defaultPluses.other ?? 0,
+                                    }
+                                  : { night: 0, holiday: 0, availability: 0, other: 0 }
+                              )
                             }}
                             className={`rounded-xl border-2 px-4 py-2.5 text-sm font-semibold transition focus:outline-none focus:ring-2 focus:ring-white/50 ${
                               isSelected
@@ -362,6 +397,15 @@ export default function EditShiftModal({ shift, dayShifts = [], onSave, onDelete
                   />
                 </label>
               </div>
+              <p className="text-sm text-white/80">
+                Duración: <span className="font-semibold text-white">{formattedShiftHours}</span>
+                {totalEarned > 0 && (
+                  <>
+                    {" · "}
+                    Estimado: <span className="font-semibold text-emerald-400">{totalEarned.toFixed(2).replace(".", ",")}€</span>
+                  </>
+                )}
+              </p>
 
               <div className="flex flex-wrap items-center gap-3 rounded-xl border-2 border-white/20 bg-white/10 px-3 py-2">
                 <div>
@@ -380,49 +424,50 @@ export default function EditShiftModal({ shift, dayShifts = [], onSave, onDelete
                 )}
               </div>
 
-              {/* Extras personalizados: solo si el usuario tiene extras creados */}
-              <div>
-                <p className="mb-2 text-xs font-semibold uppercase tracking-wide text-white">Extras</p>
+              {/* Añadir extras a este turno (misma estructura que el sheet de nuevo turno) */}
+              <div className="rounded-xl border border-white/10 bg-white/5 p-2.5">
+                <p className="mb-1.5 text-xs font-semibold uppercase tracking-wider text-white/50">Extras</p>
                 {(userPreferences.shiftExtras ?? []).length === 0 ? (
-                  <p className="rounded-xl border border-dashed border-white/20 bg-white/5 px-4 py-3 text-xs text-white/60">
-                    Si quieres añadir extras a tus turnos, créalos en{" "}
+                  <p className="rounded-lg border border-dashed border-white/15 bg-white/5 px-3 py-3 text-[11px] text-white/50">
+                    Si quieres añadir extras a este turno (nocturno, festivo, disponibilidad…), créalos en{" "}
                     <Link href="/extras" className="font-semibold text-sky-400 hover:text-sky-300 underline">
                       Extras
                     </Link>{" "}
-                    y aparecerán aquí.
+                    y podrás elegirlos aquí.
                   </p>
                 ) : (
                   <>
                     <div className="rounded-xl border-2 border-white/20 bg-white/10 p-2">
                       <div className="grid grid-cols-2 gap-2 sm:grid-cols-3">
-                        {(userPreferences.shiftExtras ?? []).map((extra, index) => {
+                        {(userPreferences.shiftExtras ?? []).slice(0, 4).map((extra, index) => {
                           const plusKeys: (keyof ShiftPluses)[] = ["night", "holiday", "availability", "other"]
-                          const key = index < 4 ? plusKeys[index] : "other"
-                          const isSelected = pluses[key] > 0 && index < 4
-                          if (index >= 4) return null
+                          const key = plusKeys[index]
+                          const isSelected = (pluses[key] ?? 0) > 0
+                          const inputId = `edit-shift-extra-${shift.id}-${extra.id}`
                           return (
                             <label
                               key={extra.id}
-                              className={`flex items-center gap-2 rounded-lg border-2 px-3 py-2 text-xs font-semibold transition cursor-pointer ${
+                              htmlFor={inputId}
+                              className={`flex min-h-[44px] cursor-pointer items-center gap-2 rounded-lg border-2 px-3 py-2.5 text-xs font-semibold transition select-none touch-manipulation ${
                                 isSelected
                                   ? "border-white/40 bg-white/15 shadow-md"
-                                  : "border-white/20 bg-white/5 hover:border-white/30 hover:bg-white/10"
+                                  : "border-white/20 bg-white/5 hover:border-white/30 hover:bg-white/10 active:bg-white/15"
                               }`}
                               style={isSelected ? { borderColor: (extra.color ?? "#3b82f6") + "80", backgroundColor: (extra.color ?? "#3b82f6") + "20" } : {}}
                             >
                               <input
+                                id={inputId}
                                 type="checkbox"
                                 checked={isSelected}
-                                onChange={(event) =>
-                                  setPluses((prev) => ({
-                                    ...prev,
-                                    [key]: event.target.checked ? 1 : 0,
-                                  }))
-                                }
-                                className="h-4 w-4 rounded border-2 border-white/30 bg-white/10 accent-sky-500 flex-shrink-0"
+                                onChange={(e) => {
+                                  const checked = e.target.checked
+                                  setPluses((prev) => ({ ...prev, [key]: checked ? 1 : 0 }))
+                                }}
+                                className="h-5 w-5 shrink-0 cursor-pointer rounded border-2 border-white/30 bg-white/10 accent-sky-500"
+                                aria-label={`Extra: ${extra.name}`}
                               />
-                              <span className="flex-1 font-semibold text-white truncate">{extra.name}</span>
-                              <span className="text-xs font-bold text-white/80 whitespace-nowrap">{extra.value}€</span>
+                              <span className="min-w-0 flex-1 truncate font-semibold text-white">{extra.name}</span>
+                              <span className="shrink-0 text-xs font-bold text-white/80">{extra.value}€</span>
                             </label>
                           )
                         })}

@@ -218,6 +218,38 @@ export default function UserAuthPanel({
     }
   }
 
+  const sendRecoveryByCode = async () => {
+    const email = resetEmail.trim()
+    if (!email) {
+      setResetError("Introduce el correo asociado a tu cuenta")
+      return
+    }
+    setResetError("")
+    setResetNotice("")
+    setIsResetting(true)
+    try {
+      const res = await fetch("/api/auth/password-recovery", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ email, useCode: true }),
+      })
+      const data = (await res.json()) as { success?: boolean; error?: string }
+      if (!res.ok) {
+        setResetError(data?.error ?? "No se pudo enviar el código")
+        return
+      }
+      setResetNotice(
+        "Si la dirección existe en nuestra base de datos, te hemos enviado un código de 6 dígitos por correo. Entra en la página de restablecer contraseña e introdúcelo.",
+      )
+    } catch (error) {
+      setResetError(
+        error instanceof Error ? error.message : "No se pudo enviar el código",
+      )
+    } finally {
+      setIsResetting(false)
+    }
+  }
+
   const handleRecover = async (event: React.FormEvent<HTMLFormElement>) => {
     event.preventDefault()
     setResetError("")
@@ -495,6 +527,14 @@ export default function UserAuthPanel({
                   ) : (
                     "Enviar enlace de recuperación"
                   )}
+                </button>
+                <button
+                  type="button"
+                  onClick={sendRecoveryByCode}
+                  disabled={isResetting}
+                  className="w-full text-center text-xs font-semibold text-cyan-300/90 underline-offset-4 hover:underline disabled:opacity-50"
+                >
+                  ¿El enlace no funciona? Envíame un código por correo
                 </button>
                 <button
                   type="button"

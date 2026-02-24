@@ -3,6 +3,7 @@
 import type { FC } from "react"
 import React, { useState, useRef, useEffect, useCallback } from "react"
 import { format } from "date-fns"
+import { es } from "date-fns/locale"
 import {
   DndContext,
   useDraggable,
@@ -18,6 +19,9 @@ import {
 } from "@dnd-kit/core"
 import type { ShiftEvent, ShiftType } from "@/types/shifts"
 import { formatCompactDate } from "@/lib/formatDate"
+import { loadUserPreferences } from "@/lib/user-preferences"
+import { DEFAULT_USER_PREFERENCES } from "@/types/preferences"
+import { isFestiveDate } from "@/lib/festive-dates"
 
 const HOUR_START = 0
 const HOUR_END = 24
@@ -212,6 +216,9 @@ type DayViewProps = {
   onSelectEvent: (shift: ShiftEvent) => void
   onAddSlot?: (date: Date, startTime?: string, endTime?: string) => void
   onUpdateShift?: (shift: ShiftEvent, updates: { startTime?: string; endTime?: string }) => Promise<void>
+  onPrevDay?: () => void
+  onNextDay?: () => void
+  onGoToday?: () => void
 }
 
 const DayView: FC<DayViewProps> = ({
@@ -221,6 +228,9 @@ const DayView: FC<DayViewProps> = ({
   onSelectEvent,
   onAddSlot,
   onUpdateShift,
+  onPrevDay,
+  onNextDay,
+  onGoToday,
 }) => {
   const timelineRef = useRef<HTMLDivElement>(null)
   const scrollContainerRef = useRef<HTMLDivElement>(null)
@@ -257,6 +267,24 @@ const DayView: FC<DayViewProps> = ({
   )
   const dateStr = format(date, "yyyy-MM-dd")
   const dayShifts = shifts.filter((s) => s.date === dateStr)
+
+  const [festivePrefs, setFestivePrefs] = useState<{
+    showFestiveDays: boolean
+    festiveDayColor: string
+  }>({
+    showFestiveDays: DEFAULT_USER_PREFERENCES.showFestiveDays ?? true,
+    festiveDayColor: DEFAULT_USER_PREFERENCES.festiveDayColor ?? "#dc2626",
+  })
+  useEffect(() => {
+    const loaded = loadUserPreferences()
+    if (loaded?.preferences) {
+      setFestivePrefs({
+        showFestiveDays: loaded.preferences.showFestiveDays ?? true,
+        festiveDayColor: loaded.preferences.festiveDayColor ?? "#dc2626",
+      })
+    }
+  }, [])
+  const isFestive = festivePrefs.showFestiveDays && isFestiveDate(date)
 
   const yToMinutes = useCallback((clientY: number, useCurrentScroll: boolean = true): number => {
     if (!timelineRef.current || !scrollContainerRef.current) return 0
@@ -682,41 +710,87 @@ const DayView: FC<DayViewProps> = ({
       onDragCancel={handleDragCancel}
     >
       <div className="flex flex-col overflow-hidden rounded-3xl border border-white/10 bg-slate-950/80 backdrop-blur-sm shadow-[0_8px_32px_-8px_rgba(0,0,0,0.3)]">
-        <header className="flex items-center justify-between gap-4 border-b border-white/10 bg-slate-950/60 px-5 py-4">
-          <div>
-            <h3 className="text-xl font-bold tracking-tight text-white">
-              {formatCompactDate(date, { includeYear: true })}
-            </h3>
-            <p className="mt-1 text-sm font-medium text-white/50">
-              {dayShifts.length === 0
-                ? "Sin turnos programados"
-                : dayShifts.length === 1
-                  ? "1 turno programado"
-                  : dayShifts.length === 2
-                    ? "2 turnos programados (máximo)"
-                    : `${dayShifts.length} turnos`}
-            </p>
-          </div>
-          {onAddSlot && (
-            <button
-              type="button"
-              onClick={() => {
-                if (dayShifts.length >= 2) {
-                  return
-                }
-                onAddSlot(date)
-              }}
-              disabled={dayShifts.length >= 2}
-              className={`shrink-0 rounded-xl border px-4 py-2.5 text-xs font-bold text-white shadow-lg transition-all active:scale-95 touch-manipulation ${
-                dayShifts.length >= 2
-                  ? "border-white/20 bg-white/10 opacity-50 cursor-not-allowed"
-                  : "border-sky-400/50 bg-gradient-to-r from-sky-500/90 to-sky-400/90 shadow-sky-500/25 hover:from-sky-400 hover:to-sky-300 hover:shadow-sky-400/40"
-              }`}
-              title={dayShifts.length >= 2 ? "Ya existen 2 turnos para este día. Solo se permiten máximo 2 turnos por día." : "Añadir turno"}
-            >
-              + Añadir turno
-            </button>
+        <header className="flex flex-col gap-3 border-b border-white/10 bg-slate-950/60 px-4 py-3 sm:px-5 sm:py-4">
+          {(onPrevDay ?? onNextDay ?? onGoToday) && (
+            <div className="flex items-center justify-between gap-2">
+              <button
+                type="button"
+                onClick={() => onPrevDay?.()}
+                disabled={!onPrevDay}
+                className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl border border-white/15 bg-white/5 text-white/80 transition hover:bg-white/10 hover:text-white disabled:opacity-50 sm:h-10 sm:w-10"
+                aria-label="Día anterior"
+              >
+                <span className="text-lg font-bold leading-none">←</span>
+              </button>
+              {onGoToday && (
+                <button
+                  type="button"
+                  onClick={onGoToday}
+                  className="rounded-xl border border-white/15 bg-white/5 px-3 py-1.5 text-xs font-semibold text-white/80 transition hover:bg-white/10 hover:text-white sm:px-4 sm:py-2 sm:text-sm"
+                >
+                  Hoy
+                </button>
+              )}
+              <button
+                type="button"
+                onClick={() => onNextDay?.()}
+                disabled={!onNextDay}
+                className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl border border-white/15 bg-white/5 text-white/80 transition hover:bg-white/10 hover:text-white disabled:opacity-50 sm:h-10 sm:w-10"
+                aria-label="Siguiente día"
+              >
+                <span className="text-lg font-bold leading-none">→</span>
+              </button>
+            </div>
           )}
+          <div className="flex items-center justify-between gap-4">
+            <div>
+              <p className="text-xs font-semibold uppercase tracking-wider text-white/50">
+                {format(date, "MMMM yyyy", { locale: es })}
+              </p>
+              <div className="mt-0.5 flex flex-wrap items-center gap-2">
+                <h3 className="text-xl font-bold tracking-tight text-white">
+                  {formatCompactDate(date, { includeYear: true })}
+                </h3>
+                {isFestive && (
+                  <span
+                    className="rounded-md px-2 py-0.5 text-xs font-semibold text-white"
+                    style={{ backgroundColor: festivePrefs.festiveDayColor }}
+                  >
+                    Festivo
+                  </span>
+                )}
+              </div>
+              <p className="mt-1 text-sm font-medium text-white/50">
+                {dayShifts.length === 0
+                  ? "Sin turnos programados"
+                  : dayShifts.length === 1
+                    ? "1 turno programado"
+                    : dayShifts.length === 2
+                      ? "2 turnos programados (máximo)"
+                      : `${dayShifts.length} turnos`}
+              </p>
+            </div>
+            {onAddSlot && (
+              <button
+                type="button"
+                onClick={() => {
+                  if (dayShifts.length >= 2) {
+                    return
+                  }
+                  onAddSlot(date)
+                }}
+                disabled={dayShifts.length >= 2}
+                className={`shrink-0 rounded-xl border px-4 py-2.5 text-xs font-bold text-white shadow-lg transition-all active:scale-95 touch-manipulation ${
+                  dayShifts.length >= 2
+                    ? "border-white/20 bg-white/10 opacity-50 cursor-not-allowed"
+                    : "border-sky-400/50 bg-gradient-to-r from-sky-500/90 to-sky-400/90 shadow-sky-500/25 hover:from-sky-400 hover:to-sky-300 hover:shadow-sky-400/40"
+                }`}
+                title={dayShifts.length >= 2 ? "Ya existen 2 turnos para este día. Solo se permiten máximo 2 turnos por día." : "Añadir turno"}
+              >
+                + Añadir turno
+              </button>
+            )}
+          </div>
         </header>
         <div
           ref={scrollContainerRef}

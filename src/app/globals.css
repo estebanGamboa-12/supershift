@@ -399,15 +399,14 @@ body {
   animation: inputFieldGlow 1.2s ease-in-out infinite alternate;
 }
 
+/* Solo opacity/transform para animaciones compuestas (mejor LCP/CLS) */
 @keyframes loaderRingGlow {
   0%,
   100% {
     opacity: 0.65;
-    box-shadow: 0 0 18px rgba(59, 130, 246, 0.25);
   }
   50% {
     opacity: 1;
-    box-shadow: 0 0 32px rgba(129, 140, 248, 0.45);
   }
 }
 
@@ -415,11 +414,9 @@ body {
   0%,
   100% {
     transform: scale(0.94);
-    box-shadow: 0 0 18px rgba(59, 130, 246, 0.35);
   }
   50% {
     transform: scale(1.05);
-    box-shadow: 0 0 28px rgba(96, 165, 250, 0.55);
   }
 }
 

@@ -2451,10 +2451,10 @@ export default function Home() {
             lastError={lastSyncError}
             onRetry={synchronizePendingShiftRequests}
           />
-          {/* Solo esta barra es sticky: nav (Calendario, etc.) + Plantillas + Cerrar sesión */}
+          {/* Barra sticky: nav (Calendario, etc.) + créditos + Plantillas + Cerrar sesión. Visible en desktop (lg). */}
           <div
             ref={headerRef}
-            className="sticky top-0 z-20 hidden shrink-0 lg:hidden lg:flex-row lg:items-center lg:justify-between lg:gap-4 lg:rounded-xl lg:border lg:border-white/10 lg:bg-slate-950/95 lg:px-3 lg:py-2 lg:shadow-lg"
+            className="sticky top-0 z-20 hidden shrink-0 lg:flex lg:flex-row lg:items-center lg:justify-between lg:gap-4 lg:rounded-xl lg:border lg:border-white/10 lg:bg-slate-950/95 lg:px-3 lg:py-2 lg:shadow-lg"
           >
             <ResponsiveNav
               items={navItems}

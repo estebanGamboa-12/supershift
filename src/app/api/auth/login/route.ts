@@ -1,6 +1,8 @@
 import { NextResponse } from "next/server"
 import { getSupabaseClient } from "@/lib/supabase"
 import { getOrCreateCalendarForUser } from "@/lib/calendars"
+import { sendEmail } from "@/lib/email"
+import { buildWelcomeEmail, buildSessionStartedEmail } from "@/lib/email-templates"
 
 type AuthPayload = {
   accessToken?: unknown
@@ -78,6 +80,13 @@ export async function POST(request: Request) {
       )
     }
 
+    await sendLoginEmailsIfConfigured({
+      supabase,
+      userId,
+      name: profile.name,
+      email: profile.email,
+    })
+
     return NextResponse.json({
       user: {
         id: userId,
@@ -98,6 +107,74 @@ export async function POST(request: Request) {
 }
 
 type SupabaseAdmin = ReturnType<typeof getSupabaseClient>
+
+function getAppUrl(): string {
+  const url =
+    process.env.NEXT_PUBLIC_APP_URL ??
+    process.env.VERCEL_URL
+      ? `https://${process.env.VERCEL_URL}`
+      : "https://app.planloop.app"
+  return String(url).replace(/\/$/, "")
+}
+
+async function sendLoginEmailsIfConfigured({
+  supabase,
+  userId,
+  name,
+  email,
+}: {
+  supabase: SupabaseAdmin
+  userId: string
+  name: string
+  email: string
+}): Promise<void> {
+  const hasEmailConfig =
+    (process.env.BREVO_API_KEY || process.env.RESEND_API_KEY) &&
+    (process.env.EMAIL_FROM ?? process.env.BREVO_SENDER_EMAIL ?? process.env.RESEND_FROM)
+  if (!hasEmailConfig || !email) {
+    return
+  }
+
+  try {
+    const { data: userRow } = await supabase
+      .from("users")
+      .select("welcome_email_sent_at")
+      .eq("id", userId)
+      .maybeSingle()
+
+    const welcomeAlreadySent = userRow?.welcome_email_sent_at != null
+    const appUrl = getAppUrl()
+
+    if (!welcomeAlreadySent) {
+      const welcome = buildWelcomeEmail({ name, email, appUrl })
+      await sendEmail({
+        to: email,
+        subject: welcome.subject,
+        html: welcome.html,
+        text: welcome.text,
+      })
+      await supabase
+        .from("users")
+        .update({ welcome_email_sent_at: new Date().toISOString() })
+        .eq("id", userId)
+    }
+
+    const sessionEmail = buildSessionStartedEmail({
+      name,
+      email,
+      appUrl,
+      isFirstTime: !welcomeAlreadySent,
+    })
+    await sendEmail({
+      to: email,
+      subject: sessionEmail.subject,
+      html: sessionEmail.html,
+      text: sessionEmail.text,
+    })
+  } catch (err) {
+    console.error("Error enviando correos de login/bienvenida (login sigue OK):", err)
+  }
+}
 
 type EnsureProfileParams = {
   supabase: SupabaseAdmin

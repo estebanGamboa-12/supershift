@@ -37,7 +37,17 @@ export default function LandingLayout({ children }: { children: ReactNode }) {
       <footer className="border-t border-white/10 py-8">
         <div className="mx-auto max-w-6xl px-4 sm:px-6">
           <div className="flex flex-col items-center justify-between gap-4 sm:flex-row">
-            <p className="text-sm text-slate-500">© {new Date().getFullYear()} Planloop. Todos los derechos reservados.</p>
+            <p className="text-sm text-slate-500">
+              © {new Date().getFullYear()} Planloop.{" "}
+              <a
+                href="https://www.esteban-dev.com/"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="text-slate-500 hover:text-slate-300 transition"
+              >
+                Diseñado por Esteban Gamboa
+              </a>
+            </p>
             <div className="flex gap-6">
               <Link href="/pricing" className="text-sm text-slate-500 hover:text-slate-300">
                 Precios

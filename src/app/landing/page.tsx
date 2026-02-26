@@ -18,7 +18,7 @@ export default function LandingPage() {
         </p>
         <div className="mt-10 flex flex-col items-center justify-center gap-4 sm:flex-row">
           <a
-            href={`${APP_URL}/auth/register`}
+            href={`${APP_URL}/`}
             className="inline-flex w-full items-center justify-center rounded-full bg-sky-500 px-8 py-4 text-base font-semibold text-white shadow-lg shadow-sky-500/30 transition hover:bg-sky-400 sm:w-auto"
           >
             Crear cuenta gratis
@@ -59,7 +59,7 @@ export default function LandingPage() {
       <div className="mt-24 text-center">
         <p className="text-slate-500">¿Listo para probarlo?</p>
         <Link
-          href={`${APP_URL}/auth/register`}
+          href={`${APP_URL}/`}
           className="mt-4 inline-block font-semibold text-sky-400 hover:text-sky-300"
         >
           Crear cuenta en app.planloop.app →

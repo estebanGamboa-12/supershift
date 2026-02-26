@@ -283,7 +283,8 @@ function updateHistoryInStorage(
 }
 
 const SESSION_STORAGE_KEY = "planloop:session"
-const SESSION_DURATION_MS = 1000 * 60 * 60 * 24 * 14 // 14 días
+// Sesión guardada hasta que el usuario cierre sesión (1 año; Supabase refresca el token)
+const SESSION_DURATION_MS = 1000 * 60 * 60 * 24 * 365
 
 class ApiError extends Error {
   status: number

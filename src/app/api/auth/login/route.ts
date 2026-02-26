@@ -160,6 +160,25 @@ async function sendLoginEmailsIfConfigured({
     }
   }
 
+  let shouldSendSessionEmail = true
+  try {
+    const { data: row } = await supabase
+      .from("users")
+      .select("last_session_email_sent_at")
+      .eq("id", userId)
+      .maybeSingle()
+    const lastSent = row?.last_session_email_sent_at
+    if (lastSent) {
+      const twoHundredHoursAgo = Date.now() - 200 * 60 * 60 * 1000
+      const sentAt = new Date(lastSent).getTime()
+      if (sentAt > twoHundredHoursAgo) {
+        shouldSendSessionEmail = false
+      }
+    }
+  } catch {
+    // Si no existe la columna, enviamos (evitamos spam pero no bloqueamos)
+  }
+
   try {
     if (shouldSendWelcome) {
       const welcome = buildWelcomeEmail({ name, email, appUrl })
@@ -179,18 +198,28 @@ async function sendLoginEmailsIfConfigured({
       }
     }
 
-    const sessionEmail = buildSessionStartedEmail({
-      name,
-      email,
-      appUrl,
-      isFirstTime: shouldSendWelcome,
-    })
-    await sendEmail({
-      to: email,
-      subject: sessionEmail.subject,
-      html: sessionEmail.html,
-      text: sessionEmail.text,
-    })
+    if (shouldSendSessionEmail) {
+      const sessionEmail = buildSessionStartedEmail({
+        name,
+        email,
+        appUrl,
+        isFirstTime: shouldSendWelcome,
+      })
+      await sendEmail({
+        to: email,
+        subject: sessionEmail.subject,
+        html: sessionEmail.html,
+        text: sessionEmail.text,
+      })
+      try {
+        await supabase
+          .from("users")
+          .update({ last_session_email_sent_at: new Date().toISOString() })
+          .eq("id", userId)
+      } catch {
+        // Columna puede no existir aún
+      }
+    }
   } catch (err) {
     console.error("[Planloop] Error enviando correos de login/bienvenida (login sigue OK):", err)
   }

@@ -366,7 +366,18 @@ export default function AuthCallbackClient() {
           )}
         </div>
 
-        {state.status === "processing" && <Spinner />}
+        {state.status === "processing" && (
+          <>
+            <Spinner />
+            <p className="mt-6 text-xs text-white/50">
+              Si tarda mucho,{" "}
+              <Link href="/" className="underline hover:text-white/70">
+                ve al inicio
+              </Link>
+              ; puede que ya hayas entrado.
+            </p>
+          </>
+        )}
 
         {state.status === "success" && user && (
           <div className="mt-8 space-y-4 text-center">

@@ -296,13 +296,24 @@ async function ensureUserProfile({
       .maybeSingle()
 
     if (upsertError) {
-      console.error(
-        "[Planloop] Error creando/actualizando perfil en Supabase:",
-        upsertError.code,
-        upsertError.message,
-        upsertError.details,
-      )
-      throw new Error("No se pudo preparar el perfil del usuario")
+      const detail = `${upsertError.code ?? "?"}: ${upsertError.message}`
+      console.error("[Planloop] Error upsert perfil Supabase:", detail, upsertError.details)
+      // Si el usuario ya existe (trigger u otra llamada), intentar leerlo y seguir
+      const { data: fallback } = await supabase
+        .from("users")
+        .select("name, email, timezone, avatar_url")
+        .eq("id", userId)
+        .maybeSingle()
+      if (fallback) {
+        return {
+          name: normalizeText(fallback.name) ?? profileName,
+          email: normalizeText(fallback.email) ?? profileEmail,
+          timezone: normalizeText(fallback.timezone) ?? profileTimezone ?? "Europe/Madrid",
+          avatarUrl: normalizeText(fallback.avatar_url) ?? profileAvatar ?? null,
+          isNewUser: false,
+        }
+      }
+      throw new Error(`No se pudo preparar el perfil del usuario. ${detail}`)
     }
 
     return {

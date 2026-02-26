@@ -184,7 +184,7 @@ export default function UserAuthPanel({
     try {
       setIsLoggingIn(true)
       const origin = typeof window !== "undefined" ? window.location.origin : ""
-      const redirectTo = origin ? `${origin}/` : undefined
+      const redirectTo = origin ? `${origin}/auth/callback` : undefined
       const { error } = await supabase.auth.signInWithOAuth({
         provider: "google",
         options: {

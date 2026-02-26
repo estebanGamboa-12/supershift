@@ -12,11 +12,9 @@ import { DEFAULT_USER_PREFERENCES, type UserPreferences } from "@/types/preferen
 // eslint-disable-next-line @typescript-eslint/no-unused-vars
 import DashboardHeader from "@/components/dashboard/DashboardHeader"
 import MobileNavigation, { type MobileTab } from "@/components/dashboard/MobileNavigation"
-import CreditsCircle from "@/components/dashboard/CreditsCircle"
 import PlanLoopLogo from "@/components/PlanLoopLogo"
 import MobileAddShiftSheet from "@/components/dashboard/MobileAddShiftSheet"
 import MobileSideMenu from "@/components/dashboard/MobileSideMenu"
-import ResponsiveNav from "@/components/dashboard/ResponsiveNav"
 import UserAuthPanel from "@/components/auth/UserAuthPanel"
 import FloatingParticlesLoader from "@/components/FloatingParticlesLoader"
 import { useToast } from "@/lib/ToastContext"
@@ -858,14 +856,6 @@ export default function Home() {
         return next.slice(0, MAX_HISTORY_ENTRIES)
       })
     },
-    [],
-  )
-
-  const navItems = useMemo(
-    () => [
-      { id: "calendar", label: "Calendario", description: "Planificación" },
-      { id: "settings", label: "Preferencias", description: "Perfil y cuenta" },
-    ],
     [],
   )
 
@@ -2451,40 +2441,8 @@ export default function Home() {
             lastError={lastSyncError}
             onRetry={synchronizePendingShiftRequests}
           />
-          {/* Barra sticky: nav (Calendario, etc.) + créditos + Plantillas + Cerrar sesión. Visible en desktop (lg). */}
-          <div
-            ref={headerRef}
-            className="sticky top-0 z-20 hidden shrink-0 lg:flex lg:flex-row lg:items-center lg:justify-between lg:gap-4 lg:rounded-xl lg:border lg:border-white/10 lg:bg-slate-950/95 lg:px-3 lg:py-2 lg:shadow-lg"
-          >
-            <ResponsiveNav
-              items={navItems}
-              activeId={activeTab}
-              onNavigate={handleNavigateTab}
-            />
-            <div className="flex flex-shrink-0 items-center gap-4">
-              <CreditsCircle creditBalance={creditBalance} href="/pricing" size="sm" />
-              <div className="hidden text-right xl:block">
-                <p className="text-sm font-semibold text-white">{currentUser.name}</p>
-                <p className="text-xs text-white/50">{currentUser.email}</p>
-              </div>
-              <Link
-                href="/templates"
-                className="inline-flex items-center gap-2 rounded-lg border border-white/15 bg-white/5 px-3 py-2 text-sm font-semibold text-white/90 transition hover:border-sky-400/50 hover:bg-sky-500/15 hover:text-white"
-              >
-                Plantillas
-              </Link>
-              <button
-                type="button"
-                onClick={handleLogout}
-                className="inline-flex items-center gap-2 rounded-lg border border-white/15 bg-white/5 px-3 py-2 text-sm font-semibold text-white/80 transition hover:border-red-400/40 hover:bg-red-500/10 hover:text-red-200"
-              >
-                Cerrar sesión
-              </button>
-            </div>
-          </div>
-
-          {/* Contenido: ocupa todo el espacio disponible */}
-          <div className="flex-1 min-h-0 flex flex-col">
+          {/* Contenido: sin barra superior; créditos y Cerrar sesión solo abajo / en header del calendario */}
+          <div ref={headerRef} className="flex-1 min-h-0 flex flex-col">
             <main className="flex-1 min-h-0 w-full pb-[calc(5rem+env(safe-area-inset-bottom))] lg:pb-6">
               <div className="h-full w-full px-2 py-1 sm:px-3">
             <div className="hidden lg:flex lg:flex-col lg:gap-10">
@@ -2501,9 +2459,7 @@ export default function Home() {
                     <div className="relative">
                       <header className="flex items-center justify-between gap-2 mb-2">
                         <PlanLoopLogo size="sm" showText={true} className="hidden sm:flex" />
-                        <div className="flex items-center gap-3">
-                          <CreditsCircle creditBalance={creditBalance} href="/pricing" size="md" className="shrink-0" />
-                          <div className="flex gap-2">
+                        <div className="flex gap-2">
                           <button
                             type="button"
                             onClick={() => setCalendarView("day")}
@@ -2526,15 +2482,23 @@ export default function Home() {
                           >
                             Mes
                           </button>
-                          </div>
                         </div>
-                        <button
-                          type="button"
-                          onClick={handleOpenMobileAdd}
-                          className="rounded-lg bg-sky-500 px-4 py-2 text-sm font-semibold text-white shadow-md shadow-sky-500/30 transition hover:bg-sky-400 hover:shadow-sky-400/40"
-                        >
-                          + Añadir Turno
-                        </button>
+                        <div className="flex items-center gap-2">
+                          <button
+                            type="button"
+                            onClick={handleLogout}
+                            className="rounded-lg border border-white/15 bg-white/5 px-3 py-2 text-sm font-semibold text-white/80 transition hover:border-red-400/40 hover:bg-red-500/10 hover:text-red-200"
+                          >
+                            Cerrar sesión
+                          </button>
+                          <button
+                            type="button"
+                            onClick={handleOpenMobileAdd}
+                            className="rounded-lg bg-sky-500 px-4 py-2 text-sm font-semibold text-white shadow-md shadow-sky-500/30 transition hover:bg-sky-400 hover:shadow-sky-400/40"
+                          >
+                            + Añadir Turno
+                          </button>
+                        </div>
                       </header>
 
                       <div>
@@ -2609,7 +2573,6 @@ export default function Home() {
                 <div className="sticky top-0 z-50 mb-3 flex items-center justify-between gap-3 border-b border-white/10 bg-slate-950/98 px-2 py-2.5 backdrop-blur-md shadow-lg">
                   <PlanLoopLogo size="sm" showText={false} />
                   <h1 className="flex-1 text-lg font-bold text-white">Calendario</h1>
-                  <CreditsCircle creditBalance={creditBalance} href="/pricing" size="sm" className="shrink-0" />
                   <button
                     type="button"
                     onClick={() => setIsMobileMenuOpen(true)}

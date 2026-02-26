@@ -60,7 +60,7 @@ const MobileNavigation: FC<MobileNavigationProps> = ({
   
   return (
     <nav
-      className="fixed inset-x-0 bottom-0 z-40 overflow-hidden border-t border-white/10 bg-[rgba(8,12,24,0.78)] pt-1.5 pb-0 backdrop-blur-xl shadow-[0_-22px_55px_rgba(8,12,24,0.85)] supports-[backdrop-filter:blur(0px)]:bg-[rgba(8,12,24,0.92)] lg:hidden"
+      className="fixed inset-x-0 bottom-0 z-40 overflow-hidden border-t border-white/10 bg-[rgba(8,12,24,0.78)] pt-1.5 pb-0 backdrop-blur-xl shadow-[0_-22px_55px_rgba(8,12,24,0.85)] supports-[backdrop-filter:blur(0px)]:bg-[rgba(8,12,24,0.92)]"
       style={{ paddingBottom: "calc(0.375rem + env(safe-area-inset-bottom))" }}
     >
       <div className="relative mx-auto w-full max-w-7xl px-4 lg:px-6">
@@ -72,7 +72,7 @@ const MobileNavigation: FC<MobileNavigationProps> = ({
             <PlanLoopLogo size="sm" showText={false} />
           </div>
           <div className="flex-shrink-0">
-            <CreditsCircle creditBalance={creditBalance} href="/pricing" size="sm" />
+            <CreditsCircle creditBalance={creditBalance} href="/pricing" size="sm" showHoverTooltip />
           </div>
           <div className="flex-1 grid grid-cols-4 gap-1.5 py-1">
             {NAV_ITEMS.map((item) => {

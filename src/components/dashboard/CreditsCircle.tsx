@@ -3,31 +3,48 @@
 import Link from "next/link"
 import type { FC } from "react"
 
-const MAX_CREDITS = 100
+const DEFAULT_CAP = 100
+
+/** Formatea número para caber en el círculo: 10000 -> "10k" */
+function formatCredits(value: number): string {
+  if (value >= 1_000_000) return `${Math.floor(value / 1_000_000)}M`
+  if (value >= 1_000) return `${Math.floor(value / 1_000)}k`
+  return String(value)
+}
 
 type CreditsCircleProps = {
   creditBalance: number | null
+  /** Máximo de créditos (ej. plan). Si no se pasa, se usa max(balance, 100) */
+  creditMax?: number | null
   href?: string
   size?: "sm" | "md"
   className?: string
-  /** En la barra inferior: al pasar el ratón muestra X/100 y barra */
+  /** En la barra inferior: al pasar el ratón muestra X/max y barra */
   showHoverTooltip?: boolean
 }
 
 const CreditsCircle: FC<CreditsCircleProps> = ({
   creditBalance,
+  creditMax: creditMaxProp,
   href = "/pricing",
   size = "md",
   className = "",
   showHoverTooltip = false,
 }) => {
   const balance = creditBalance ?? 0
-  const percent = Math.min(100, Math.max(0, (balance / MAX_CREDITS) * 100))
-  const label = creditBalance !== null ? `${balance}/${MAX_CREDITS}` : "—/100"
+  const maxCredits = creditMaxProp ?? Math.max(balance, DEFAULT_CAP)
+  const safeMax = maxCredits <= 0 ? DEFAULT_CAP : maxCredits
+  const percent = balance > 0 ? Math.min(100, (balance / safeMax) * 100) : 0
+  const label = creditBalance !== null ? `${balance}/${safeMax}` : `—/${safeMax}`
+  const isEmpty = balance <= 0
 
   const sizeClasses = size === "sm" ? "h-10 w-10 text-xs" : "h-12 w-12 text-sm"
   const strokeWidth = size === "sm" ? 2.5 : 3
   const r = 18
+
+  const strokeClass = isEmpty
+    ? "text-white/20"
+    : "text-sky-400 drop-shadow-[0_0_8px_rgba(56,189,248,0.5)]"
 
   const content = (
     <span className={`relative inline-flex items-center justify-center ${sizeClasses} ${className}`}>
@@ -55,11 +72,11 @@ const CreditsCircle: FC<CreditsCircleProps> = ({
           strokeDasharray={`${2 * Math.PI * r}`}
           strokeDashoffset={2 * Math.PI * r - (percent / 100) * 2 * Math.PI * r}
           strokeLinecap="round"
-          className="text-orange-400 transition-[stroke-dashoffset] duration-300"
+          className={`${strokeClass} transition-[stroke-dashoffset,color,filter] duration-300`}
         />
       </svg>
       <span className="relative z-10 font-bold tabular-nums text-white drop-shadow-sm">
-        {creditBalance !== null ? balance : "—"}
+        {creditBalance !== null ? formatCredits(balance) : "—"}
       </span>
       {showHoverTooltip && (
         <span
@@ -69,7 +86,7 @@ const CreditsCircle: FC<CreditsCircleProps> = ({
           <span className="block tabular-nums">{label}</span>
           <span className="mt-1.5 block h-1.5 w-16 overflow-hidden rounded-full bg-white/20">
             <span
-              className="block h-full rounded-full bg-orange-400"
+              className="block h-full rounded-full bg-sky-400 transition-[width]"
               style={{ width: `${percent}%` }}
             />
           </span>

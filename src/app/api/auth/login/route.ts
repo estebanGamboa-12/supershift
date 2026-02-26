@@ -85,7 +85,6 @@ export async function POST(request: Request) {
       userId,
       name: profile.name,
       email: profile.email,
-      isNewUser: profile.isNewUser,
     })
 
     return NextResponse.json({
@@ -123,13 +122,11 @@ async function sendLoginEmailsIfConfigured({
   userId,
   name,
   email,
-  isNewUser,
 }: {
   supabase: SupabaseAdmin
   userId: string
   name: string
   email: string
-  isNewUser: boolean
 }): Promise<void> {
   const hasBrevo = Boolean(process.env.BREVO_API_KEY)
   const hasResend = Boolean(process.env.RESEND_API_KEY)
@@ -144,43 +141,42 @@ async function sendLoginEmailsIfConfigured({
   }
 
   const appUrl = getAppUrl()
-  let shouldSendWelcome = isNewUser
+  const nowIso = new Date().toISOString()
 
-  if (!shouldSendWelcome) {
-    try {
-      const { data: userRow } = await supabase
-        .from("users")
-        .select("welcome_email_sent_at")
-        .eq("id", userId)
-        .maybeSingle()
-      shouldSendWelcome = userRow?.welcome_email_sent_at == null
-    } catch (e) {
-      console.warn("[Planloop] No se pudo leer welcome_email_sent_at, se enviará bienvenida si es primera vez:", e)
-      shouldSendWelcome = isNewUser
-    }
-  }
+  // Solo UN request puede “ganar” y enviar cada correo: hacemos UPDATE con condición y solo si
+  // devuelve una fila enviamos. Así no hay carrera entre 10 llamadas simultáneas.
 
-  let shouldSendSessionEmail = true
+  let welcomeClaimed = false
   try {
-    const { data: row } = await supabase
+    const { data } = await supabase
       .from("users")
-      .select("last_session_email_sent_at")
+      .update({ welcome_email_sent_at: nowIso })
       .eq("id", userId)
+      .is("welcome_email_sent_at", null)
+      .select("id")
       .maybeSingle()
-    const lastSent = row?.last_session_email_sent_at
-    if (lastSent) {
-      const twoHundredHoursAgo = Date.now() - 200 * 60 * 60 * 1000
-      const sentAt = new Date(lastSent).getTime()
-      if (sentAt > twoHundredHoursAgo) {
-        shouldSendSessionEmail = false
-      }
-    }
+    welcomeClaimed = data != null
   } catch {
-    // Si no existe la columna, enviamos (evitamos spam pero no bloqueamos)
+    // Columna puede no existir
+  }
+
+  let sessionClaimed = false
+  try {
+    const twoHundredHoursAgo = new Date(Date.now() - 200 * 60 * 60 * 1000).toISOString()
+    const { data } = await supabase
+      .from("users")
+      .update({ last_session_email_sent_at: nowIso })
+      .eq("id", userId)
+      .or(`last_session_email_sent_at.is.null,last_session_email_sent_at.lt.${twoHundredHoursAgo}`)
+      .select("id")
+      .maybeSingle()
+    sessionClaimed = data != null
+  } catch {
+    // Columna puede no existir: no enviamos sesión para no repetir
   }
 
   try {
-    if (shouldSendWelcome) {
+    if (welcomeClaimed) {
       const welcome = buildWelcomeEmail({ name, email, appUrl })
       await sendEmail({
         to: email,
@@ -188,22 +184,14 @@ async function sendLoginEmailsIfConfigured({
         html: welcome.html,
         text: welcome.text,
       })
-      try {
-        await supabase
-          .from("users")
-          .update({ welcome_email_sent_at: new Date().toISOString() })
-          .eq("id", userId)
-      } catch (updateErr) {
-        console.warn("[Planloop] No se pudo actualizar welcome_email_sent_at (¿migración aplicada?):", updateErr)
-      }
     }
 
-    if (shouldSendSessionEmail) {
+    if (sessionClaimed) {
       const sessionEmail = buildSessionStartedEmail({
         name,
         email,
         appUrl,
-        isFirstTime: shouldSendWelcome,
+        isFirstTime: welcomeClaimed,
       })
       await sendEmail({
         to: email,
@@ -211,14 +199,6 @@ async function sendLoginEmailsIfConfigured({
         html: sessionEmail.html,
         text: sessionEmail.text,
       })
-      try {
-        await supabase
-          .from("users")
-          .update({ last_session_email_sent_at: new Date().toISOString() })
-          .eq("id", userId)
-      } catch {
-        // Columna puede no existir aún
-      }
     }
   } catch (err) {
     console.error("[Planloop] Error enviando correos de login/bienvenida (login sigue OK):", err)

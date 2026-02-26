@@ -496,6 +496,8 @@ export default function Home() {
   const [pendingShiftMutations, setPendingShiftMutations] = useState(0)
   const [lastSyncError, setLastSyncError] = useState<string | null>(null)
   const isSyncingRef = useRef(false)
+  const lastSyncTokenRef = useRef<string | null>(null)
+  const lastSyncTimeRef = useRef(0)
   const [shiftHistory, setShiftHistory] = useState<ShiftHistoryEntry[]>([])
   const [creditBalance, setCreditBalance] = useState<number | null>(null)
   const { showToast } = useToast()
@@ -2199,6 +2201,15 @@ export default function Home() {
         }
         return
       }
+
+      const sameToken = lastSyncTokenRef.current === session.access_token
+      const sameUser = currentUser?.id === session.user?.id
+      const recentSync = Date.now() - lastSyncTimeRef.current < 2500
+      if (sameToken && sameUser && recentSync) {
+        return
+      }
+      lastSyncTokenRef.current = session.access_token
+      lastSyncTimeRef.current = Date.now()
 
       try {
         const user = await exchangeAccessToken(session.access_token)

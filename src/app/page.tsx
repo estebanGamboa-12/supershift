@@ -12,6 +12,7 @@ import { DEFAULT_USER_PREFERENCES, type UserPreferences } from "@/types/preferen
 // eslint-disable-next-line @typescript-eslint/no-unused-vars
 import DashboardHeader from "@/components/dashboard/DashboardHeader"
 import MobileNavigation, { type MobileTab } from "@/components/dashboard/MobileNavigation"
+import CreditsCircle from "@/components/dashboard/CreditsCircle"
 import PlanLoopLogo from "@/components/PlanLoopLogo"
 import MobileAddShiftSheet from "@/components/dashboard/MobileAddShiftSheet"
 import MobileSideMenu from "@/components/dashboard/MobileSideMenu"
@@ -2461,12 +2462,7 @@ export default function Home() {
               onNavigate={handleNavigateTab}
             />
             <div className="flex flex-shrink-0 items-center gap-4">
-              <div
-                className="rounded-lg border border-white/15 bg-white/5 px-3 py-1.5 text-sm font-medium text-white/90"
-                title="Créditos disponibles"
-              >
-                {creditBalance !== null ? `${creditBalance} créditos` : "—"}
-              </div>
+              <CreditsCircle creditBalance={creditBalance} href="/pricing" size="sm" />
               <div className="hidden text-right xl:block">
                 <p className="text-sm font-semibold text-white">{currentUser.name}</p>
                 <p className="text-xs text-white/50">{currentUser.email}</p>
@@ -2489,7 +2485,7 @@ export default function Home() {
 
           {/* Contenido: ocupa todo el espacio disponible */}
           <div className="flex-1 min-h-0 flex flex-col">
-            <main className="flex-1 min-h-0 w-full pb-[calc(5rem+env(safe-area-inset-bottom))]">
+            <main className="flex-1 min-h-0 w-full pb-[calc(5rem+env(safe-area-inset-bottom))] lg:pb-6">
               <div className="h-full w-full px-2 py-1 sm:px-3">
             <div className="hidden lg:flex lg:flex-col lg:gap-10">
               <AnimatePresence mode="wait">
@@ -2505,7 +2501,9 @@ export default function Home() {
                     <div className="relative">
                       <header className="flex items-center justify-between gap-2 mb-2">
                         <PlanLoopLogo size="sm" showText={true} className="hidden sm:flex" />
-                        <div className="flex gap-2">
+                        <div className="flex items-center gap-3">
+                          <CreditsCircle creditBalance={creditBalance} href="/pricing" size="md" className="shrink-0" />
+                          <div className="flex gap-2">
                           <button
                             type="button"
                             onClick={() => setCalendarView("day")}
@@ -2528,6 +2526,7 @@ export default function Home() {
                           >
                             Mes
                           </button>
+                          </div>
                         </div>
                         <button
                           type="button"
@@ -2610,6 +2609,7 @@ export default function Home() {
                 <div className="sticky top-0 z-50 mb-3 flex items-center justify-between gap-3 border-b border-white/10 bg-slate-950/98 px-2 py-2.5 backdrop-blur-md shadow-lg">
                   <PlanLoopLogo size="sm" showText={false} />
                   <h1 className="flex-1 text-lg font-bold text-white">Calendario</h1>
+                  <CreditsCircle creditBalance={creditBalance} href="/pricing" size="sm" className="shrink-0" />
                   <button
                     type="button"
                     onClick={() => setIsMobileMenuOpen(true)}
@@ -2738,6 +2738,7 @@ export default function Home() {
         active={activeTab}
         onChange={handleNavigateTab}
         onNavigateLink={handleNavigateLink}
+        creditBalance={creditBalance}
       />
 
       {currentUser && (

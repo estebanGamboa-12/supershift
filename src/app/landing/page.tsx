@@ -24,7 +24,13 @@ export default function LandingPage() {
             Crear cuenta gratis
           </a>
           <a
-            href={`${APP_URL}/auth`}
+            href={`${APP_URL}/pricing`}
+            className="inline-flex w-full items-center justify-center rounded-full border border-orange-400/50 bg-orange-500/20 px-8 py-4 text-base font-semibold text-white transition hover:bg-orange-500/30 sm:w-auto"
+          >
+            Lo quiero
+          </a>
+          <a
+            href={`${APP_URL}/`}
             className="inline-flex w-full items-center justify-center rounded-full border border-white/20 bg-white/5 px-8 py-4 text-base font-semibold text-white transition hover:bg-white/10 sm:w-auto"
           >
             Entrar

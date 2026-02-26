@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server"
-import { getSupabaseClient } from "@/lib/supabase"
+import { createSupabaseClientForUser, getSupabaseClient } from "@/lib/supabase"
 import { deductCredits, CREDIT_COSTS } from "@/lib/credits"
 
 export const runtime = "nodejs"
@@ -18,6 +18,12 @@ export async function POST(
   if (!userId?.trim()) {
     return NextResponse.json({ error: "userId obligatorio" }, { status: 400 })
   }
+
+  const serviceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY
+  const authHeader = request.headers.get("authorization") ?? ""
+  const bearer = authHeader.toLowerCase().startsWith("bearer ")
+    ? authHeader.slice(7).trim()
+    : ""
 
   let body: {
     title?: unknown
@@ -42,7 +48,33 @@ export async function POST(
     : 7
   const assignments = Array.isArray(body.assignments) ? body.assignments : []
 
-  const supabase = getSupabaseClient()
+  // Priorizar JWT del usuario para que RLS vea auth.uid() y permita el INSERT
+  const supabase = bearer
+    ? createSupabaseClientForUser(bearer)
+    : serviceRoleKey
+      ? getSupabaseClient()
+      : null
+
+  if (!supabase) {
+    return NextResponse.json(
+      { error: "Necesitas iniciar sesión para crear plantillas." },
+      { status: 401 },
+    )
+  }
+
+  if (bearer) {
+    const { data: authData, error: authError } = await supabase.auth.getUser()
+    if (authError || !authData?.user) {
+      return NextResponse.json(
+        { error: "No se pudo validar tu sesión. Vuelve a iniciar sesión." },
+        { status: 401 },
+      )
+    }
+    if (authData.user.id !== userId) {
+      return NextResponse.json({ error: "No autorizado" }, { status: 403 })
+    }
+  }
+
   const cost = CREDIT_COSTS.create_rotation_template
   try {
     await deductCredits(supabase, userId, cost, "create_rotation_template")

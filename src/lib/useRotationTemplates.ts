@@ -302,11 +302,21 @@ export function useRotationTemplates(userId: string | null | undefined) {
 
       setError(null)
 
+      const { data: sessionData } = await supabase.auth.getSession()
+      const token = sessionData.session?.access_token ?? ""
+      if (!token) {
+        setError("Necesitas iniciar sesión para crear plantillas de rotación")
+        return null
+      }
+
       const res = await fetch(
         `/api/users/${encodeURIComponent(userId)}/rotation-templates`,
         {
           method: "POST",
-          headers: { "Content-Type": "application/json" },
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${token}`,
+          },
           body: JSON.stringify({
             title: payload.title.trim(),
             icon: payload.icon ?? null,
@@ -342,7 +352,7 @@ export function useRotationTemplates(userId: string | null | undefined) {
       setTemplates((current) => [template, ...current])
       return template
     },
-    [userId],
+    [supabase, userId],
   )
 
   const updateRotationTemplate = useCallback(

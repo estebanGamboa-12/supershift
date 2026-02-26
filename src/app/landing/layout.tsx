@@ -12,12 +12,12 @@ export default function LandingLayout({ children }: { children: ReactNode }) {
             <span className="text-xl tracking-tight">Planloop</span>
           </Link>
           <nav className="flex items-center gap-4">
-            <Link
-              href="/pricing"
+            <a
+              href={`${APP_URL}/pricing`}
               className="text-sm font-medium text-slate-300 transition hover:text-white"
             >
               Precios
-            </Link>
+            </a>
             <a
               href={`${APP_URL}/auth`}
               className="text-sm font-medium text-slate-300 transition hover:text-white"
@@ -49,9 +49,9 @@ export default function LandingLayout({ children }: { children: ReactNode }) {
               </a>
             </p>
             <div className="flex gap-6">
-              <Link href="/pricing" className="text-sm text-slate-500 hover:text-slate-300">
+              <a href={`${APP_URL}/pricing`} className="text-sm text-slate-500 hover:text-slate-300">
                 Precios
-              </Link>
+              </a>
               <a href={`${APP_URL}/auth`} className="text-sm text-slate-500 hover:text-slate-300">
                 Entrar
               </a>

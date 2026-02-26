@@ -123,14 +123,24 @@ export function useShiftTemplates(userId: string | null | undefined) {
 
   const createShiftTemplate = useCallback(
     async (payload: ShiftTemplateInput): Promise<ShiftTemplate | null> => {
-      if (!userId) {
+      if (!supabase || !userId) {
+        setError("Necesitas iniciar sesión para crear plantillas de turno")
+        return null
+      }
+
+      const { data: sessionData } = await supabase.auth.getSession()
+      const token = sessionData.session?.access_token ?? ""
+      if (!token) {
         setError("Necesitas iniciar sesión para crear plantillas de turno")
         return null
       }
 
       const res = await fetch(`/api/users/${encodeURIComponent(userId)}/shift-templates`, {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`,
+        },
         body: JSON.stringify({
           title: payload.title.trim(),
           icon: payload.icon ?? null,
@@ -171,7 +181,7 @@ export function useShiftTemplates(userId: string | null | undefined) {
       setTemplates((current) => [template, ...current])
       return template
     },
-    [userId],
+    [supabase, userId],
   )
 
   const updateShiftTemplate = useCallback(

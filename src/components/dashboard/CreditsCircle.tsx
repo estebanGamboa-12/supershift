@@ -10,6 +10,8 @@ type CreditsCircleProps = {
   href?: string
   size?: "sm" | "md"
   className?: string
+  /** En la barra inferior: al pasar el ratón muestra X/100 y barra */
+  showHoverTooltip?: boolean
 }
 
 const CreditsCircle: FC<CreditsCircleProps> = ({
@@ -17,9 +19,11 @@ const CreditsCircle: FC<CreditsCircleProps> = ({
   href = "/pricing",
   size = "md",
   className = "",
+  showHoverTooltip = false,
 }) => {
   const balance = creditBalance ?? 0
   const percent = Math.min(100, Math.max(0, (balance / MAX_CREDITS) * 100))
+  const label = creditBalance !== null ? `${balance}/${MAX_CREDITS}` : "—/100"
 
   const sizeClasses = size === "sm" ? "h-10 w-10 text-xs" : "h-12 w-12 text-sm"
   const strokeWidth = size === "sm" ? 2.5 : 3
@@ -57,6 +61,20 @@ const CreditsCircle: FC<CreditsCircleProps> = ({
       <span className="relative z-10 font-bold tabular-nums text-white drop-shadow-sm">
         {creditBalance !== null ? balance : "—"}
       </span>
+      {showHoverTooltip && (
+        <span
+          className="pointer-events-none absolute bottom-full left-1/2 mb-2 -translate-x-1/2 rounded-lg border border-white/20 bg-slate-900/95 px-3 py-2 text-xs font-semibold text-white shadow-xl opacity-0 transition-opacity group-hover:opacity-100"
+          role="tooltip"
+        >
+          <span className="block tabular-nums">{label}</span>
+          <span className="mt-1.5 block h-1.5 w-16 overflow-hidden rounded-full bg-white/20">
+            <span
+              className="block h-full rounded-full bg-orange-400"
+              style={{ width: `${percent}%` }}
+            />
+          </span>
+        </span>
+      )}
     </span>
   )
 
@@ -64,8 +82,8 @@ const CreditsCircle: FC<CreditsCircleProps> = ({
     return (
       <Link
         href={href}
-        title="Créditos. Pulsa para ver planes y comprar más."
-        className="inline-flex rounded-full outline-none ring-white/20 focus-visible:ring-2"
+        title={showHoverTooltip ? label : "Créditos. Pulsa para ver planes."}
+        className={`inline-flex rounded-full outline-none ring-white/20 focus-visible:ring-2 ${showHoverTooltip ? "group" : ""}`}
       >
         {content}
       </Link>

@@ -2184,11 +2184,11 @@ export default function Home() {
           ? !navigator.onLine
           : false
 
+      // Sesión en el navegador (Supabase storage). Si no hay token → cerrar sesión y listo. Sin peticiones.
       if (!session?.access_token) {
         if (isBrowserOffline) {
           return
         }
-
         if (currentUser) {
           clearSession(undefined, { skipSupabaseSignOut: true })
         }
@@ -2202,10 +2202,15 @@ export default function Home() {
         return
       }
 
+      // ¿Ya tenemos usuario para esta sesión? → No hacer más peticiones. Sesión válida en memoria hasta logout o cierre.
+      if (currentUser && session.user?.id === currentUser.id) {
+        return
+      }
+
+      // Primera vez o sesión nueva: una sola petición para validar y obtener usuario/calendario (debounce por si llegan varios eventos)
       const sameToken = lastSyncTokenRef.current === session.access_token
-      const sameUser = currentUser?.id === session.user?.id
-      const recentSync = Date.now() - lastSyncTimeRef.current < 2500
-      if (sameToken && sameUser && recentSync) {
+      const recentSync = Date.now() - lastSyncTimeRef.current < 5000
+      if (sameToken && recentSync) {
         return
       }
       lastSyncTokenRef.current = session.access_token
@@ -2230,6 +2235,7 @@ export default function Home() {
           return
         }
         console.error("No se pudo validar la sesión de Supabase", error)
+        // Sesión inválida o expirada → cerrar y pedir volver a iniciar sesión
         clearSession(
           "No se pudo validar tu sesión actual. Vuelve a iniciar sesión.",
           { skipSupabaseSignOut: true },

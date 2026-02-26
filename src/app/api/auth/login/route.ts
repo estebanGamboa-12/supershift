@@ -147,12 +147,19 @@ async function sendLoginEmailsIfConfigured({
   // Solo UN request puede “ganar” y enviar cada correo: hacemos UPDATE con condición y solo si
   // devuelve una fila enviamos. Así no hay carrera entre 10 llamadas simultáneas.
 
+  let effectiveUserId = userId
+  const { data: _rowById } = await supabase.from("users").select("id").eq("id", userId).maybeSingle()
+  if (!_rowById) {
+    const { data: rowByEmail } = await supabase.from("users").select("id").eq("email", email).maybeSingle()
+    if (rowByEmail) effectiveUserId = rowByEmail.id
+  }
+
   let shouldSendWelcome = false
   try {
     const { data } = await supabase
       .from("users")
       .update({ welcome_email_sent_at: nowIso })
-      .eq("id", userId)
+      .eq("id", effectiveUserId)
       .is("welcome_email_sent_at", null)
       .select("id")
       .maybeSingle()
@@ -164,11 +171,11 @@ async function sendLoginEmailsIfConfigured({
     const { data: row } = await supabase
       .from("users")
       .select("welcome_email_sent_at")
-      .eq("id", userId)
+      .eq("id", effectiveUserId)
       .maybeSingle()
     if (row?.welcome_email_sent_at == null) {
       shouldSendWelcome = true
-      await supabase.from("users").update({ welcome_email_sent_at: nowIso }).eq("id", userId)
+      await supabase.from("users").update({ welcome_email_sent_at: nowIso }).eq("id", effectiveUserId)
     }
   }
 
@@ -179,7 +186,7 @@ async function sendLoginEmailsIfConfigured({
     const { data } = await supabase
       .from("users")
       .update({ last_session_email_sent_at: nowIso })
-      .eq("id", userId)
+      .eq("id", effectiveUserId)
       .or(`last_session_email_sent_at.is.null,last_session_email_sent_at.lt.${twoHundredHoursAgoIso}`)
       .select("id")
       .maybeSingle()
@@ -191,12 +198,12 @@ async function sendLoginEmailsIfConfigured({
     const { data: row } = await supabase
       .from("users")
       .select("last_session_email_sent_at")
-      .eq("id", userId)
+      .eq("id", effectiveUserId)
       .maybeSingle()
     const last = row?.last_session_email_sent_at
     if (last == null || new Date(last).getTime() < twoHundredHoursAgoMs) {
       shouldSendSession = true
-      await supabase.from("users").update({ last_session_email_sent_at: nowIso }).eq("id", userId)
+      await supabase.from("users").update({ last_session_email_sent_at: nowIso }).eq("id", effectiveUserId)
     }
   }
 
@@ -298,19 +305,46 @@ async function ensureUserProfile({
     if (upsertError) {
       const detail = `${upsertError.code ?? "?"}: ${upsertError.message}`
       console.error("[Planloop] Error upsert perfil Supabase:", detail, upsertError.details)
-      // Si el usuario ya existe (trigger u otra llamada), intentar leerlo y seguir
-      const { data: fallback } = await supabase
+      // Ya existe por id (trigger) → leer por id
+      const { data: byId } = await supabase
         .from("users")
         .select("name, email, timezone, avatar_url")
         .eq("id", userId)
         .maybeSingle()
-      if (fallback) {
+      if (byId) {
         return {
-          name: normalizeText(fallback.name) ?? profileName,
-          email: normalizeText(fallback.email) ?? profileEmail,
-          timezone: normalizeText(fallback.timezone) ?? profileTimezone ?? "Europe/Madrid",
-          avatarUrl: normalizeText(fallback.avatar_url) ?? profileAvatar ?? null,
+          name: normalizeText(byId.name) ?? profileName,
+          email: normalizeText(byId.email) ?? profileEmail,
+          timezone: normalizeText(byId.timezone) ?? profileTimezone ?? "Europe/Madrid",
+          avatarUrl: normalizeText(byId.avatar_url) ?? profileAvatar ?? null,
           isNewUser: false,
+        }
+      }
+      // Duplicate email: ya hay una fila con este email pero otro id → sincronizar id con Auth para que créditos/plantillas funcionen
+      if (upsertError.code === "23505" && profileEmail) {
+        const { data: byEmail } = await supabase
+          .from("users")
+          .select("id, name, email, timezone, avatar_url")
+          .eq("email", profileEmail)
+          .maybeSingle()
+        if (byEmail) {
+          const existingId = (byEmail as { id: string }).id
+          if (existingId !== userId) {
+            const { error: syncError } = await supabase
+              .from("users")
+              .update({ id: userId })
+              .eq("id", existingId)
+            if (syncError) {
+              console.warn("[Planloop] No se pudo sincronizar users.id con Auth (ejecuta la migración add_users_id_update_cascade.sql):", syncError.message)
+            }
+          }
+          return {
+            name: normalizeText(byEmail.name) ?? profileName,
+            email: normalizeText(byEmail.email) ?? profileEmail,
+            timezone: normalizeText(byEmail.timezone) ?? profileTimezone ?? "Europe/Madrid",
+            avatarUrl: normalizeText(byEmail.avatar_url) ?? profileAvatar ?? null,
+            isNewUser: false,
+          }
         }
       }
       throw new Error(`No se pudo preparar el perfil del usuario. ${detail}`)

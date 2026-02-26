@@ -58,6 +58,7 @@ export function getSupabaseBrowserClient(): SupabaseClient {
         persistSession: true,
         autoRefreshToken: true,
         detectSessionInUrl: false,
+        storage: typeof window !== "undefined" ? window.localStorage : undefined,
       },
     })
   }

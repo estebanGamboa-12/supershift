@@ -497,6 +497,7 @@ export default function Home() {
   const [lastSyncError, setLastSyncError] = useState<string | null>(null)
   const isSyncingRef = useRef(false)
   const [shiftHistory, setShiftHistory] = useState<ShiftHistoryEntry[]>([])
+  const [creditBalance, setCreditBalance] = useState<number | null>(null)
   const { showToast } = useToast()
 
   const supabase = useMemo(() => {
@@ -513,6 +514,35 @@ export default function Home() {
   }, [])
 
   const { templates: shiftTemplates } = useShiftTemplates(currentUser?.id)
+
+  useEffect(() => {
+    if (!currentUser?.id) {
+      setCreditBalance(null)
+      return
+    }
+    let isMounted = true
+    fetch(`/api/users/${encodeURIComponent(currentUser.id)}/credits`, { cache: "no-store" })
+      .then((res) => res.json().catch(() => null))
+      .then((data) => {
+        if (isMounted && typeof data?.balance === "number") {
+          setCreditBalance(data.balance)
+        }
+      })
+      .catch(() => {})
+    return () => {
+      isMounted = false
+    }
+  }, [currentUser?.id])
+
+  const refreshCreditBalance = useCallback(() => {
+    if (!currentUser?.id) return
+    fetch(`/api/users/${encodeURIComponent(currentUser.id)}/credits`, { cache: "no-store" })
+      .then((res) => res.json().catch(() => null))
+      .then((data) => {
+        if (typeof data?.balance === "number") setCreditBalance(data.balance)
+      })
+      .catch(() => {})
+  }, [currentUser?.id])
 
   const {
     email: notificationEmailEnabled,
@@ -1256,6 +1286,15 @@ export default function Home() {
           body: JSON.stringify(payload),
         })
 
+        if (response.status === 402) {
+          const errData = await response.json().catch(() => ({}))
+          showToast({
+            type: "error",
+            message: errData?.error ?? "No tienes suficientes créditos para crear un turno.",
+          })
+          refreshCreditBalance()
+          return
+        }
         const data = await parseJsonResponse<{ shift: ApiShift }>(response)
         const newShift = mapApiShift(data.shift)
         setShifts((current) => {
@@ -1270,6 +1309,7 @@ export default function Home() {
         })
         setIsOffline(false)
         setLastSyncError(null)
+        refreshCreditBalance()
         showToast({ type: "create", message: "Turno guardado correctamente" })
       } catch (error) {
         if (isLikelyOfflineError(error)) {
@@ -1331,6 +1371,7 @@ export default function Home() {
       persistShiftsSnapshot,
       recordHistoryEntry,
       refreshPendingMutations,
+      refreshCreditBalance,
       requestBackgroundSync,
       sortByDate,
       showToast,
@@ -2403,6 +2444,12 @@ export default function Home() {
               onNavigate={handleNavigateTab}
             />
             <div className="flex flex-shrink-0 items-center gap-4">
+              <div
+                className="rounded-lg border border-white/15 bg-white/5 px-3 py-1.5 text-sm font-medium text-white/90"
+                title="Créditos disponibles"
+              >
+                {creditBalance !== null ? `${creditBalance} créditos` : "—"}
+              </div>
               <div className="hidden text-right xl:block">
                 <p className="text-sm font-semibold text-white">{currentUser.name}</p>
                 <p className="text-xs text-white/50">{currentUser.email}</p>

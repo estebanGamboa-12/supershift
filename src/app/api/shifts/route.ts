@@ -12,6 +12,7 @@ import {
   type DatabaseShiftRow,
 } from "./utils"
 import { getOrCreateCalendarForUser } from "@/lib/calendars"
+import { deductCredits, CREDIT_COSTS } from "@/lib/credits"
 
 export const runtime = "nodejs"
 
@@ -257,6 +258,13 @@ export async function POST(request: Request) {
       userId = parsedUserId
     }
 
+    if (!userId) {
+      return NextResponse.json(
+        { error: "Se requiere userId para crear turnos (sistema de créditos)" },
+        { status: 400 }
+      )
+    }
+
     const providedCalendarId =
       "calendarId" in payload ? normalizeCalendarId(payload.calendarId) : null
 
@@ -305,6 +313,23 @@ export async function POST(request: Request) {
     const isAllDay = !startTime || !endTime
 
     const supabase = getSupabaseClient()
+    const cost = CREDIT_COSTS.create_shift
+    try {
+      await deductCredits(supabase, userId, cost, "create_shift")
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : ""
+      if (msg === "CREDITS_INSUFFICIENT") {
+        return NextResponse.json(
+          {
+            error: `No tienes suficientes créditos. Crear un turno cuesta ${cost}. Consigue más o contacta a soporte.`,
+            code: "CREDITS_INSUFFICIENT",
+          },
+          { status: 402 }
+        )
+      }
+      throw err
+    }
+
     const { data, error } = await supabase
       .from("shifts")
       .insert({

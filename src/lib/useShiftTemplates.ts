@@ -123,45 +123,55 @@ export function useShiftTemplates(userId: string | null | undefined) {
 
   const createShiftTemplate = useCallback(
     async (payload: ShiftTemplateInput): Promise<ShiftTemplate | null> => {
-      if (!supabase || !userId) {
+      if (!userId) {
         setError("Necesitas iniciar sesión para crear plantillas de turno")
         return null
       }
 
-      const insertPayload = {
-        user_id: userId,
-        title: payload.title.trim(),
-        icon: payload.icon ?? null,
-        color: payload.color ?? null,
-        start_time: payload.startTime,
-        end_time: payload.endTime,
-        break_minutes: payload.breakMinutes ?? null,
-        alert_minutes: payload.alertMinutes ?? null,
-        location: payload.location ?? null,
-      }
+      const res = await fetch(`/api/users/${encodeURIComponent(userId)}/shift-templates`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          title: payload.title.trim(),
+          icon: payload.icon ?? null,
+          color: payload.color ?? null,
+          startTime: payload.startTime,
+          endTime: payload.endTime,
+          breakMinutes: payload.breakMinutes ?? null,
+          alertMinutes: payload.alertMinutes ?? null,
+          location: payload.location ?? null,
+        }),
+      })
 
-      const { data, error: insertError } = await supabase
-        .from("shift_template_presets")
-        .insert(insertPayload)
-        .select(
-          "id, user_id, title, icon, color, start_time, end_time, break_minutes, alert_minutes, location, created_at, updated_at",
-        )
-        .single()
-
-      if (insertError) {
-        console.error("No se pudo crear la plantilla de turno", insertError)
-        setError(
-          insertError.message ??
-            "No se pudo crear la plantilla de turno. Inténtalo de nuevo más tarde.",
-        )
+      const data = await res.json().catch(() => null)
+      if (!res.ok) {
+        const message =
+          data?.error ??
+          (data?.code === "CREDITS_INSUFFICIENT"
+            ? "No tienes suficientes créditos para crear una plantilla (cuesta 20)."
+            : "No se pudo crear la plantilla de turno. Inténtalo de nuevo más tarde.")
+        setError(message)
         return null
       }
 
-      const template = normaliseTemplate(data as ShiftTemplateRow)
+      const template: ShiftTemplate = {
+        id: data.id,
+        userId: data.userId,
+        title: data.title ?? "Plantilla sin título",
+        icon: data.icon ?? null,
+        color: data.color ?? null,
+        startTime: data.startTime ?? "09:00",
+        endTime: data.endTime ?? "17:00",
+        breakMinutes: data.breakMinutes ?? null,
+        alertMinutes: data.alertMinutes ?? null,
+        location: data.location ?? null,
+        createdAt: data.createdAt ?? new Date().toISOString(),
+        updatedAt: data.updatedAt ?? data.createdAt ?? new Date().toISOString(),
+      }
       setTemplates((current) => [template, ...current])
       return template
     },
-    [supabase, userId],
+    [userId],
   )
 
   const updateShiftTemplate = useCallback(

@@ -108,7 +108,7 @@ export default function ProfileSchedulingPreferencesCard({
         <div className="space-y-2">
           <h2 className="text-2xl font-semibold tracking-tight">Preferencias de programación</h2>
           <p className="max-w-2xl text-sm text-brand-muted">
-            Guarda tus respuestas para generar patrones alineados con tus objetivos. Puedes repetir el cuestionario cuando cambies de equipo o quieras preparar un nuevo ritmo de trabajo.
+            Guarda tus respuestas para generar patrones alineados con tus objetivos. Puedes repetir el cuestionario cuando cambies de equipo o quieras preparar un nuevo ritmo de trabaj.
           </p>
         </div>
         <div className="flex flex-wrap gap-3 text-sm">

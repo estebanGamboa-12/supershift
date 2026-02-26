@@ -3,6 +3,7 @@ import { format } from "date-fns"
 import { getSupabaseClient } from "@/lib/supabase"
 import { generateRotation } from "@/lib/generateRotation"
 import { getOrCreateCalendarForUser } from "@/lib/calendars"
+import { deductCredits, CREDIT_COSTS } from "@/lib/credits"
 
 function toDateOnly(value: Date | string | null) {
   if (!value) return ""
@@ -89,6 +90,32 @@ export async function POST(request: Request) {
   }
 
   const supabase = getSupabaseClient()
+
+  const costPerShift = CREDIT_COSTS.create_shift
+  const totalCost = rotation.length * costPerShift
+  if (normalizedUserId && totalCost > 0) {
+    try {
+      await deductCredits(
+        supabase,
+        normalizedUserId,
+        totalCost,
+        "create_shift",
+        `generate_${startDate}_${rotation.length}`,
+      )
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : ""
+      if (msg === "CREDITS_INSUFFICIENT") {
+        return NextResponse.json(
+          {
+            message: `No tienes suficientes créditos. Generar ${rotation.length} turnos cuesta ${totalCost} créditos.`,
+            code: "CREDITS_INSUFFICIENT",
+          },
+          { status: 402 }
+        )
+      }
+      throw err
+    }
+  }
 
   try {
     const { error: deleteError } = await supabase

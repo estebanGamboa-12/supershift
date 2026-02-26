@@ -302,68 +302,47 @@ export function useRotationTemplates(userId: string | null | undefined) {
 
       setError(null)
 
-      const insertPayload = {
-        user_id: userId,
-        title: payload.title.trim(),
-        icon: payload.icon ?? null,
-        description: payload.description?.trim() ?? null,
-        days_count: payload.daysCount,
-      }
+      const res = await fetch(
+        `/api/users/${encodeURIComponent(userId)}/rotation-templates`,
+        {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            title: payload.title.trim(),
+            icon: payload.icon ?? null,
+            description: payload.description?.trim() ?? null,
+            daysCount: payload.daysCount,
+            assignments: payload.assignments,
+          }),
+        },
+      )
 
-      const { data: insertedRow, error: insertError } = await supabase
-        .from("rotation_template_presets")
-        .insert(insertPayload)
-        .select("id")
-        .single<{ id: number }>()
-
-      if (insertError || !insertedRow) {
-        console.error("No se pudo crear la plantilla de rotación", insertError)
-        setError(
-          insertError?.message ??
-            "No se pudo crear la plantilla de rotación. Inténtalo de nuevo más tarde.",
-        )
+      const data = await res.json().catch(() => null)
+      if (!res.ok) {
+        const message =
+          data?.error ??
+          (data?.code === "CREDITS_INSUFFICIENT"
+            ? "No tienes suficientes créditos para crear una plantilla de rotación (cuesta 20)."
+            : "No se pudo crear la plantilla de rotación. Inténtalo de nuevo más tarde.")
+        setError(message)
         return null
       }
 
-      const templateId = insertedRow.id
-
-      if (payload.assignments.length > 0) {
-        const assignmentsPayload = payload.assignments.map((assignment) => ({
-          template_id: templateId,
-          day_index: assignment.dayIndex,
-          shift_template_id: assignment.shiftTemplateId,
-        }))
-
-        const { error: assignmentsError } = await supabase
-          .from("rotation_template_preset_assignments")
-          .upsert(assignmentsPayload, { onConflict: "template_id,day_index" })
-
-        if (assignmentsError) {
-          console.error(
-            "No se pudieron guardar los días de la plantilla de rotación",
-            assignmentsError,
-          )
-          await supabase
-            .from("rotation_template_presets")
-            .delete()
-            .eq("id", templateId)
-          setError(
-            assignmentsError.message ??
-              "No se pudieron guardar los días de la plantilla. Inténtalo de nuevo más tarde.",
-          )
-          return null
-        }
+      const template: RotationTemplate = {
+        id: data.id,
+        userId: data.userId,
+        title: data.title ?? "",
+        icon: data.icon ?? null,
+        description: data.description ?? null,
+        daysCount: data.daysCount ?? 7,
+        assignments: Array.isArray(data.assignments) ? data.assignments : [],
+        createdAt: data.createdAt ?? new Date().toISOString(),
+        updatedAt: data.updatedAt ?? data.createdAt ?? new Date().toISOString(),
       }
-
-      const template = await readTemplateById(templateId)
-      if (!template) {
-        return null
-      }
-
       setTemplates((current) => [template, ...current])
       return template
     },
-    [readTemplateById, supabase, userId],
+    [userId],
   )
 
   const updateRotationTemplate = useCallback(

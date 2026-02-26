@@ -528,6 +528,31 @@ export default function Home() {
   }, [])
 
   useEffect(() => {
+    if (!currentUser?.id) return
+    let cancelled = false
+    fetch(`/api/users/${currentUser.id}/preferences`, { cache: "no-store" })
+      .then((res) => (res.ok ? res.json() : null))
+      .then((data: { preferences?: Partial<UserPreferences>; updatedAt?: string } | null) => {
+        const prefs = data?.preferences
+        if (cancelled || !prefs) return
+        setUserPreferences((prev) => ({
+          ...prev,
+          startOfWeek: prefs.startOfWeek ?? prev.startOfWeek,
+          showFestiveDays: prefs.showFestiveDays ?? prev.showFestiveDays,
+          festiveDayColor: prefs.festiveDayColor ?? prev.festiveDayColor,
+          showDayColors: prefs.showDayColors ?? prev.showDayColors,
+        }))
+        if (data.updatedAt) {
+          setPreferencesSavedAt(new Date(data.updatedAt))
+        }
+      })
+      .catch(() => {})
+    return () => {
+      cancelled = true
+    }
+  }, [currentUser?.id])
+
+  useEffect(() => {
     const unsubscribe = onUserPreferencesStorageChange((payload) => {
       if (!payload) {
         setUserPreferences(DEFAULT_USER_PREFERENCES)
@@ -1748,15 +1773,36 @@ export default function Home() {
     async (preferences: UserPreferences) => {
       setIsSavingPreferences(true)
       try {
-        await new Promise((resolve) => setTimeout(resolve, 600))
+        if (currentUser?.id) {
+          try {
+            const res = await fetch(`/api/users/${currentUser.id}/preferences`, {
+              method: "PATCH",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({
+                startOfWeek: preferences.startOfWeek,
+                showFestiveDays: preferences.showFestiveDays,
+                festiveDayColor: preferences.festiveDayColor,
+                showDayColors: preferences.showDayColors,
+              }),
+            })
+            if (res.ok) {
+              const data = (await res.json()) as { updatedAt?: string }
+              if (data.updatedAt) {
+                setPreferencesSavedAt(new Date(data.updatedAt))
+              }
+            }
+          } catch {
+            // Fallback: solo localStorage
+          }
+        }
         const { savedAt } = persistUserPreferences(preferences)
         setUserPreferences(preferences)
-        setPreferencesSavedAt(savedAt)
+        setPreferencesSavedAt((prev) => prev ?? savedAt)
       } finally {
         setIsSavingPreferences(false)
       }
     },
-    [],
+    [currentUser?.id],
   )
 
   const handleUpdateProfile = useCallback(
@@ -2446,6 +2492,7 @@ export default function Home() {
                           userId={currentUser?.id ?? null}
                           isLoadingShifts={isLoadingShifts}
                           shiftTemplates={shiftTemplates}
+                          startOfWeek={userPreferences.startOfWeek}
                         />
                       </div>
                     </div>
@@ -2588,6 +2635,7 @@ export default function Home() {
                           userId={currentUser?.id ?? null}
                           isLoadingShifts={isLoadingShifts}
                           shiftTemplates={shiftTemplates}
+                          startOfWeek={userPreferences.startOfWeek}
                         />
 
                       </motion.div>

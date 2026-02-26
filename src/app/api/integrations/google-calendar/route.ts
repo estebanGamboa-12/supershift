@@ -26,13 +26,20 @@ function pickTimezone(candidate: unknown, fallback: string): string {
   return normalized ?? fallback
 }
 
-function getDateRange(): { from: string; to: string } {
-  const now = new Date()
-  const start = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate()))
-  const end = new Date(start)
-  end.setMonth(end.getMonth() + 3)
+function getDateRange(monthParam: string | null): { from: string; to: string } {
   const format = (date: Date) =>
     `${date.getUTCFullYear()}-${String(date.getUTCMonth() + 1).padStart(2, "0")}-${String(date.getUTCDate()).padStart(2, "0")}`
+
+  if (monthParam && /^\d{4}-\d{2}$/.test(monthParam.trim())) {
+    const [y, m] = monthParam.trim().split("-").map(Number)
+    const start = new Date(Date.UTC(y, m - 1, 1))
+    const end = new Date(Date.UTC(y, m, 0, 23, 59, 59))
+    return { from: format(start), to: format(end) }
+  }
+
+  const now = new Date()
+  const start = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), 1))
+  const end = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth() + 1, 0, 23, 59, 59))
   return { from: format(start), to: format(end) }
 }
 
@@ -132,12 +139,13 @@ export async function POST(request: NextRequest) {
     const userId = normalizeString(payload.userId)
     const timezone = pickTimezone(payload.timezone, "Europe/Madrid")
     const calendarName = normalizeString(payload.calendarName) ?? DEFAULT_CALENDAR_NAME
+    const month = typeof payload.month === "string" ? payload.month.trim() : null
 
     const calendarId = userId ? await getOrCreateCalendarForUser(userId) : null
 
     const supabase = getSupabaseClient()
 
-    const { from, to } = getDateRange()
+    const { from, to } = getDateRange(month)
 
     const query = supabase
       .from("shifts")
@@ -165,7 +173,7 @@ export async function POST(request: NextRequest) {
       return NextResponse.json(
         {
           message:
-            "No se encontraron turnos en los próximos 90 días. Asegúrate de tener turnos creados antes de sincronizar.",
+            "No hay turnos en el mes seleccionado. Elige otro mes o añade turnos antes de sincronizar.",
           ics: null,
           eventCount: 0,
         },

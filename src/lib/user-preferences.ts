@@ -126,6 +126,19 @@ function normalizePreferences(raw: unknown): UserPreferences {
       ? candidate.hourlyRate
       : DEFAULT_USER_PREFERENCES.hourlyRate ?? 0
 
+  const showFestiveDays =
+    typeof candidate.showFestiveDays === "boolean"
+      ? candidate.showFestiveDays
+      : (DEFAULT_USER_PREFERENCES.showFestiveDays ?? true)
+  const festiveDayColor =
+    typeof candidate.festiveDayColor === "string" && candidate.festiveDayColor.trim().length > 0
+      ? candidate.festiveDayColor.trim()
+      : (DEFAULT_USER_PREFERENCES.festiveDayColor ?? "#dc2626")
+  const showDayColors =
+    typeof candidate.showDayColors === "boolean"
+      ? candidate.showDayColors
+      : (DEFAULT_USER_PREFERENCES.showDayColors ?? true)
+
   return {
     startOfWeek: normalizeStartOfWeek(candidate.startOfWeek),
     notifications: {
@@ -141,6 +154,10 @@ function normalizePreferences(raw: unknown): UserPreferences {
     },
     shiftExtras,
     hourlyRate,
+    showFestiveDays,
+    festiveDayColor,
+    showDayColors,
+    customShiftTypes: candidate.customShiftTypes ?? DEFAULT_USER_PREFERENCES.customShiftTypes ?? [],
   }
 }
 

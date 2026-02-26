@@ -96,6 +96,8 @@ type ShiftPlannerLabProps = {
   resetSignal?: number
   userId?: string | null
   shiftTemplates?: ShiftTemplate[]
+  /** Inicio de semana: "monday" | "sunday". Si no se pasa, se usa la preferencia cargada de localStorage. */
+  startOfWeek?: "monday" | "sunday"
 }
 
 function toIsoDate(date: Date) {
@@ -183,6 +185,7 @@ export default function ShiftPlannerLab({
   resetSignal,
   userId = null,
   shiftTemplates: shiftTemplatesProp = [],
+  startOfWeek: startOfWeekProp,
 }: ShiftPlannerLabProps) {
   const stableInitialEntries = useMemo(
     () => initialEntries ?? [],
@@ -346,19 +349,22 @@ export default function ShiftPlannerLab({
     setIsConfirmingRotation(false)
   }, [activeRotationId, rotationStart])
 
+  const effectiveStartOfWeek = startOfWeekProp ?? userPreferences.startOfWeek
+  const weekStartsOn = effectiveStartOfWeek === "sunday" ? 0 : 1
+
   const getCalendarConfigForMonth = useCallback((month: Date) => {
     const monthStart = startOfMonth(month)
     const daysInMonth = getDaysInMonth(month)
-    const startWeek = startOfWeek(monthStart, { weekStartsOn: 1 })
+    const startWeek = startOfWeek(monthStart, { weekStartsOn })
     const weekday = getDay(monthStart)
-    const padStart = (weekday + 6) % 7
+    const padStart = weekStartsOn === 1 ? (weekday + 6) % 7 : weekday
     const totalCells = Math.ceil((padStart + daysInMonth) / 7) * 7
     const days: Date[] = []
     for (let i = 0; i < totalCells; i++) {
       days.push(addDays(startWeek, i))
     }
     return { days, firstColumn: padStart + 1 }
-  }, [])
+  }, [weekStartsOn])
 
   const calendarConfig = useMemo(
     () => getCalendarConfigForMonth(currentMonth),
@@ -1045,7 +1051,7 @@ export default function ShiftPlannerLab({
           <div className="overflow-hidden">
             <div className="grid grid-cols-7 gap-1 border-b border-white/5 py-1 text-[9px] font-semibold uppercase tracking-wide text-white/60 sm:text-[10px]">
               {Array.from({ length: 7 }).map((_, index) => {
-                const reference = addDays(startOfWeek(new Date(), { weekStartsOn: 1 }), index)
+                const reference = addDays(startOfWeek(new Date(), { weekStartsOn }), index)
                 return (
                   <div key={index} className="text-center text-white/70">
                     {format(reference, "EEE", { locale: es })}

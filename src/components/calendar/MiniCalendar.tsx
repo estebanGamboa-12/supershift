@@ -24,16 +24,16 @@ type MiniCalendarProps = {
   onNextMonth: () => void
   onGoToday: () => void
   shifts?: ShiftEvent[]
+  /** 0 = domingo, 1 = lunes (date-fns weekStartsOn). Por defecto 1. */
+  weekStartsOn?: 0 | 1
 }
 
-const WEEK_STARTS_ON = 1
-
-function getDatesForMonthView(month: Date): Date[] {
+function getDatesForMonthView(month: Date, weekStartsOn: 0 | 1): Date[] {
   const start = startOfMonth(month)
   const daysInMonth = getDaysInMonth(month)
-  const startWeek = startOfWeek(start, { weekStartsOn: WEEK_STARTS_ON })
+  const startWeek = startOfWeek(start, { weekStartsOn })
   const weekday = getDay(start)
-  const padStart = (weekday + 6) % 7
+  const padStart = weekStartsOn === 1 ? (weekday + 6) % 7 : weekday
   const totalCells = Math.ceil((padStart + daysInMonth) / 7) * 7
   const result: Date[] = []
   for (let i = 0; i < totalCells; i++) {
@@ -41,6 +41,9 @@ function getDatesForMonthView(month: Date): Date[] {
   }
   return result
 }
+
+const WEEKDAY_LABELS_MONDAY_FIRST = ["L", "M", "X", "J", "V", "S", "D"]
+const WEEKDAY_LABELS_SUNDAY_FIRST = ["D", "L", "M", "X", "J", "V", "S"]
 
 const MiniCalendar: FC<MiniCalendarProps> = ({
   currentMonth,
@@ -50,9 +53,11 @@ const MiniCalendar: FC<MiniCalendarProps> = ({
   onNextMonth,
   onGoToday,
   shifts = [],
+  weekStartsOn = 1,
 }) => {
-  const dates = getDatesForMonthView(currentMonth)
+  const dates = getDatesForMonthView(currentMonth, weekStartsOn)
   const shiftDates = new Set(shifts.map((s) => s.date))
+  const weekdayLabels = weekStartsOn === 0 ? WEEKDAY_LABELS_SUNDAY_FIRST : WEEKDAY_LABELS_MONDAY_FIRST
 
   return (
     <div className="flex flex-col p-1">
@@ -85,7 +90,7 @@ const MiniCalendar: FC<MiniCalendarProps> = ({
         Hoy
       </button>
       <div className="grid grid-cols-7 gap-0.5">
-        {["L", "M", "X", "J", "V", "S", "D"].map((d) => (
+        {weekdayLabels.map((d) => (
           <div
             key={d}
             className="py-0.5 text-center text-[7px] font-semibold uppercase text-white/40"

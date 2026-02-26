@@ -311,242 +311,58 @@ export default function UserAuthPanel({
 
       <div className="relative z-10 mb-10 flex flex-col items-center gap-3 text-center">
         <div className="relative">
-          <span className="pointer-events-none absolute inset-0 -translate-y-1 scale-125 rounded-full bg-cyan-400/25 blur-xl" aria-hidden />
+          <span
+            className="pointer-events-none absolute inset-0 -translate-y-1 scale-125 rounded-full bg-cyan-400/25 blur-xl"
+            aria-hidden
+          />
           <div className="relative grid h-16 w-16 place-items-center overflow-hidden rounded-2xl border border-white/10 bg-slate-950/80 shadow-xl shadow-blue-500/20">
-            <Image src="/planloop-logo.svg" alt="Logotipo de Planloop" width={56} height={56} priority className="h-14 w-14" />
+            <Image
+              src="/planloop-logo.svg"
+              alt="Logotipo de Planloop"
+              width={56}
+              height={56}
+              priority
+              className="h-14 w-14"
+            />
           </div>
         </div>
         <div className="space-y-1">
           <h1 className="text-2xl font-semibold tracking-tight">Planloop</h1>
-          <p className="text-sm text-white/70">Planifica turnos con estilo profesional.</p>
+          <p className="text-sm text-white/70">
+            Accede con tu cuenta de Google para gestionar tus turnos.
+          </p>
         </div>
       </div>
 
-      {/* Toggle */}
-      <div className="relative z-10 mx-auto mb-8 w-full max-w-xs rounded-full border border-white/10 bg-slate-800/50 p-1 text-xs font-semibold text-white/70 shadow-lg">
-        <div className="grid grid-cols-3 gap-1">
-          <button
-            type="button"
-            onClick={() => handleFormChange("login")}
-            className={`rounded-full px-4 py-2 transition-all ${
-              activeForm === "login"
-                ? "bg-gradient-to-r from-blue-500 to-indigo-500 text-white shadow-md"
-                : "hover:bg-white/5"
-            }`}
-          >
-            Entrar
-          </button>
-          <button
-            type="button"
-            onClick={() => handleFormChange("register")}
-            className={`rounded-full px-4 py-2 transition-all ${
-              activeForm === "register"
-                ? "bg-gradient-to-r from-indigo-500 to-fuchsia-500 text-white shadow-md"
-                : "hover:bg-white/5"
-            }`}
-          >
-            Crear cuenta
-          </button>
-          <button
-            type="button"
-            onClick={() => handleFormChange("recover")}
-            className={`rounded-full px-4 py-2 transition-all ${
-              activeForm === "recover"
-                ? "bg-gradient-to-r from-cyan-500 to-blue-500 text-white shadow-md"
-                : "hover:bg-white/5"
-            }`}
-          >
-            Recuperar
-          </button>
+      <div className="relative z-10 space-y-6">
+        <div className="space-y-3">
+          <h2 className="text-lg font-semibold text-center">Inicia sesión o crea tu cuenta</h2>
+          <p className="text-center text-sm text-white/60">
+            Solo usamos inicio de sesión con Google. No hay contraseñas que recordar ni formulario
+            de registro complicado.
+          </p>
         </div>
-      </div>
 
-      {/* Formularios animados */}
-      <div className="relative min-h-[420px]">
-        <AnimatePresence mode="wait">
-          {activeForm === "login" ? (
-            <motion.form
-              key="login"
-              initial={{ opacity: 0, x: -50 }}
-              animate={{ opacity: 1, x: 0 }}
-              exit={{ opacity: 0, x: 50 }}
-              transition={{ duration: 0.35, ease: "easeOut" }}
-              onSubmit={handleLogin}
-              className="absolute inset-0 w-full space-y-5"
-            >
-              <h2 className="text-3xl font-bold text-center bg-gradient-to-r from-blue-400 to-indigo-400 bg-clip-text text-transparent">
-                Bienvenido de vuelta
-              </h2>
-              <p className="mb-6 text-center text-sm text-white/70">
-                Accede con las credenciales que usaste al registrarte.
-              </p>
-              <input
-                type="email"
-                value={loginEmail}
-                onChange={(e) => setLoginEmail(e.target.value)}
-                placeholder="tu@empresa.com"
-                className="w-full rounded-xl border border-white/10 bg-white/5 px-4 py-3 text-sm placeholder-white/40 focus:border-blue-400 focus:ring-2 focus:ring-blue-500/40"
-              />
-              <input
-                type="password"
-                value={loginPassword}
-                onChange={(e) => setLoginPassword(e.target.value)}
-                placeholder="••••••••"
-                className="w-full rounded-xl border border-white/10 bg-white/5 px-4 py-3 text-sm placeholder-white/40 focus:border-indigo-400 focus:ring-2 focus:ring-indigo-500/40"
-              />
-              {loginError && <p className="text-sm text-red-400">{loginError}</p>}
-              <button
-                type="button"
-                onClick={() => handleFormChange("recover")}
-                className="w-full text-left text-xs font-semibold text-blue-300 underline-offset-4 hover:underline"
-              >
-                ¿Olvidaste tu contraseña?
-              </button>
-              <div className="space-y-3">
-                <button
-                  type="submit"
-                  disabled={isLoggingIn}
-                  className="flex items-center justify-center gap-2 w-full rounded-xl bg-gradient-to-r from-blue-500 to-indigo-500 px-4 py-3 text-sm font-semibold shadow-lg transition hover:scale-[1.02]"
-                >
-                  {isLoggingIn ? (
-                    <>
-                      <Spinner /> Accediendo...
-                    </>
-                  ) : (
-                    "Iniciar sesión"
-                  )}
-                </button>
-                <div className="flex items-center gap-3 text-xs text-white/40">
-                  <span className="h-px flex-1 bg-white/10" />
-                  o continúa con
-                  <span className="h-px flex-1 bg-white/10" />
-                </div>
-                <button
-                  type="button"
-                  onClick={handleGoogleLogin}
-                  disabled={isLoggingIn}
-                  className="flex items-center justify-center gap-2 w-full rounded-xl border border-white/15 bg-white/5 px-4 py-3 text-sm font-semibold text-white/80 transition hover:border-white/30 hover:bg-white/10"
-                >
-                  {isLoggingIn ? <Spinner /> : null}
-                  <span>{isLoggingIn ? "Redirigiendo..." : "Google"}</span>
-                </button>
-              </div>
-            </motion.form>
-          ) : activeForm === "register" ? (
-            <motion.form
-              key="register"
-              initial={{ opacity: 0, x: 50 }}
-              animate={{ opacity: 1, x: 0 }}
-              exit={{ opacity: 0, x: -50 }}
-              transition={{ duration: 0.35, ease: "easeOut" }}
-              onSubmit={handleRegister}
-              className="absolute inset-0 w-full space-y-5"
-            >
-              <h2 className="text-3xl font-bold text-center bg-gradient-to-r from-fuchsia-400 to-indigo-400 bg-clip-text text-transparent">
-                Estrena tu espacio
-              </h2>
-              <p className="mb-6 text-center text-sm text-white/70">
-                Regístrate para obtener tu propio calendario y comenzar a planificar.
-              </p>
-              <input
-                type="text"
-                value={registerName}
-                onChange={(e) => setRegisterName(e.target.value)}
-                placeholder="Ana Ruiz"
-                className="w-full rounded-xl border border-white/10 bg-white/5 px-4 py-3 text-sm placeholder-white/40 focus:border-fuchsia-400 focus:ring-2 focus:ring-fuchsia-500/40"
-              />
-              <input
-                type="email"
-                value={registerEmail}
-                onChange={(e) => setRegisterEmail(e.target.value)}
-                placeholder="ana@empresa.com"
-                className="w-full rounded-xl border border-white/10 bg-white/5 px-4 py-3 text-sm placeholder-white/40 focus:border-blue-400 focus:ring-2 focus:ring-blue-500/40"
-              />
-              <input
-                type="password"
-                value={registerPassword}
-                onChange={(e) => setRegisterPassword(e.target.value)}
-                placeholder="Mínimo 6 caracteres"
-                className="w-full rounded-xl border border-white/10 bg-white/5 px-4 py-3 text-sm placeholder-white/40 focus:border-indigo-400 focus:ring-2 focus:ring-indigo-500/40"
-              />
-              {registerError && <p className="text-sm text-red-400">{registerError}</p>}
-              {registerNotice && (
-                <p className="text-sm text-emerald-400">{registerNotice}</p>
-              )}
-              <button
-                type="submit"
-                disabled={isRegistering}
-                className="flex items-center justify-center gap-2 w-full rounded-xl bg-gradient-to-r from-indigo-500 to-fuchsia-500 px-4 py-3 text-sm font-semibold shadow-lg transition hover:scale-[1.02]"
-              >
-                {isRegistering ? (
-                  <>
-                    <Spinner /> Creando cuenta...
-                  </>
-                ) : (
-                  "Registrarme"
-                )}
-              </button>
-            </motion.form>
-          ) : (
-            <motion.form
-              key="recover"
-              initial={{ opacity: 0, y: 30 }}
-              animate={{ opacity: 1, y: 0 }}
-              exit={{ opacity: 0, y: -30 }}
-              transition={{ duration: 0.35, ease: "easeOut" }}
-              onSubmit={handleRecover}
-              className="absolute inset-0 flex h-full w-full flex-col justify-between space-y-5"
-            >
-              <div className="space-y-4">
-                <h2 className="text-3xl font-bold text-center bg-gradient-to-r from-cyan-400 to-blue-400 bg-clip-text text-transparent">
-                  Recupera tu acceso
-                </h2>
-                <p className="text-center text-sm text-white/70">
-                  Introduce tu correo y te enviaremos un enlace seguro para restablecer la contraseña.
-                </p>
-                <input
-                  type="email"
-                  value={resetEmail}
-                  onChange={(event) => setResetEmail(event.target.value)}
-                  placeholder="tu@empresa.com"
-                  className="w-full rounded-xl border border-white/10 bg-white/5 px-4 py-3 text-sm placeholder-white/40 focus:border-cyan-400 focus:ring-2 focus:ring-cyan-500/40"
-                />
-                {resetError && <p className="text-sm text-red-400">{resetError}</p>}
-                {resetNotice && <p className="text-sm text-emerald-400">{resetNotice}</p>}
-              </div>
-              <div className="space-y-3">
-                <button
-                  type="submit"
-                  disabled={isResetting}
-                  className="flex items-center justify-center gap-2 w-full rounded-xl bg-gradient-to-r from-cyan-500 to-blue-500 px-4 py-3 text-sm font-semibold shadow-lg transition hover:scale-[1.02]"
-                >
-                  {isResetting ? (
-                    <>
-                      <Spinner /> Enviando instrucciones...
-                    </>
-                  ) : (
-                    "Enviar enlace de recuperación"
-                  )}
-                </button>
-                <button
-                  type="button"
-                  onClick={sendRecoveryByCode}
-                  disabled={isResetting}
-                  className="w-full text-center text-xs font-semibold text-cyan-300/90 underline-offset-4 hover:underline disabled:opacity-50"
-                >
-                  ¿El enlace no funciona? Envíame un código por correo
-                </button>
-                <button
-                  type="button"
-                  onClick={() => handleFormChange("login")}
-                  className="w-full text-center text-xs font-semibold text-white/60 underline-offset-4 hover:underline"
-                >
-                  Volver al inicio de sesión
-                </button>
-              </div>
-            </motion.form>
-          )}
-        </AnimatePresence>
+        {loginError && (
+          <p className="text-sm text-center text-red-400">
+            {loginError}
+          </p>
+        )}
+
+        <button
+          type="button"
+          onClick={handleGoogleLogin}
+          disabled={isLoggingIn}
+          className="flex items-center justify-center gap-2 w-full rounded-xl border border-white/15 bg-white/5 px-4 py-3 text-sm font-semibold text-white/80 transition hover:border-white/30 hover:bg-white/10 disabled:opacity-60"
+        >
+          {isLoggingIn ? <Spinner /> : null}
+          <span>{isLoggingIn ? "Redirigiendo a Google..." : "Continuar con Google"}</span>
+        </button>
+
+        <p className="text-center text-xs text-white/40">
+          Al continuar aceptas que Planloop use tu correo de Google para crear o acceder a tu
+          cuenta. No almacenamos tu contraseña.
+        </p>
       </div>
 
       {hasActiveUsers && (
@@ -557,7 +373,7 @@ export default function UserAuthPanel({
       )}
 
       <p className="mt-10 text-center text-[11px] tracking-[0.3em] text-white/40">
-        Diseñado por Esteban Gamboa 
+        Diseñado por Esteban Gamboa
       </p>
     </div>
   )

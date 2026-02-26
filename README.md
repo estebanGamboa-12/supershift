@@ -33,7 +33,9 @@ Variables disponibles:
 - `NEXT_PUBLIC_SUPABASE_URL`: URL del proyecto Supabase si deseas habilitar integraciones desde el cliente
 - `NEXT_PUBLIC_SUPABASE_ANON_KEY`: clave pública (anon) del proyecto Supabase
 - `NEXT_PUBLIC_VAPID_PUBLIC_KEY`: (opcional) clave pública VAPID para notificaciones push. Genera un par con `npx web-push generate-vapid-keys` y pon la clave pública aquí
-- `NEXT_PUBLIC_SITE_URL` o `SITE_URL`: (recomendado para recuperación de contraseña) URL base de la app (ej. `https://tudominio.com` o `http://localhost:3000`). El correo de recuperación enviará un enlace a `{SITE_URL}/auth/callback`. En el dashboard de Supabase (Authentication → URL Configuration) añade esa URL en **Redirect URLs** (ej. `https://tudominio.com/auth/callback`).
+- `NEXT_PUBLIC_APP_URL`: (producción) URL de la app cuando usas subdominios. Ejemplo: `https://app.planloop.app`. La landing (planloop.app) enlaza a esta URL para "Crear cuenta" e "Entrar".
+- `NEXT_PUBLIC_SITE`: (opcional, solo desarrollo) Si vale `landing`, en localhost se muestra la landing en lugar de la app. Por defecto se muestra la app.
+- `NEXT_PUBLIC_SITE_URL` o `SITE_URL`: (recomendado para recuperación de contraseña) URL base de la app (ej. `https://app.planloop.app` o `http://localhost:3000`). El correo de recuperación enviará un enlace a `{SITE_URL}/auth/callback`. En el dashboard de Supabase (Authentication → URL Configuration) añade en **Redirect URLs** tanto la de producción (`https://app.planloop.app/auth/callback`) como la de desarrollo (`http://localhost:3000/auth/callback`).
 
 ### Usuarios de ejemplo
 
@@ -72,7 +74,22 @@ Inicia el servidor de desarrollo de Next.js:
 npm run dev
 ```
 
-Accede a [http://localhost:3000](http://localhost:3000) para ver la aplicación.
+Accede a [http://localhost:3000](http://localhost:3000) para ver la aplicación (dashboard). Para ver la landing en local, ejecuta con `NEXT_PUBLIC_SITE=landing npm run dev` y abre la misma URL.
+
+### Despliegue con subdominios (planloop.app + app.planloop.app)
+
+Un mismo despliegue (p. ej. Vercel) puede atender dos dominios:
+
+- **planloop.app** (y www.planloop.app) → muestra la landing (qué es Planloop, precios, enlaces a la app).
+- **app.planloop.app** → muestra la aplicación (calendario, turnos, auth, etc.).
+
+Configura en tu hosting:
+
+1. Añade ambos dominios al proyecto (planloop.app y app.planloop.app).
+2. Define `NEXT_PUBLIC_APP_URL=https://app.planloop.app` en las variables de entorno de producción.
+3. En Supabase (Authentication → URL Configuration), incluye `https://app.planloop.app/auth/callback` en Redirect URLs.
+
+Los botones "Crear cuenta" e "Entrar" de la landing apuntan a app.planloop.app. El pago (cuando lo implementes) se hace dentro de la app.
 
 ## API interna
 

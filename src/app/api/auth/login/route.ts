@@ -85,6 +85,7 @@ export async function POST(request: Request) {
       userId,
       name: profile.name,
       email: profile.email,
+      isNewUser: profile.isNewUser,
     })
 
     return NextResponse.json({
@@ -122,30 +123,45 @@ async function sendLoginEmailsIfConfigured({
   userId,
   name,
   email,
+  isNewUser,
 }: {
   supabase: SupabaseAdmin
   userId: string
   name: string
   email: string
+  isNewUser: boolean
 }): Promise<void> {
-  const hasEmailConfig =
-    (process.env.BREVO_API_KEY || process.env.RESEND_API_KEY) &&
-    (process.env.EMAIL_FROM ?? process.env.BREVO_SENDER_EMAIL ?? process.env.RESEND_FROM)
-  if (!hasEmailConfig || !email) {
+  const hasBrevo = Boolean(process.env.BREVO_API_KEY)
+  const hasResend = Boolean(process.env.RESEND_API_KEY)
+  const hasFrom =
+    Boolean(process.env.EMAIL_FROM ?? process.env.BREVO_SENDER_EMAIL ?? process.env.RESEND_FROM)
+  if ((!hasBrevo && !hasResend) || !hasFrom || !email) {
+    if (!email) return
+    console.warn(
+      "[Planloop] Correos de login no enviados: falta BREVO_API_KEY o RESEND_API_KEY y EMAIL_FROM (o BREVO_SENDER_EMAIL).",
+    )
     return
   }
 
+  const appUrl = getAppUrl()
+  let shouldSendWelcome = isNewUser
+
+  if (!shouldSendWelcome) {
+    try {
+      const { data: userRow } = await supabase
+        .from("users")
+        .select("welcome_email_sent_at")
+        .eq("id", userId)
+        .maybeSingle()
+      shouldSendWelcome = userRow?.welcome_email_sent_at == null
+    } catch (e) {
+      console.warn("[Planloop] No se pudo leer welcome_email_sent_at, se enviará bienvenida si es primera vez:", e)
+      shouldSendWelcome = isNewUser
+    }
+  }
+
   try {
-    const { data: userRow } = await supabase
-      .from("users")
-      .select("welcome_email_sent_at")
-      .eq("id", userId)
-      .maybeSingle()
-
-    const welcomeAlreadySent = userRow?.welcome_email_sent_at != null
-    const appUrl = getAppUrl()
-
-    if (!welcomeAlreadySent) {
+    if (shouldSendWelcome) {
       const welcome = buildWelcomeEmail({ name, email, appUrl })
       await sendEmail({
         to: email,
@@ -153,17 +169,21 @@ async function sendLoginEmailsIfConfigured({
         html: welcome.html,
         text: welcome.text,
       })
-      await supabase
-        .from("users")
-        .update({ welcome_email_sent_at: new Date().toISOString() })
-        .eq("id", userId)
+      try {
+        await supabase
+          .from("users")
+          .update({ welcome_email_sent_at: new Date().toISOString() })
+          .eq("id", userId)
+      } catch (updateErr) {
+        console.warn("[Planloop] No se pudo actualizar welcome_email_sent_at (¿migración aplicada?):", updateErr)
+      }
     }
 
     const sessionEmail = buildSessionStartedEmail({
       name,
       email,
       appUrl,
-      isFirstTime: !welcomeAlreadySent,
+      isFirstTime: shouldSendWelcome,
     })
     await sendEmail({
       to: email,
@@ -172,7 +192,7 @@ async function sendLoginEmailsIfConfigured({
       text: sessionEmail.text,
     })
   } catch (err) {
-    console.error("Error enviando correos de login/bienvenida (login sigue OK):", err)
+    console.error("[Planloop] Error enviando correos de login/bienvenida (login sigue OK):", err)
   }
 }
 
@@ -197,6 +217,7 @@ async function ensureUserProfile({
   email: string
   timezone: string
   avatarUrl: string | null
+  isNewUser: boolean
 }> {
   const { data: existingProfile, error: profileError } = await supabase
     .from("users")
@@ -249,6 +270,7 @@ async function ensureUserProfile({
         normalizeText(created?.timezone) ?? profileTimezone ?? "Europe/Madrid",
       avatarUrl:
         normalizeText(created?.avatar_url) ?? profileAvatar ?? null,
+      isNewUser: true,
     }
   }
 
@@ -287,6 +309,7 @@ async function ensureUserProfile({
         normalizeText(updated?.timezone) ?? profileTimezone ?? "Europe/Madrid",
       avatarUrl:
         normalizeText(updated?.avatar_url) ?? profileAvatar ?? null,
+      isNewUser: false,
     }
   }
 
@@ -295,6 +318,7 @@ async function ensureUserProfile({
     email: profileEmail,
     timezone: profileTimezone,
     avatarUrl: profileAvatar ?? null,
+    isNewUser: false,
   }
 }
 

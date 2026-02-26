@@ -21,7 +21,7 @@ export default function PricingPage() {
             Regístrate gratis y prueba el calendario, los extras y los reportes. Sin tarjeta para empezar.
           </p>
           <a
-            href={`${APP_URL}/auth/register`}
+            href={`${APP_URL}/`}
             className="mt-6 inline-flex w-full items-center justify-center rounded-full bg-sky-500 px-6 py-3 font-semibold text-white shadow-lg shadow-sky-500/25 transition hover:bg-sky-400 sm:w-auto"
           >
             Crear cuenta

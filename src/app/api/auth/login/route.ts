@@ -135,10 +135,11 @@ async function sendLoginEmailsIfConfigured({
   if ((!hasBrevo && !hasResend) || !hasFrom || !email) {
     if (!email) return
     console.warn(
-      "[Planloop] Correos de login no enviados: falta BREVO_API_KEY o RESEND_API_KEY y EMAIL_FROM (o BREVO_SENDER_EMAIL).",
+      "[Planloop] Correos de login no enviados: falta BREVO_API_KEY o RESEND_API_KEY y/o EMAIL_FROM (o BREVO_SENDER_EMAIL).",
     )
     return
   }
+  console.log("[Planloop] Envío de correos de login configurado; procesando bienvenida/sesión para", email)
 
   const appUrl = getAppUrl()
   const nowIso = new Date().toISOString()
@@ -146,7 +147,7 @@ async function sendLoginEmailsIfConfigured({
   // Solo UN request puede “ganar” y enviar cada correo: hacemos UPDATE con condición y solo si
   // devuelve una fila enviamos. Así no hay carrera entre 10 llamadas simultáneas.
 
-  let welcomeClaimed = false
+  let shouldSendWelcome = false
   try {
     const { data } = await supabase
       .from("users")
@@ -155,28 +156,53 @@ async function sendLoginEmailsIfConfigured({
       .is("welcome_email_sent_at", null)
       .select("id")
       .maybeSingle()
-    welcomeClaimed = data != null
+    shouldSendWelcome = data != null
   } catch {
-    // Columna puede no existir
+    // ignore
+  }
+  if (!shouldSendWelcome) {
+    const { data: row } = await supabase
+      .from("users")
+      .select("welcome_email_sent_at")
+      .eq("id", userId)
+      .maybeSingle()
+    if (row?.welcome_email_sent_at == null) {
+      shouldSendWelcome = true
+      await supabase.from("users").update({ welcome_email_sent_at: nowIso }).eq("id", userId)
+    }
   }
 
-  let sessionClaimed = false
+  const twoHundredHoursAgoMs = Date.now() - 200 * 60 * 60 * 1000
+  let shouldSendSession = false
   try {
-    const twoHundredHoursAgo = new Date(Date.now() - 200 * 60 * 60 * 1000).toISOString()
+    const twoHundredHoursAgoIso = new Date(twoHundredHoursAgoMs).toISOString()
     const { data } = await supabase
       .from("users")
       .update({ last_session_email_sent_at: nowIso })
       .eq("id", userId)
-      .or(`last_session_email_sent_at.is.null,last_session_email_sent_at.lt.${twoHundredHoursAgo}`)
+      .or(`last_session_email_sent_at.is.null,last_session_email_sent_at.lt.${twoHundredHoursAgoIso}`)
       .select("id")
       .maybeSingle()
-    sessionClaimed = data != null
+    shouldSendSession = data != null
   } catch {
-    // Columna puede no existir: no enviamos sesión para no repetir
+    // ignore
+  }
+  if (!shouldSendSession) {
+    const { data: row } = await supabase
+      .from("users")
+      .select("last_session_email_sent_at")
+      .eq("id", userId)
+      .maybeSingle()
+    const last = row?.last_session_email_sent_at
+    if (last == null || new Date(last).getTime() < twoHundredHoursAgoMs) {
+      shouldSendSession = true
+      await supabase.from("users").update({ last_session_email_sent_at: nowIso }).eq("id", userId)
+    }
   }
 
   try {
-    if (welcomeClaimed) {
+    if (shouldSendWelcome) {
+      console.log("[Planloop] Enviando correo de bienvenida a", email)
       const welcome = buildWelcomeEmail({ name, email, appUrl })
       await sendEmail({
         to: email,
@@ -186,12 +212,13 @@ async function sendLoginEmailsIfConfigured({
       })
     }
 
-    if (sessionClaimed) {
+    if (shouldSendSession) {
+      console.log("[Planloop] Enviando correo de sesión iniciada a", email)
       const sessionEmail = buildSessionStartedEmail({
         name,
         email,
         appUrl,
-        isFirstTime: welcomeClaimed,
+        isFirstTime: shouldSendWelcome,
       })
       await sendEmail({
         to: email,
@@ -255,20 +282,26 @@ async function ensureUserProfile({
   }
 
   if (!existingProfile) {
-    const { data: created, error: createError } = await supabase
+    const row = {
+      id: userId,
+      name: profileName,
+      email: profileEmail,
+      timezone: profileTimezone,
+      avatar_url: profileAvatar,
+    }
+    const { data: created, error: upsertError } = await supabase
       .from("users")
-      .insert({
-        id: userId,
-        name: profileName,
-        email: profileEmail,
-        timezone: profileTimezone,
-        avatar_url: profileAvatar,
-      })
+      .upsert(row, { onConflict: "id" })
       .select("name, email, timezone, avatar_url")
       .maybeSingle()
 
-    if (createError) {
-      console.error("Error creando el perfil de usuario en Supabase", createError)
+    if (upsertError) {
+      console.error(
+        "[Planloop] Error creando/actualizando perfil en Supabase:",
+        upsertError.code,
+        upsertError.message,
+        upsertError.details,
+      )
       throw new Error("No se pudo preparar el perfil del usuario")
     }
 

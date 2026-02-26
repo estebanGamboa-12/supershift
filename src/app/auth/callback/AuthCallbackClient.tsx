@@ -229,16 +229,37 @@ export default function AuthCallbackClient() {
         }
       }
 
+      // Si no hay tokens en la URL pero ya hay sesión (p. ej. Supabase la guardó por cookie), ir al inicio
+      if ((!accessToken || !refreshToken) && supabase) {
+        const { data: sessionData } = await supabase.auth.getSession()
+        if (sessionData?.session?.access_token) {
+          try {
+            const loggedUser = await exchangeAccessToken(sessionData.session.access_token)
+            if (!isActive) return
+            setUser(loggedUser)
+            setState({
+              status: "success",
+              title: "Sesión iniciada",
+              message: "Redirigiendo al panel...",
+            })
+            redirectTimer = window.setTimeout(() => router.replace("/"), 800)
+          } catch {
+            // Si falla exchange, seguir y mostrar error de “faltan datos” abajo
+          }
+          return
+        }
+      }
+
       if (!accessToken) {
         const siteUrl =
-          typeof window !== "undefined" ? window.location.origin : "https://planloop.app"
+          typeof window !== "undefined" ? window.location.origin : "https://app.planloop.app"
         const callbackUrl = `${siteUrl}/auth/callback`
         setState({
           status: "error",
           title: "Faltan datos en el enlace",
           message:
-            "El enlace no trajo el código de verificación. En Supabase: Authentication → URL Configuration → Redirect URLs, añade esta URL (cópiala tal cual, sin barra final):",
-          details: `${callbackUrl}\n\nDespués guarda, pide otro correo de recuperación y abre el enlace en una sola pestaña.`,
+            "El enlace no trajo el código de verificación. En Supabase: Authentication → URL Configuration → Redirect URLs debe estar exactamente esta URL (sin barra final):",
+          details: callbackUrl,
         })
         return
       }

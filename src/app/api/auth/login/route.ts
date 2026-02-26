@@ -80,7 +80,7 @@ export async function POST(request: Request) {
       )
     }
 
-    await sendLoginEmailsIfConfigured({
+    void sendLoginEmailsIfConfigured({
       supabase,
       userId,
       name: profile.name,

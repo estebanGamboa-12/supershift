@@ -245,3 +245,144 @@ export function buildPasswordResetCodeEmail({
 
   return { subject, html, text }
 }
+
+export function buildWelcomeEmail({
+  name,
+  email,
+  appUrl,
+}: {
+  name: string
+  email: string
+  appUrl: string
+}): { subject: string; html: string; text: string } {
+  const displayName = name.trim() || email.split("@")[0] || "there"
+  const subject = "¡Bienvenido a Planloop!"
+  const safeName = escapeHtml(displayName)
+  const safeUrl = escapeHtml(appUrl)
+
+  const html = `<!DOCTYPE html>
+<html lang="es" style="margin:0;padding:0;">
+  <head>
+    <meta charSet="utf-8" />
+    <title>${subject}</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+  </head>
+  <body style="margin:0;padding:0;background:${BRAND_DARK};font-family:'Inter',system-ui,sans-serif;color:#f8fafc;">
+    <table role="presentation" width="100%" style="border-collapse:collapse;">
+      <tr>
+        <td align="center" style="padding:48px 16px;">
+          <table role="presentation" width="100%" style="max-width:560px;border-radius:24px;background:linear-gradient(160deg, rgba(99,102,241,0.12), rgba(15,23,42,0.92));padding:48px 40px;border:1px solid rgba(148,163,184,0.12);">
+            <tr>
+              <td style="text-align:center;padding-bottom:32px;">
+                <div style="display:inline-flex;align-items:center;justify-content:center;width:72px;height:72px;border-radius:20px;border:1px solid rgba(148,163,184,0.2);background:rgba(99,102,241,0.08);">
+                  <span style="font-size:34px;font-weight:700;color:${BRAND_ACCENT};">PL</span>
+                </div>
+              </td>
+            </tr>
+            <tr>
+              <td style="text-align:center;padding-bottom:8px;">
+                <h1 style="margin:0;font-size:26px;line-height:1.4;color:#e2e8f0;">¡Hola ${safeName}!</h1>
+              </td>
+            </tr>
+            <tr>
+              <td style="text-align:center;padding-bottom:24px;">
+                <p style="margin:0;font-size:16px;line-height:1.7;color:#cbd5f5;">
+                  Tu cuenta en <strong style="color:${BRAND_ACCENT};">Planloop</strong> está lista. Ya puedes organizar turnos, calendarios y equipos desde un solo sitio.
+                </p>
+              </td>
+            </tr>
+            <tr>
+              <td style="text-align:center;padding-bottom:32px;">
+                <a href="${safeUrl}" style="display:inline-block;padding:16px 32px;border-radius:999px;background:${BRAND_PRIMARY};color:#f8fafc;font-weight:600;font-size:16px;text-decoration:none;">
+                  Ir al panel
+                </a>
+              </td>
+            </tr>
+            <tr>
+              <td style="text-align:center;padding-top:24px;border-top:1px solid rgba(148,163,184,0.18);">
+                <p style="margin:0;font-size:12px;color:#64748b;">Si tienes dudas, responde a este correo.</p>
+              </td>
+            </tr>
+          </table>
+        </td>
+      </tr>
+    </table>
+  </body>
+</html>`
+
+  const text = `¡Hola ${displayName}!\n\nTu cuenta en Planloop está lista. Entra aquí para empezar:\n${appUrl}\n\nSi tienes dudas, responde a este correo.`
+
+  return { subject, html, text }
+}
+
+export function buildSessionStartedEmail({
+  name,
+  email,
+  appUrl,
+  isFirstTime,
+}: {
+  name: string
+  email: string
+  appUrl: string
+  isFirstTime?: boolean
+}): { subject: string; html: string; text: string } {
+  const displayName = name.trim() || email.split("@")[0] || "there"
+  const subject = isFirstTime
+    ? "Tu sesión en Planloop está activa"
+    : "Has iniciado sesión en Planloop"
+  const safeName = escapeHtml(displayName)
+  const safeUrl = escapeHtml(appUrl)
+  const message = isFirstTime
+    ? "Acabas de activar tu cuenta. Tu sesión ya está activa y puedes usar el panel cuando quieras."
+    : "Se ha detectado un nuevo inicio de sesión en tu cuenta de Planloop. Si fuiste tú, no hace falta que hagas nada."
+
+  const html = `<!DOCTYPE html>
+<html lang="es" style="margin:0;padding:0;">
+  <head>
+    <meta charSet="utf-8" />
+    <title>${subject}</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+  </head>
+  <body style="margin:0;padding:0;background:${BRAND_DARK};font-family:'Inter',system-ui,sans-serif;color:#f8fafc;">
+    <table role="presentation" width="100%" style="border-collapse:collapse;">
+      <tr>
+        <td align="center" style="padding:48px 16px;">
+          <table role="presentation" width="100%" style="max-width:560px;border-radius:24px;background:linear-gradient(160deg, rgba(99,102,241,0.12), rgba(15,23,42,0.92));padding:48px 40px;border:1px solid rgba(148,163,184,0.12);">
+            <tr>
+              <td style="text-align:center;padding-bottom:24px;">
+                <h1 style="margin:0;font-size:22px;line-height:1.4;color:#e2e8f0;">${subject}</h1>
+              </td>
+            </tr>
+            <tr>
+              <td style="text-align:center;padding-bottom:16px;">
+                <p style="margin:0;font-size:16px;line-height:1.7;color:#cbd5f5;">Hola ${safeName},</p>
+              </td>
+            </tr>
+            <tr>
+              <td style="text-align:center;padding-bottom:24px;">
+                <p style="margin:0;font-size:15px;line-height:1.7;color:#cbd5f5;">${message}</p>
+              </td>
+            </tr>
+            <tr>
+              <td style="text-align:center;padding-bottom:24px;">
+                <a href="${safeUrl}" style="display:inline-block;padding:14px 28px;border-radius:999px;background:${BRAND_PRIMARY};color:#f8fafc;font-weight:600;font-size:14px;text-decoration:none;">
+                  Abrir Planloop
+                </a>
+              </td>
+            </tr>
+            <tr>
+              <td style="text-align:center;padding-top:24px;border-top:1px solid rgba(148,163,184,0.18);">
+                <p style="margin:0;font-size:12px;color:#64748b;">Si no has sido tú, te recomendamos cambiar tu contraseña o revisar el acceso a tu cuenta de Google.</p>
+              </td>
+            </tr>
+          </table>
+        </td>
+      </tr>
+    </table>
+  </body>
+</html>`
+
+  const text = `Hola ${displayName},\n\n${message}\n\nAbrir Planloop: ${appUrl}\n\nSi no has sido tú, revisa el acceso a tu cuenta.`
+
+  return { subject, html, text }
+}

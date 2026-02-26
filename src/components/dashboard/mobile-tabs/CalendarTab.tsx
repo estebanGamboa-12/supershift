@@ -44,6 +44,8 @@ type CalendarTabProps = CalendarSidebarProps & {
   userId?: string | null
   isLoadingShifts?: boolean
   shiftTemplates?: ShiftTemplate[]
+  /** Inicio de semana para el calendario: "monday" | "sunday" */
+  startOfWeek?: "monday" | "sunday"
 }
 
 /** Skeleton para el área del calendario/día mientras cargan los turnos */
@@ -172,6 +174,7 @@ const CalendarTab: FC<CalendarTabProps> = ({
   userId = null,
   isLoadingShifts = false,
   shiftTemplates = [],
+  startOfWeek = "monday",
 }) => {
   const [currentMonth, setCurrentMonth] = useState(() => startOfMonth(new Date()))
   const [selectedDate, setSelectedDate] = useState<Date | null>(() => new Date())
@@ -283,7 +286,6 @@ const CalendarTab: FC<CalendarTabProps> = ({
               selectedDate={selectedDate}
               onSelectDate={(date) => {
                 setSelectedDate(date)
-                // Cerrar sidebar en móviles al seleccionar fecha
                 if (isMobile) {
                   setIsSidebarOpen(false)
                 }
@@ -292,6 +294,7 @@ const CalendarTab: FC<CalendarTabProps> = ({
               onNextMonth={handleNextMonth}
               onGoToday={handleGoToday}
               shifts={orderedShifts}
+              weekStartsOn={startOfWeek === "sunday" ? 0 : 1}
             />
           </div>
           <div className="mt-1 flex flex-col gap-1 px-1">
@@ -367,6 +370,7 @@ const CalendarTab: FC<CalendarTabProps> = ({
             errorMessage={plannerError}
             userId={userId}
             shiftTemplates={shiftTemplates ?? []}
+            startOfWeek={startOfWeek}
           />
         ) : (
           <DayView

@@ -13,15 +13,6 @@ import { ChevronRight } from "lucide-react"
 import { POPULAR_TIMEZONES } from "@/data/timezones"
 import { DEFAULT_USER_PREFERENCES, type UserPreferences } from "@/types/preferences"
 import type { UserProfileHistoryEntry, UserSummary } from "@/types/users"
-import {
-  enablePushNotifications,
-  disablePushNotifications,
-} from "@/lib/push-client"
-import {
-  enableShiftReminders,
-  disableShiftReminders,
-} from "@/lib/reminders-client"
-
 export { DEFAULT_USER_PREFERENCES }
 export type { UserPreferences }
 
@@ -120,14 +111,20 @@ const ConfigurationPanel: FC<ConfigurationPanelProps> = ({
   const fileInputRef = useRef<HTMLInputElement>(null)
 
   const [integrationStatus, setIntegrationStatus] = useState<
-    | {
-        tone: "success" | "error"
-        message: string
-      }
+    | { tone: "success" | "error"; message: string }
     | null
   >(null)
   const [isSyncingCalendar, setIsSyncingCalendar] = useState(false)
   const [isExportingMonthlyReport, setIsExportingMonthlyReport] = useState(false)
+  const [syncMonth, setSyncMonth] = useState(() => {
+    const d = new Date()
+    return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`
+  })
+  const [reportMonth, setReportMonth] = useState(() => {
+    const d = new Date()
+    return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`
+  })
+  const [reportFormat, setReportFormat] = useState<"html" | "pdf">("html")
 
   useEffect(() => {
     setPreferences(defaultPreferences)
@@ -204,57 +201,12 @@ const ConfigurationPanel: FC<ConfigurationPanelProps> = ({
     previewWindow.document.close()
   }
 
-  async function handleNotificationIntegration(
-    field: keyof UserPreferences["notifications"],
-    enabled: boolean,
-  ) {
-    if (field === "push") {
-      const result = enabled
-        ? await enablePushNotifications({ userId: user?.id ?? null })
-        : await disablePushNotifications()
-      setIntegrationStatus({
-        tone: result.ok ? "success" : "error",
-        message: result.message,
-      })
-      return
-    }
-
-    if (field === "reminders") {
-      const advanceMinutes = preferences.notifications.reminderMinutesBefore ?? 30
-      const result = enabled
-        ? await enableShiftReminders({ userId: user?.id ?? null, advanceMinutes })
-        : disableShiftReminders()
-      setIntegrationStatus({
-        tone: result.ok ? "success" : "error",
-        message: result.message,
-      })
-    }
-  }
-
   function resetPreferenceFeedback() {
     if (status !== "idle") {
       setStatus("idle")
     }
     if (errorMessage) {
       setErrorMessage(null)
-    }
-  }
-
-  function handleToggle(field: keyof UserPreferences["notifications"]) {
-    resetPreferenceFeedback()
-    setPreferences((current) => ({
-      ...current,
-      notifications: {
-        ...current.notifications,
-        [field]: !current.notifications[field],
-      },
-    }))
-
-    if (field === "push" || field === "reminders") {
-      const nextValue = !preferences.notifications[field]
-      queueMicrotask(() => {
-        void handleNotificationIntegration(field, nextValue)
-      })
     }
   }
 
@@ -320,6 +272,7 @@ const ConfigurationPanel: FC<ConfigurationPanelProps> = ({
           userId: user?.id ?? null,
           timezone: profileForm.timezone ?? user?.timezone ?? DEFAULT_TIMEZONE,
           calendarName: user?.name ? `Turnos de ${user.name}` : undefined,
+          month: syncMonth,
         }),
       })
 
@@ -383,20 +336,15 @@ const ConfigurationPanel: FC<ConfigurationPanelProps> = ({
     setIsExportingMonthlyReport(true)
 
     try {
-      const now = new Date()
-      const month = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}`
-
       const response = await fetch("/api/reports/monthly", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           userId: user?.id ?? null,
-          email:
-            preferences.notifications.email && user?.email
-              ? user.email
-              : null,
           userName: user?.name ?? null,
-          month,
+          userEmail: user?.email ?? null,
+          month: reportMonth,
+          format: reportFormat,
         }),
       })
 
@@ -410,7 +358,12 @@ const ConfigurationPanel: FC<ConfigurationPanelProps> = ({
         )
       }
 
-      if (typeof payload.html !== "string" || payload.html.length === 0) {
+      const htmlB64 = typeof payload.html === "string" ? payload.html : null
+      const pdfB64 = typeof payload.pdf === "string" ? payload.pdf : null
+      const hasHtml = htmlB64 && htmlB64.length > 0
+      const hasPdf = pdfB64 && pdfB64.length > 0
+
+      if (!hasHtml && !hasPdf) {
         setIntegrationStatus({
           tone: "error",
           message: "El informe mensual no devolvió datos para descargar.",
@@ -418,37 +371,32 @@ const ConfigurationPanel: FC<ConfigurationPanelProps> = ({
         return
       }
 
-      const fileName =
-        typeof payload.fileName === "string" && payload.fileName.trim().length > 0
-          ? payload.fileName.trim()
-          : `informe-supershift-${month}.html`
+      const baseName = typeof payload.fileName === "string" && payload.fileName.trim().length > 0
+        ? payload.fileName.replace(/\.(html|pdf)$/i, "").trim()
+        : `informe-supershift-${reportMonth}`
 
-      const bytes = decodeBase64ToUint8Array(payload.html)
-      const safeBuffer = copyToArrayBuffer(bytes)
-      const blob = new Blob([safeBuffer], { type: "text/html;charset=utf-8" })
-      triggerDownload(fileName, blob)
-
-      try {
-        const htmlPreview = decodeBase64ToString(payload.html)
-        openHtmlPreview(htmlPreview)
-      } catch (previewError) {
-        console.warn("No se pudo abrir la vista previa del informe", previewError)
-      }
-
-      const emailError = typeof payload.emailError === "string" ? payload.emailError : null
-      const emailSent = Boolean(payload.emailSent)
-
-      let message = emailSent
-        ? "Te enviamos el informe por correo y lo descargamos en este dispositivo."
-        : "Descargamos el informe mensual en este dispositivo."
-
-      if (emailError) {
-        message = `${message} No se pudo enviar el correo automático: ${emailError}`
+      if (reportFormat === "pdf" && hasPdf) {
+        const fileName = `${baseName}.pdf`
+        const bytes = decodeBase64ToUint8Array(pdfB64)
+        const safeBuffer = copyToArrayBuffer(bytes)
+        const blob = new Blob([safeBuffer], { type: "application/pdf" })
+        triggerDownload(fileName, blob)
+      } else if (hasHtml) {
+        const fileName = `${baseName}.html`
+        const bytes = decodeBase64ToUint8Array(htmlB64)
+        const safeBuffer = copyToArrayBuffer(bytes)
+        const blob = new Blob([safeBuffer], { type: "text/html;charset=utf-8" })
+        triggerDownload(fileName, blob)
+        try {
+          openHtmlPreview(decodeBase64ToString(htmlB64))
+        } catch (previewError) {
+          console.warn("No se pudo abrir la vista previa del informe", previewError)
+        }
       }
 
       setIntegrationStatus({
-        tone: emailError ? "error" : "success",
-        message,
+        tone: "success",
+        message: "Informe mensual descargado correctamente.",
       })
     } catch (error) {
       setIntegrationStatus({
@@ -692,18 +640,6 @@ const ConfigurationPanel: FC<ConfigurationPanelProps> = ({
                       placeholder="Tu nombre para el equipo"
                       disabled={!canEditProfile || isSavingProfile}
                       className="mt-2 w-full rounded-2xl bg-white/5 px-3 py-2 text-sm text-white placeholder:text-white/40 focus:outline-none focus:ring-2 focus:ring-sky-500/60 disabled:cursor-not-allowed disabled:opacity-60"
-                    />
-                  </label>
-
-                  <label className="block">
-                    <span className="text-xs uppercase tracking-wide text-white/40">
-                      Correo electrónico
-                    </span>
-                    <input
-                      type="email"
-                      value={profileForm.email}
-                      readOnly
-                      className="mt-2 w-full cursor-not-allowed rounded-2xl bg-white/5 px-3 py-2 text-sm text-white/70"
                     />
                   </label>
 
@@ -960,125 +896,101 @@ const ConfigurationPanel: FC<ConfigurationPanelProps> = ({
             <section className="space-y-4">
               <header>
                 <p className="text-xs uppercase tracking-[0.35em] text-white/40">
-                  Notificaciones
-                </p>
-                <h3 className="mt-3 text-xl font-semibold text-white">
-                  Mantente informado
-                </h3>
-              </header>
-
-              <div className="space-y-3 text-sm text-white/70">
-                <label className="flex items-center justify-between gap-4 rounded-2xl bg-white/5 px-4 py-3">
-                  <div>
-                    <p className="font-semibold text-white">Correo electrónico</p>
-                    <p className="text-xs text-white/50">Recibe un resumen semanal con los turnos asignados.</p>
-                  </div>
-                  <input
-                    type="checkbox"
-                    checked={preferences.notifications.email}
-                    onChange={() => handleToggle("email")}
-                    className="h-6 w-11 cursor-pointer rounded-full bg-slate-900/60 transition-all checked:bg-sky-500"
-                  />
-                </label>
-
-                <label className="flex items-center justify-between gap-4 rounded-2xl bg-white/5 px-4 py-3">
-                  <div>
-                    <p className="font-semibold text-white">Avisos push</p>
-                    <p className="text-xs text-white/50">Entérate de cambios críticos en tiempo real.</p>
-                  </div>
-                  <input
-                    type="checkbox"
-                    checked={preferences.notifications.push}
-                    onChange={() => handleToggle("push")}
-                    className="h-6 w-11 cursor-pointer rounded-full bg-slate-900/60 transition-all checked:bg-sky-500"
-                  />
-                </label>
-
-                <label className="flex items-center justify-between gap-4 rounded-2xl bg-white/5 px-4 py-3">
-                  <div>
-                    <p className="font-semibold text-white">Recordatorios</p>
-                    <p className="text-xs text-white/50">Recibe alertas antes de iniciar tu siguiente turno.</p>
-                  </div>
-                  <input
-                    type="checkbox"
-                    checked={preferences.notifications.reminders}
-                    onChange={() => handleToggle("reminders")}
-                    className="h-6 w-11 cursor-pointer rounded-full bg-slate-900/60 transition-all checked:bg-sky-500"
-                  />
-                </label>
-                {preferences.notifications.reminders ? (
-                  <div className="flex flex-wrap items-center gap-2 rounded-2xl bg-white/5 px-4 py-3">
-                    <p className="text-xs text-white/70">Avisar</p>
-                    {([15, 30, 60] as const).map((mins) => (
-                      <button
-                        key={mins}
-                        type="button"
-                        onClick={() => {
-                          const next = preferences.notifications.reminderMinutesBefore ?? 30
-                          if (next === mins) return
-                          setPreferences((curr) => ({
-                            ...curr,
-                            notifications: {
-                              ...curr.notifications,
-                              reminderMinutesBefore: mins,
-                            },
-                          }))
-                          queueMicrotask(() => {
-                            void enableShiftReminders({
-                              userId: user?.id ?? null,
-                              advanceMinutes: mins,
-                            }).then((result) => {
-                              setIntegrationStatus({
-                                tone: result.ok ? "success" : "error",
-                                message: result.message,
-                              })
-                            })
-                          })
-                        }}
-                        className={`rounded-full px-3 py-1 text-xs font-semibold transition ${
-                          (preferences.notifications.reminderMinutesBefore ?? 30) === mins
-                            ? "bg-sky-500 text-white"
-                            : "bg-white/10 text-white/70 hover:bg-white/15"
-                        }`}
-                      >
-                        {mins} min antes
-                      </button>
-                    ))}
-                  </div>
-                ) : null}
-              </div>
-            </section>
-
-            <section className="space-y-4">
-              <header>
-                <p className="text-xs uppercase tracking-[0.35em] text-white/40">
                   Integraciones
                 </p>
                 <h3 className="mt-3 text-xl font-semibold text-white">
                   Conecta tus herramientas
                 </h3>
               </header>
-              <div className="space-y-3 text-sm text-white/70">
-                <button
-                  type="button"
-                  onClick={handleSyncGoogleCalendar}
-                  disabled={isSyncingCalendar}
-                  aria-busy={isSyncingCalendar}
-                  className={`flex w-full items-center justify-between rounded-2xl bg-white/5 px-4 py-3 font-semibold uppercase tracking-wide transition hover:bg-white/10 hover:text-sky-200 disabled:cursor-not-allowed disabled:opacity-60 ${isSyncingCalendar ? "pointer-events-none" : ""}`}
-                >
-                  {isSyncingCalendar ? "Generando archivo..." : "Sincronizar con Google Calendar"}
-                  <span aria-hidden>→</span>
-                </button>
-                <button
-                  type="button"
-                  onClick={handleExportMonthlyReport}
-                  disabled={isExportingMonthlyReport}
-                  aria-busy={isExportingMonthlyReport}
-                  className={`flex w-full items-center justify-between rounded-2xl bg-white/5 px-4 py-3 font-semibold uppercase tracking-wide transition hover:bg-white/10 hover:text-sky-200 disabled:cursor-not-allowed disabled:opacity-60 ${isExportingMonthlyReport ? "pointer-events-none" : ""}`}
-                >
-                  {isExportingMonthlyReport ? "Preparando informe..." : "Exportar informe mensual (HTML/PDF)"}
-                  <span aria-hidden>→</span>
-                </button>
+              <div className="space-y-4 text-sm text-white/70">
+                <div className="rounded-2xl bg-white/5 px-4 py-3">
+                  <p className="mb-2 text-xs uppercase tracking-wide text-white/40">
+                    Sincronizar con Google Calendar
+                  </p>
+                  <p className="mb-2 text-xs text-white/50">
+                    Elige el mes a exportar (solo ese mes).
+                  </p>
+                  <select
+                    value={syncMonth}
+                    onChange={(e) => setSyncMonth(e.target.value)}
+                    className="mb-3 w-full rounded-xl bg-slate-900/60 px-3 py-2 text-sm text-white focus:outline-none focus:ring-2 focus:ring-sky-500/60"
+                    aria-label="Mes a sincronizar"
+                  >
+                    {(() => {
+                      const options: { value: string; label: string }[] = []
+                      const now = new Date()
+                      for (let i = -1; i <= 11; i++) {
+                        const d = new Date(now.getFullYear(), now.getMonth() + i, 1)
+                        const value = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`
+                        const label = d.toLocaleDateString("es-ES", { month: "long", year: "numeric" })
+                        options.push({ value, label: label.charAt(0).toUpperCase() + label.slice(1) })
+                      }
+                      return options.map((o) => (
+                        <option key={o.value} value={o.value}>{o.label}</option>
+                      ))
+                    })()}
+                  </select>
+                  <button
+                    type="button"
+                    onClick={handleSyncGoogleCalendar}
+                    disabled={isSyncingCalendar}
+                    aria-busy={isSyncingCalendar}
+                    className={`flex w-full items-center justify-center gap-2 rounded-xl bg-sky-500/20 px-4 py-2.5 font-semibold text-sky-200 transition hover:bg-sky-500/30 disabled:cursor-not-allowed disabled:opacity-60 ${isSyncingCalendar ? "pointer-events-none" : ""}`}
+                  >
+                    {isSyncingCalendar ? "Generando archivo..." : "Descargar .ics del mes"}
+                    <span aria-hidden>→</span>
+                  </button>
+                </div>
+
+                <div className="rounded-2xl bg-white/5 px-4 py-3">
+                  <p className="mb-2 text-xs uppercase tracking-wide text-white/40">
+                    Exportar informe mensual
+                  </p>
+                  <p className="mb-2 text-xs text-white/50">
+                    Mes y formato (HTML o PDF).
+                  </p>
+                  <div className="mb-3 flex flex-wrap gap-2">
+                    <select
+                      value={reportMonth}
+                      onChange={(e) => setReportMonth(e.target.value)}
+                      className="rounded-xl bg-slate-900/60 px-3 py-2 text-sm text-white focus:outline-none focus:ring-2 focus:ring-sky-500/60"
+                      aria-label="Mes del informe"
+                    >
+                      {(() => {
+                        const options: { value: string; label: string }[] = []
+                        const now = new Date()
+                        for (let i = -1; i <= 11; i++) {
+                          const d = new Date(now.getFullYear(), now.getMonth() + i, 1)
+                          const value = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`
+                          const label = d.toLocaleDateString("es-ES", { month: "long", year: "numeric" })
+                          options.push({ value, label: label.charAt(0).toUpperCase() + label.slice(1) })
+                        }
+                        return options.map((o) => (
+                          <option key={o.value} value={o.value}>{o.label}</option>
+                        ))
+                      })()}
+                    </select>
+                    <select
+                      value={reportFormat}
+                      onChange={(e) => setReportFormat(e.target.value as "html" | "pdf")}
+                      className="rounded-xl bg-slate-900/60 px-3 py-2 text-sm text-white focus:outline-none focus:ring-2 focus:ring-sky-500/60"
+                      aria-label="Formato del informe"
+                    >
+                      <option value="html">HTML</option>
+                      <option value="pdf">PDF</option>
+                    </select>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={handleExportMonthlyReport}
+                    disabled={isExportingMonthlyReport}
+                    aria-busy={isExportingMonthlyReport}
+                    className={`flex w-full items-center justify-center gap-2 rounded-xl bg-sky-500/20 px-4 py-2.5 font-semibold text-sky-200 transition hover:bg-sky-500/30 disabled:cursor-not-allowed disabled:opacity-60 ${isExportingMonthlyReport ? "pointer-events-none" : ""}`}
+                  >
+                    {isExportingMonthlyReport ? "Preparando informe..." : `Descargar informe (${reportFormat.toUpperCase()})`}
+                    <span aria-hidden>→</span>
+                  </button>
+                </div>
               </div>
 
               {integrationStatus ? (

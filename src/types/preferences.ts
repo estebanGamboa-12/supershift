@@ -34,6 +34,8 @@ export type UserPreferences = {
   showFestiveDays?: boolean
   /** Color para resaltar días festivos (hex) */
   festiveDayColor?: string
+  /** Mostrar colores por tipo de día en el calendario */
+  showDayColors?: boolean
 }
 
 export const DEFAULT_USER_PREFERENCES: UserPreferences = {
@@ -49,4 +51,5 @@ export const DEFAULT_USER_PREFERENCES: UserPreferences = {
   hourlyRate: 0,
   showFestiveDays: true,
   festiveDayColor: "#dc2626",
+  showDayColors: true,
 }

@@ -20,6 +20,7 @@ import { useShiftTemplates } from "@/lib/useShiftTemplates"
 import { useRotationTemplates } from "@/lib/useRotationTemplates"
 import { useConfirmDelete } from "@/lib/ConfirmDeleteContext"
 import { useToast } from "@/lib/ToastContext"
+import { openNoCreditsModal } from "@/components/dashboard/NoCreditsModalListener"
 
 function sanitizeUserSummary(value: unknown): UserSummary | null {
   if (!value || typeof value !== "object") {
@@ -216,7 +217,9 @@ export default function TemplatesPage() {
     createShiftTemplate,
     updateShiftTemplate,
     deleteShiftTemplate,
-  } = useShiftTemplates(currentUser?.id)
+  } = useShiftTemplates(currentUser?.id, {
+    onCreditsRequired: (cost) => openNoCreditsModal({ cost }),
+  })
 
   const {
     templates: rotationTemplates,
@@ -226,7 +229,9 @@ export default function TemplatesPage() {
     createRotationTemplate,
     updateRotationTemplate,
     deleteRotationTemplate,
-  } = useRotationTemplates(currentUser?.id)
+  } = useRotationTemplates(currentUser?.id, {
+    onCreditsRequired: (cost) => openNoCreditsModal({ cost }),
+  })
 
   const handleLogin = useCallback((user: UserSummary) => {
     setCurrentUser(user)

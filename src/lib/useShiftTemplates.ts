@@ -48,7 +48,15 @@ function normaliseTemplate(row: ShiftTemplateRow): ShiftTemplate {
   }
 }
 
-export function useShiftTemplates(userId: string | null | undefined) {
+export type UseShiftTemplatesOptions = {
+  onCreditsRequired?: (cost: number) => void
+}
+
+export function useShiftTemplates(
+  userId: string | null | undefined,
+  options?: UseShiftTemplatesOptions,
+) {
+  const { onCreditsRequired } = options ?? {}
   const supabase = useMemo(() => {
     if (typeof window === "undefined") {
       return null
@@ -155,12 +163,12 @@ export function useShiftTemplates(userId: string | null | undefined) {
 
       const data = await res.json().catch(() => null)
       if (!res.ok) {
-        const message =
-          data?.error ??
-          (data?.code === "CREDITS_INSUFFICIENT"
-            ? "No tienes suficientes créditos para crear una plantilla (cuesta 20)."
-            : "No se pudo crear la plantilla de turno. Inténtalo de nuevo más tarde.")
-        setError(message)
+        if (data?.code === "CREDITS_INSUFFICIENT") {
+          onCreditsRequired?.(20)
+          setError(null)
+          return null
+        }
+        setError(data?.error ?? "No se pudo crear la plantilla de turno. Inténtalo de nuevo más tarde.")
         return null
       }
 
@@ -181,7 +189,7 @@ export function useShiftTemplates(userId: string | null | undefined) {
       setTemplates((current) => [template, ...current])
       return template
     },
-    [supabase, userId],
+    [onCreditsRequired, supabase, userId],
   )
 
   const updateShiftTemplate = useCallback(

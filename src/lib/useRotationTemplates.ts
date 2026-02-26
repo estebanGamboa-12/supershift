@@ -87,7 +87,15 @@ function normaliseRotationTemplate(row: RotationTemplateRow): RotationTemplate {
   }
 }
 
-export function useRotationTemplates(userId: string | null | undefined) {
+export type UseRotationTemplatesOptions = {
+  onCreditsRequired?: (cost: number) => void
+}
+
+export function useRotationTemplates(
+  userId: string | null | undefined,
+  options?: UseRotationTemplatesOptions,
+) {
+  const { onCreditsRequired } = options ?? {}
   const supabase = useMemo(() => {
     if (typeof window === "undefined") {
       return null
@@ -329,12 +337,12 @@ export function useRotationTemplates(userId: string | null | undefined) {
 
       const data = await res.json().catch(() => null)
       if (!res.ok) {
-        const message =
-          data?.error ??
-          (data?.code === "CREDITS_INSUFFICIENT"
-            ? "No tienes suficientes créditos para crear una plantilla de rotación (cuesta 20)."
-            : "No se pudo crear la plantilla de rotación. Inténtalo de nuevo más tarde.")
-        setError(message)
+        if (data?.code === "CREDITS_INSUFFICIENT") {
+          onCreditsRequired?.(20)
+          setError(null)
+          return null
+        }
+        setError(data?.error ?? "No se pudo crear la plantilla de rotación. Inténtalo de nuevo más tarde.")
         return null
       }
 
@@ -352,7 +360,7 @@ export function useRotationTemplates(userId: string | null | undefined) {
       setTemplates((current) => [template, ...current])
       return template
     },
-    [supabase, userId],
+    [onCreditsRequired, supabase, userId],
   )
 
   const updateRotationTemplate = useCallback(

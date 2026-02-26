@@ -47,6 +47,7 @@ import {
 import { OfflineStatusBanner } from "@/components/pwa/offline-status-banner"
 import type { CalendarSummary } from "@/types/calendars"
 import { useShiftTemplates } from "@/lib/useShiftTemplates"
+import { openNoCreditsModal } from "@/components/dashboard/NoCreditsModalListener"
 
 type ApiShift = {
   id: number
@@ -1280,12 +1281,8 @@ export default function Home() {
         })
 
         if (response.status === 402) {
-          const errData = await response.json().catch(() => ({}))
-          showToast({
-            type: "error",
-            message: errData?.error ?? "No tienes suficientes créditos para crear un turno.",
-          })
           refreshCreditBalance()
+          openNoCreditsModal({ cost: 10 })
           return
         }
         const data = await parseJsonResponse<{ shift: ApiShift }>(response)
@@ -2441,7 +2438,22 @@ export default function Home() {
             lastError={lastSyncError}
             onRetry={synchronizePendingShiftRequests}
           />
-          {/* Contenido: sin barra superior; créditos y Cerrar sesión solo abajo / en header del calendario */}
+          {/* Barra superior: nombre, email, Cerrar sesión */}
+          {currentUser && (
+            <header className="flex shrink-0 items-center justify-between gap-3 border-b border-white/10 bg-slate-900/80 px-3 py-2 backdrop-blur sm:px-4">
+              <div className="min-w-0 flex-1">
+                <p className="truncate text-sm font-medium text-white">{currentUser.name || "Usuario"}</p>
+                <p className="truncate text-xs text-white/60">{currentUser.email}</p>
+              </div>
+              <button
+                type="button"
+                onClick={handleLogout}
+                className="shrink-0 rounded-lg border border-white/15 bg-white/5 px-3 py-2 text-sm font-semibold text-white/80 transition hover:border-red-400/40 hover:bg-red-500/10 hover:text-red-200"
+              >
+                Cerrar sesión
+              </button>
+            </header>
+          )}
           <div ref={headerRef} className="flex-1 min-h-0 flex flex-col">
             <main className="flex-1 min-h-0 w-full pb-[calc(5rem+env(safe-area-inset-bottom))] lg:pb-6">
               <div className="h-full w-full px-2 py-1 sm:px-3">
@@ -2484,13 +2496,6 @@ export default function Home() {
                           </button>
                         </div>
                         <div className="flex items-center gap-2">
-                          <button
-                            type="button"
-                            onClick={handleLogout}
-                            className="rounded-lg border border-white/15 bg-white/5 px-3 py-2 text-sm font-semibold text-white/80 transition hover:border-red-400/40 hover:bg-red-500/10 hover:text-red-200"
-                          >
-                            Cerrar sesión
-                          </button>
                           <button
                             type="button"
                             onClick={handleOpenMobileAdd}

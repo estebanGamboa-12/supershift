@@ -28,9 +28,22 @@ export default function PricingPage() {
           </a>
         </div>
 
+        <div className="mt-10 rounded-3xl border border-orange-400/30 bg-orange-500/10 p-8 shadow-xl backdrop-blur-sm">
+          <h2 className="text-xl font-semibold text-white">Plan de pago</h2>
+          <p className="mt-2 text-slate-300">
+            Mensual o anual. Más créditos y ventajas. Te pedirá iniciar sesión y luego irás al checkout dentro de la app.
+          </p>
+          <a
+            href={`${APP_URL}/pricing`}
+            className="mt-6 inline-flex w-full items-center justify-center rounded-full bg-orange-500 px-6 py-3 font-semibold text-white shadow-lg shadow-orange-500/25 transition hover:bg-orange-400 sm:w-auto"
+          >
+            Lo quiero
+          </a>
+        </div>
+
         <p className="mt-8 text-center text-sm text-slate-500">
-          Los planes de pago (si los activas) se configuran y pagan dentro de la app en{" "}
-          <a href={APP_URL} className="text-sky-400 hover:underline">
+          Los planes de pago se configuran y pagan dentro de la app en{" "}
+          <a href={`${APP_URL}/pricing`} className="text-sky-400 hover:underline">
             app.planloop.app
           </a>
           .

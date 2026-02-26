@@ -3,6 +3,7 @@
 import type { FC } from "react"
 import { useRouter } from "next/navigation"
 import PlanLoopLogo from "../PlanLoopLogo"
+import CreditsCircle from "./CreditsCircle"
 
 const NAV_ITEMS = [
   {
@@ -46,24 +47,32 @@ type MobileNavigationProps = {
   active: NavActive
   onChange: (tab: MobileTab) => void
   onNavigateLink?: (href: string) => void
+  creditBalance?: number | null
 }
 
 const MobileNavigation: FC<MobileNavigationProps> = ({
   active,
   onChange,
   onNavigateLink,
+  creditBalance = null,
 }) => {
   const router = useRouter()
   
   return (
-    <nav className="fixed inset-x-0 bottom-0 z-40 overflow-hidden border-t border-white/10 bg-[rgba(8,12,24,0.78)] pt-1.5 pb-0 backdrop-blur-xl shadow-[0_-22px_55px_rgba(8,12,24,0.85)] supports-[backdrop-filter:blur(0px)]:bg-[rgba(8,12,24,0.92)]" style={{ paddingBottom: 'calc(0.375rem + env(safe-area-inset-bottom))' }}>
+    <nav
+      className="fixed inset-x-0 bottom-0 z-40 overflow-hidden border-t border-white/10 bg-[rgba(8,12,24,0.78)] pt-1.5 pb-0 backdrop-blur-xl shadow-[0_-22px_55px_rgba(8,12,24,0.85)] supports-[backdrop-filter:blur(0px)]:bg-[rgba(8,12,24,0.92)] lg:hidden"
+      style={{ paddingBottom: "calc(0.375rem + env(safe-area-inset-bottom))" }}
+    >
       <div className="relative mx-auto w-full max-w-7xl px-4 lg:px-6">
         <div className="pointer-events-none absolute inset-0 opacity-80" aria-hidden>
           <div className="absolute inset-0 bg-[radial-gradient(circle_at_20%_-10%,rgba(59,130,246,0.28),transparent_55%),_radial-gradient(circle_at_80%_120%,rgba(139,92,246,0.25),transparent_60%)]" />
         </div>
-        <div className="relative flex items-center gap-3">
+        <div className="relative flex items-center gap-2">
           <div className="flex-shrink-0">
             <PlanLoopLogo size="sm" showText={false} />
+          </div>
+          <div className="flex-shrink-0">
+            <CreditsCircle creditBalance={creditBalance} href="/pricing" size="sm" />
           </div>
           <div className="flex-1 grid grid-cols-4 gap-1.5 py-1">
             {NAV_ITEMS.map((item) => {

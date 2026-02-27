@@ -1,15 +1,53 @@
 "use client"
 
-import { useEffect, useState, useCallback, useRef } from "react"
-import { createPortal } from "react-dom"
+import { useEffect, useRef } from "react"
+import { driver, type DriveStep, type Config } from "driver.js"
+import "driver.js/dist/driver.css"
 
-const STEPS = [
-  { title: "Pantalla Calendario", body: "Aquí ves tu agenda. Todo gira alrededor de esta pantalla: ver días, cambiar a vista Mes y arrastrar turnos." },
-  { title: "Día y Mes", body: "Día = un día con horarios. Mes = todo el mes. Pulsa «Mes» y podrás arrastrar los turnos de un día a otro. Pruébalo." },
-  { title: "Minicalendario", body: "Haz clic en un día para ir a esa fecha." },
-  { title: "Próximos turnos", body: "Resumen rápido de los próximos turnos." },
-  { title: "Añadir turno", body: "Pulsa «+ Añadir Turno» para crear un turno. En vista Mes también tienes «Crear Turno» en el lateral." },
+function getVisibleTourElement(selector: string): HTMLElement | null {
+  if (typeof document === "undefined") return null
+  const els = document.querySelectorAll<HTMLElement>(selector)
+  for (const el of els) {
+    const rect = el.getBoundingClientRect()
+    const style = window.getComputedStyle(el)
+    if (rect.width > 0 && rect.height > 0 && style.visibility !== "hidden" && style.display !== "none" && style.opacity !== "0") {
+      return el
+    }
+  }
+  return null
+}
+
+const STEP_DEFS: { selector: string; title: string; description: string }[] = [
+  { selector: "[data-tour=\"calendar\"]", title: "Pantalla Calendario", description: "Aquí ves tu agenda. Todo gira alrededor de esta pantalla: ver días, cambiar a vista Mes y arrastrar turnos." },
+  { selector: "[data-tour=\"view-day\"], [data-tour=\"view-month\"]", title: "Día y Mes", description: "Día = un día con horarios. Mes = todo el mes. Pulsa «Mes» y podrás arrastrar los turnos de un día a otro. Pruébalo." },
+  { selector: "[data-tour=\"mini-calendar\"]", title: "Minicalendario", description: "Haz clic en un día para ir a esa fecha." },
+  { selector: "[data-tour=\"stats\"]", title: "Próximos turnos", description: "Resumen rápido de los próximos turnos." },
+  { selector: "[data-tour=\"create-shift\"]", title: "Añadir turno", description: "Pulsa «+ Añadir Turno» para crear un turno. En vista Mes también tienes «Crear Turno» en el lateral." },
 ]
+
+function buildSteps(): DriveStep[] {
+  return STEP_DEFS.map(({ selector, title, description }) => ({
+    element: () => {
+      const parts = selector.split(",").map((s) => s.trim())
+      let el: HTMLElement | null = null
+      for (const part of parts) {
+        el = getVisibleTourElement(part)
+        if (el) break
+      }
+      return (el ?? document.body) as Element
+    },
+    popover: {
+      title,
+      description,
+      side: "bottom",
+      align: "center",
+      showButtons: ["next", "previous", "close"],
+      nextBtnText: "Siguiente",
+      prevBtnText: "Anterior",
+      doneBtnText: "Entendido",
+    },
+  }))
+}
 
 type OnboardingTourProps = {
   runInitially: boolean
@@ -24,91 +62,61 @@ export default function OnboardingTour({
   forceRun = false,
   userId,
 }: OnboardingTourProps) {
-  const [visible, setVisible] = useState(false)
-  const [step, setStep] = useState(0)
   const hasRunInitially = useRef(false)
   const forceRunConsumed = useRef(false)
-
-  const open = useCallback(() => {
-    setStep(0)
-    setVisible(true)
-  }, [])
-
-  const close = useCallback(() => {
-    setVisible(false)
-    onComplete()
-  }, [onComplete])
-
-  const next = useCallback(() => {
-    if (step >= STEPS.length - 1) {
-      close()
-    } else {
-      setStep((s) => s + 1)
-    }
-  }, [step, close])
+  const driverRef = useRef<ReturnType<typeof driver> | null>(null)
 
   useEffect(() => {
     if (!userId) return
 
-    if (forceRun && !forceRunConsumed.current) {
-      forceRunConsumed.current = true
-      const t = setTimeout(open, 600)
-      return () => clearTimeout(t)
+    const shouldRun = forceRun ? (() => {
+      if (!forceRunConsumed.current) {
+        forceRunConsumed.current = true
+        return true
+      }
+      return false
+    })() : (runInitially && !hasRunInitially.current)
+
+    if (!shouldRun) {
+      if (!forceRun) forceRunConsumed.current = false
+      return
     }
 
-    if (!forceRun) forceRunConsumed.current = false
+    if (runInitially) hasRunInitially.current = true
 
-    if (runInitially && !hasRunInitially.current) {
-      hasRunInitially.current = true
-      const t = setTimeout(open, 800)
-      return () => clearTimeout(t)
+    const delay = forceRun ? 1200 : 800
+    const t = setTimeout(() => {
+      const steps = buildSteps()
+      const config: Config = {
+        steps,
+        showProgress: true,
+        progressText: "{{current}} de {{total}}",
+        nextBtnText: "Siguiente",
+        prevBtnText: "Anterior",
+        doneBtnText: "Entendido",
+        allowClose: true,
+        overlayColor: "rgba(0,0,0,0.85)",
+        overlayOpacity: 0.95,
+        stagePadding: 8,
+        stageRadius: 8,
+        popoverClass: "driver-popover-custom",
+        onDestroyed: () => {
+          driverRef.current = null
+          onComplete()
+        },
+      }
+      driverRef.current = driver(config)
+      driverRef.current.drive()
+    }, delay)
+
+    return () => {
+      clearTimeout(t)
+      if (driverRef.current?.isActive()) {
+        driverRef.current.destroy()
+        driverRef.current = null
+      }
     }
-  }, [userId, runInitially, forceRun, open])
+  }, [userId, runInitially, forceRun, onComplete])
 
-  if (!visible || typeof document === "undefined") return null
-
-  const current = STEPS[step]
-  const isLast = step === STEPS.length - 1
-
-  return createPortal(
-    <div
-      className="fixed inset-0 z-[99999] flex items-center justify-center p-4"
-      role="dialog"
-      aria-modal="true"
-      aria-labelledby="onboarding-title"
-    >
-      <div
-        className="absolute inset-0 bg-black/85"
-        onClick={close}
-        onKeyDown={(e) => e.key === "Escape" && close()}
-        aria-hidden
-      />
-      <div className="relative z-10 w-full max-w-md rounded-2xl border border-white/20 bg-slate-900 px-6 py-5 shadow-2xl">
-        <p id="onboarding-title" className="text-sm font-semibold uppercase tracking-wide text-sky-300">
-          {current.title}
-        </p>
-        <p className="mt-2 text-sm leading-relaxed text-white/90">{current.body}</p>
-        <p className="mt-3 text-xs text-white/50">
-          {step + 1} de {STEPS.length}
-        </p>
-        <div className="mt-5 flex flex-wrap gap-2">
-          <button
-            type="button"
-            onClick={next}
-            className="rounded-xl bg-sky-500 px-4 py-2 text-sm font-semibold text-white shadow-lg transition hover:bg-sky-400"
-          >
-            {isLast ? "Entendido" : "Siguiente"}
-          </button>
-          <button
-            type="button"
-            onClick={close}
-            className="rounded-xl border border-white/20 bg-white/5 px-4 py-2 text-sm font-semibold text-white/80 transition hover:bg-white/10"
-          >
-            Omitir
-          </button>
-        </div>
-      </div>
-    </div>,
-    document.body
-  )
+  return null
 }

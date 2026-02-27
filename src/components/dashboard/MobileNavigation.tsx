@@ -98,6 +98,7 @@ const MobileNavigation: FC<MobileNavigationProps> = ({
                   key={item.value}
                   type="button"
                   onClick={handleClick}
+                  {...(item.value === "settings" ? { "data-tour": "settings" } : {})}
                   className={`group relative flex w-full flex-col items-center gap-0.5 rounded-xl px-2 py-1.5 text-[10px] font-semibold uppercase tracking-wide transition-all duration-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sky-400/60 ${
                     isActive
                       ? "bg-gradient-to-br from-sky-500/25 via-blue-600/25 to-indigo-500/30 text-white shadow-[0_8px_25px_-12px_rgba(56,189,248,0.75)]"

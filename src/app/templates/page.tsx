@@ -21,6 +21,7 @@ import { useRotationTemplates } from "@/lib/useRotationTemplates"
 import { useConfirmDelete } from "@/lib/ConfirmDeleteContext"
 import { useToast } from "@/lib/ToastContext"
 import { openNoCreditsModal } from "@/components/dashboard/NoCreditsModalListener"
+import ScreenInfoIcon from "@/components/ui/ScreenInfoIcon"
 
 function sanitizeUserSummary(value: unknown): UserSummary | null {
   if (!value || typeof value !== "object") {
@@ -413,6 +414,7 @@ export default function TemplatesPage() {
         </div>
 
         <div className="mb-4 flex flex-wrap gap-2 rounded-xl border border-white/10 bg-white/5 p-1.5 text-xs font-semibold uppercase tracking-wide text-white/60">
+          <div className="flex flex-1 flex-wrap items-center gap-2">
           <button
             type="button"
             onClick={() => setActiveTab("shifts")}
@@ -431,6 +433,19 @@ export default function TemplatesPage() {
           >
             Rotaciones
           </button>
+          </div>
+          <ScreenInfoIcon
+            title="Plantillas"
+            placement="left"
+            className="shrink-0"
+          >
+            <p className="mb-2">Aquí creas y guardas plantillas para reutilizar en el calendario.</p>
+            <ul className="list-inside list-disc space-y-1 text-white/80">
+              <li><strong>Plantillas de turnos:</strong> horarios base (ej. mañana, tarde, noche). Crea una y úsala en muchas fechas.</li>
+              <li><strong>Rotaciones:</strong> secuencias de varios días (ej. 5 laborables + 2 libres). Así defines patrones que luego aplicas al mes.</li>
+            </ul>
+            <p className="mt-2 text-white/70">Los botones de arriba llevan tus plantillas al panel para aplicarlas al mes o generar una rotación.</p>
+          </ScreenInfoIcon>
         </div>
 
         {/* CTA fijo: llevar al "aha" rápido */}

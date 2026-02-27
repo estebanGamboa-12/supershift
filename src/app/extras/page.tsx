@@ -16,6 +16,7 @@ import type { Session } from "@supabase/supabase-js"
 import type { UserSummary } from "@/types/users"
 import { useConfirmDelete } from "@/lib/ConfirmDeleteContext"
 import { useToast } from "@/lib/ToastContext"
+import ScreenInfoIcon from "@/components/ui/ScreenInfoIcon"
 
 export default function ExtrasPage() {
   const router = useRouter()
@@ -375,7 +376,13 @@ export default function ExtrasPage() {
           {/* Extras: mismo layout que Plantillas */}
           <section className="space-y-4">
             <div className="flex flex-wrap items-center justify-between gap-3">
-              <h2 className="text-sm font-semibold text-white">Extras</h2>
+              <div className="flex items-center gap-2">
+                <h2 className="text-sm font-semibold text-white">Extras</h2>
+                <ScreenInfoIcon title="Extras" placement="right">
+                  <p>Los extras son conceptos que sumas al valor de un turno (nocturnidad, festivos, disponibilidad, etc.).</p>
+                  <p className="mt-2">Crea aquí los que uses y asígnelos al editar un turno en el calendario.</p>
+                </ScreenInfoIcon>
+              </div>
               <button
                 type="button"
                 onClick={() => document.getElementById("extras-new-form")?.scrollIntoView({ behavior: "smooth" })}

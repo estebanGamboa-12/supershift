@@ -303,7 +303,7 @@ const CalendarTab: FC<CalendarTabProps> = ({
               daysUntilNextShift={daysUntilNextShift}
               shiftTypeLabels={shiftTypeLabels}
             />
-            <section className="py-1">
+            <section className="py-1" data-tour="stats">
               <div className="flex items-center justify-between gap-1">
                 <p className="text-[9px] font-semibold uppercase text-white/50">
                   Próximos

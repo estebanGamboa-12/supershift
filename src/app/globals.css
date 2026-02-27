@@ -2,6 +2,15 @@
 @tailwind components;
 @tailwind utilities;
 
+/* driver.js: overlay y popover por encima de todo (las clases las inyecta la lib) */
+.driver-overlay {
+  z-index: 2147483646 !important;
+}
+.driver-popover,
+.driver-active-element {
+  z-index: 2147483647 !important;
+}
+
 :root {
   color-scheme: dark;
   --brand-background: #0b1220;

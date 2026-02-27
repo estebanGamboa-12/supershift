@@ -105,6 +105,8 @@ export default function OnboardingTour({
   const hasRunInitially = useRef(false)
   const forceRunConsumed = useRef(false)
   const driverRef = useRef<ReturnType<typeof driver> | null>(null)
+  const onCompleteRef = useRef(onComplete)
+  onCompleteRef.current = onComplete
 
   // Exponer un helper global para poder disparar el tour desde la consola:
   // window.__startOnboardingTourDebug()
@@ -229,7 +231,7 @@ export default function OnboardingTour({
         onDestroyed: () => {
           console.log(LOG_PREFIX, "tour destroyed")
           driverRef.current = null
-          onComplete()
+          onCompleteRef.current()
         },
       }
 
@@ -253,7 +255,7 @@ export default function OnboardingTour({
         driverRef.current = null
       }
     }
-  }, [userId, runInitially, forceRun, onComplete])
+  }, [userId, runInitially, forceRun])
 
   return null
 }

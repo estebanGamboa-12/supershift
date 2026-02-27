@@ -144,11 +144,39 @@ export default function OnboardingTour({
 
     if (runInitially) hasRunInitially.current = true
 
-    const delay = forceRun ? 1200 : 800
-    console.log(LOG_PREFIX, "scheduling driver", { delay })
+    // Truco del pequeño delay + reintentos:
+    // esperamos un poco a que React pinte todo y, si aún no hay elementos,
+    // reintentamos unas cuantas veces antes de rendirnos.
+    const firstDelay = forceRun ? 1200 : 800
+    const retryDelay = 350
+    const maxRetries = 10
 
-    const t = setTimeout(() => {
+    console.log(LOG_PREFIX, "scheduling driver", {
+      firstDelay,
+      retryDelay,
+      maxRetries,
+    })
+
+    let retries = 0
+    let timeoutId: ReturnType<typeof setTimeout> | undefined
+
+    const startDriverIfReady = () => {
+      retries += 1
+
       const steps = buildSteps()
+      // Comprobamos si al menos un paso ha encontrado un elemento real
+      const calendarElement = getVisibleTourElement("[data-tour=\"calendar\"]")
+
+      console.log(LOG_PREFIX, "try start", {
+        attempt: retries,
+        hasCalendarElement: !!calendarElement,
+      })
+
+      if (!calendarElement && retries < maxRetries) {
+        timeoutId = setTimeout(startDriverIfReady, retryDelay)
+        return
+      }
+
       const config: Config = {
         steps,
         showProgress: true,
@@ -169,18 +197,20 @@ export default function OnboardingTour({
         },
       }
 
-      if (typeof window !== "undefined") {
-        type OnboardingWindow = Window & { __ONBOARDING_TOUR_LAST_CONFIG__?: Config }
-        ;(window as OnboardingWindow).__ONBOARDING_TOUR_LAST_CONFIG__ = config
-      }
+      console.log(LOG_PREFIX, "starting driver", {
+        stepsCount: steps.length,
+        attempts: retries,
+        hasCalendarElement: !!calendarElement,
+      })
 
-      console.log(LOG_PREFIX, "starting driver", { stepsCount: steps.length })
       driverRef.current = driver(config)
       driverRef.current.drive()
-    }, delay)
+    }
+
+    timeoutId = setTimeout(startDriverIfReady, firstDelay)
 
     return () => {
-      clearTimeout(t)
+      if (timeoutId) clearTimeout(timeoutId)
       if (driverRef.current?.isActive()) {
         console.log(LOG_PREFIX, "cleanup: destroy active driver instance")
         driverRef.current.destroy()

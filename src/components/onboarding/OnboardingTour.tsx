@@ -170,7 +170,8 @@ export default function OnboardingTour({
       }
 
       if (typeof window !== "undefined") {
-        ;(window as any).__ONBOARDING_TOUR_LAST_CONFIG__ = config
+        type OnboardingWindow = Window & { __ONBOARDING_TOUR_LAST_CONFIG__?: Config }
+        ;(window as OnboardingWindow).__ONBOARDING_TOUR_LAST_CONFIG__ = config
       }
 
       console.log(LOG_PREFIX, "starting driver", { stepsCount: steps.length })

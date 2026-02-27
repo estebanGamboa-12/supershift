@@ -280,7 +280,7 @@ const CalendarTab: FC<CalendarTabProps> = ({
               </button>
             </div>
           )}
-          <div className="px-1">
+          <div className="px-1" data-tour="mini-calendar">
             <MiniCalendar
               currentMonth={currentMonth}
               selectedDate={selectedDate}

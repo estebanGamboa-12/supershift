@@ -2494,6 +2494,7 @@ export default function Home() {
                           <button
                             type="button"
                             onClick={() => setCalendarView("day")}
+                            data-tour="view-day"
                             className={`rounded-lg px-4 py-2 text-sm font-semibold transition ${
                               calendarView === "day"
                                 ? "bg-white/10 text-white"
@@ -2505,6 +2506,7 @@ export default function Home() {
                           <button
                             type="button"
                             onClick={() => setCalendarView("monthly")}
+                            data-tour="view-month"
                             className={`rounded-lg px-4 py-2 text-sm font-semibold transition ${
                               calendarView === "monthly"
                                 ? "bg-white/10 text-white"
@@ -2605,7 +2607,10 @@ export default function Home() {
                           isSaving={isSavingPreferences}
                           lastSavedAt={preferencesSavedAt}
                           onLogout={handleLogout}
-                          onLaunchTour={() => setForceRunTour(true)}
+                          onLaunchTour={() => {
+                          setActiveTab("calendar")
+                          setForceRunTour(true)
+                        }}
                         />
                       </div>
                     </div>
@@ -2649,6 +2654,7 @@ export default function Home() {
                           <button
                             type="button"
                             onClick={() => setCalendarView("day")}
+                            data-tour="view-day"
                             className={`flex-1 rounded-xl border px-4 py-2.5 text-sm font-semibold transition ${
                               calendarView === "day"
                                 ? "border-sky-400/40 bg-sky-500/20 text-sky-100"
@@ -2660,6 +2666,7 @@ export default function Home() {
                           <button
                             type="button"
                             onClick={() => setCalendarView("monthly")}
+                            data-tour="view-month"
                             className={`flex-1 rounded-xl border px-4 py-2.5 text-sm font-semibold transition ${
                               calendarView === "monthly"
                                 ? "border-sky-400/40 bg-sky-500/20 text-sky-100"
@@ -2743,7 +2750,10 @@ export default function Home() {
                           isSaving={isSavingPreferences}
                           lastSavedAt={preferencesSavedAt}
                           onLogout={handleLogout}
-                          onLaunchTour={() => setForceRunTour(true)}
+                          onLaunchTour={() => {
+                          setActiveTab("calendar")
+                          setForceRunTour(true)
+                        }}
                         />
                       </motion.div>
                     )}

@@ -1,22 +1,15 @@
 "use client"
 
-import { useEffect, useRef, useCallback } from "react"
-import "driver.js/dist/driver.css"
+import { useEffect, useState, useCallback, useRef } from "react"
+import { createPortal } from "react-dom"
 
-/** Devuelve el primer elemento con data-tour que sea visible (no oculto por CSS). */
-function getVisibleTourElement(selector: string): Element | null {
-  if (typeof document === "undefined") return null
-  const all = document.querySelectorAll(selector)
-  for (let i = 0; i < all.length; i++) {
-    const el = all[i]
-    const rect = el.getBoundingClientRect()
-    const style = window.getComputedStyle(el)
-    if (rect.width > 0 && rect.height > 0 && style.visibility !== "hidden" && style.display !== "none" && style.opacity !== "0") {
-      return el
-    }
-  }
-  return all.length > 0 ? all[0] : null
-}
+const STEPS = [
+  { title: "Pantalla Calendario", body: "Aquí ves tu agenda. Todo gira alrededor de esta pantalla: ver días, cambiar a vista Mes y arrastrar turnos." },
+  { title: "Día y Mes", body: "Día = un día con horarios. Mes = todo el mes. Pulsa «Mes» y podrás arrastrar los turnos de un día a otro. Pruébalo." },
+  { title: "Minicalendario", body: "Haz clic en un día para ir a esa fecha." },
+  { title: "Próximos turnos", body: "Resumen rápido de los próximos turnos." },
+  { title: "Añadir turno", body: "Pulsa «+ Añadir Turno» para crear un turno. En vista Mes también tienes «Crear Turno» en el lateral." },
+]
 
 type OnboardingTourProps = {
   runInitially: boolean
@@ -31,124 +24,91 @@ export default function OnboardingTour({
   forceRun = false,
   userId,
 }: OnboardingTourProps) {
-  const driverRef = useRef<{ destroy: () => void } | null>(null)
+  const [visible, setVisible] = useState(false)
+  const [step, setStep] = useState(0)
   const hasRunInitially = useRef(false)
   const forceRunConsumed = useRef(false)
 
-  const startTour = useCallback(async () => {
-    if (typeof document === "undefined") return
+  const open = useCallback(() => {
+    setStep(0)
+    setVisible(true)
+  }, [])
 
-    try {
-      const { driver } = await import("driver.js")
-
-      if (driverRef.current) {
-        driverRef.current.destroy()
-        driverRef.current = null
-      }
-
-      const steps = [
-        {
-          element: () => getVisibleTourElement("[data-tour=\"calendar\"]") ?? document.body,
-          popover: {
-            title: "Pantalla Calendario",
-            description: "Aquí ves tu agenda. Todo gira alrededor de esta pantalla: ver días, cambiar a vista mes y arrastrar turnos.",
-            side: "bottom" as const,
-            align: "center" as const,
-          },
-        },
-        {
-          element: () =>
-            getVisibleTourElement("[data-tour=\"view-month\"]") ??
-            getVisibleTourElement("[data-tour=\"view-day\"]") ??
-            getVisibleTourElement("[data-tour=\"calendar\"]") ??
-            document.body,
-          popover: {
-            title: "Día y Mes",
-            description: "Día = un día con horarios. Mes = todo el mes. Pulsa «Mes» y podrás arrastrar los turnos de un día a otro. Pruébalo.",
-            side: "bottom" as const,
-            align: "center" as const,
-          },
-        },
-        {
-          element: () => getVisibleTourElement("[data-tour=\"mini-calendar\"]") ?? getVisibleTourElement("[data-tour=\"calendar\"]") ?? document.body,
-          popover: {
-            title: "Minicalendario",
-            description: "Haz clic en un día para ir a esa fecha.",
-            side: "right" as const,
-            align: "start" as const,
-          },
-        },
-        {
-          element: () => getVisibleTourElement("[data-tour=\"stats\"]") ?? document.body,
-          popover: {
-            title: "Próximos turnos",
-            description: "Resumen rápido de los próximos turnos.",
-            side: "right" as const,
-            align: "start" as const,
-          },
-        },
-        {
-          element: () =>
-            document.querySelector("[data-tour=\"create-shift\"]") ??
-            getVisibleTourElement("[data-tour=\"calendar\"]") ??
-            document.body,
-          popover: {
-            title: "Añadir turno",
-            description: "Pulsa «+ Añadir Turno» para crear un turno. En vista Mes también tienes «Crear Turno» en el lateral.",
-            side: "bottom" as const,
-            align: "center" as const,
-            doneBtnText: "Entendido",
-          },
-        },
-      ]
-
-      const driverObj = driver({
-        showProgress: true,
-        animate: true,
-        overlayColor: "rgba(0,0,0,0.85)",
-        overlayOpacity: 0.85,
-        smoothScroll: true,
-        allowClose: true,
-        progressText: "{{current}} de {{total}}",
-        nextBtnText: "Siguiente",
-        prevBtnText: "Anterior",
-        doneBtnText: "Entendido",
-        steps,
-        onDestroyStarted: () => {
-          driverRef.current = null
-          onComplete()
-        },
-      })
-
-      driverRef.current = driverObj
-      requestAnimationFrame(() => {
-        driverObj.drive()
-      })
-    } catch (err) {
-      console.error("[OnboardingTour] Error al iniciar driver.js:", err)
-      onComplete()
-    }
+  const close = useCallback(() => {
+    setVisible(false)
+    onComplete()
   }, [onComplete])
+
+  const next = useCallback(() => {
+    if (step >= STEPS.length - 1) {
+      close()
+    } else {
+      setStep((s) => s + 1)
+    }
+  }, [step, close])
 
   useEffect(() => {
     if (!userId) return
 
     if (forceRun && !forceRunConsumed.current) {
       forceRunConsumed.current = true
-      const t = setTimeout(() => void startTour(), 1200)
+      const t = setTimeout(open, 600)
       return () => clearTimeout(t)
     }
 
-    if (!forceRun) {
-      forceRunConsumed.current = false
-    }
+    if (!forceRun) forceRunConsumed.current = false
 
     if (runInitially && !hasRunInitially.current) {
       hasRunInitially.current = true
-      const t = setTimeout(() => void startTour(), 1000)
+      const t = setTimeout(open, 800)
       return () => clearTimeout(t)
     }
-  }, [userId, runInitially, forceRun, startTour])
+  }, [userId, runInitially, forceRun, open])
 
-  return null
+  if (!visible || typeof document === "undefined") return null
+
+  const current = STEPS[step]
+  const isLast = step === STEPS.length - 1
+
+  return createPortal(
+    <div
+      className="fixed inset-0 z-[99999] flex items-center justify-center p-4"
+      role="dialog"
+      aria-modal="true"
+      aria-labelledby="onboarding-title"
+    >
+      <div
+        className="absolute inset-0 bg-black/85"
+        onClick={close}
+        onKeyDown={(e) => e.key === "Escape" && close()}
+        aria-hidden
+      />
+      <div className="relative z-10 w-full max-w-md rounded-2xl border border-white/20 bg-slate-900 px-6 py-5 shadow-2xl">
+        <p id="onboarding-title" className="text-sm font-semibold uppercase tracking-wide text-sky-300">
+          {current.title}
+        </p>
+        <p className="mt-2 text-sm leading-relaxed text-white/90">{current.body}</p>
+        <p className="mt-3 text-xs text-white/50">
+          {step + 1} de {STEPS.length}
+        </p>
+        <div className="mt-5 flex flex-wrap gap-2">
+          <button
+            type="button"
+            onClick={next}
+            className="rounded-xl bg-sky-500 px-4 py-2 text-sm font-semibold text-white shadow-lg transition hover:bg-sky-400"
+          >
+            {isLast ? "Entendido" : "Siguiente"}
+          </button>
+          <button
+            type="button"
+            onClick={close}
+            className="rounded-xl border border-white/20 bg-white/5 px-4 py-2 text-sm font-semibold text-white/80 transition hover:bg-white/10"
+          >
+            Omitir
+          </button>
+        </div>
+      </div>
+    </div>,
+    document.body
+  )
 }

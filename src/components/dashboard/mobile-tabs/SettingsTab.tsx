@@ -15,6 +15,7 @@ type SettingsTabProps = {
   isSaving: boolean
   lastSavedAt: Date | null
   onLogout: () => void
+  onLaunchTour?: () => void
 }
 
 const SettingsTab: FC<SettingsTabProps> = ({
@@ -25,6 +26,7 @@ const SettingsTab: FC<SettingsTabProps> = ({
   isSaving,
   lastSavedAt,
   onLogout,
+  onLaunchTour,
 }) => {
   return (
     <div className="flex flex-col gap-6">
@@ -36,6 +38,7 @@ const SettingsTab: FC<SettingsTabProps> = ({
         isSaving={isSaving}
         lastSavedAt={lastSavedAt}
         onLogout={onLogout}
+        onLaunchTour={onLaunchTour}
       />
     </div>
   )

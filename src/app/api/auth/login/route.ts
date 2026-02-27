@@ -80,6 +80,12 @@ export async function POST(request: Request) {
       )
     }
 
+    const { data: onboardingRow } = await supabase
+      .from("user_onboarding")
+      .select("onboarding_completed")
+      .eq("user_id", userId)
+      .maybeSingle()
+
     void sendLoginEmailsIfConfigured({
       supabase,
       userId,
@@ -95,6 +101,7 @@ export async function POST(request: Request) {
         calendarId,
         avatarUrl: profile.avatarUrl,
         timezone: profile.timezone,
+        onboardingCompleted: onboardingRow?.onboarding_completed === true,
       },
     })
   } catch (error) {

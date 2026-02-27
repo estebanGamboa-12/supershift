@@ -28,6 +28,7 @@ type ConfigurationPanelProps = {
   isSaving?: boolean
   lastSavedAt?: Date | null
   onLogout?: () => void
+  onLaunchTour?: () => void
   className?: string
 }
 
@@ -83,6 +84,7 @@ const ConfigurationPanel: FC<ConfigurationPanelProps> = ({
   isSaving = false,
   lastSavedAt,
   onLogout,
+  onLaunchTour,
   className,
 }) => {
   const [preferences, setPreferences] = useState<UserPreferences>(defaultPreferences)
@@ -618,11 +620,22 @@ const ConfigurationPanel: FC<ConfigurationPanelProps> = ({
                 Identidad y presencia
               </h2>
             </div>
+            <div className="flex flex-wrap items-center gap-2">
+            {onLaunchTour && (
+              <button
+                type="button"
+                onClick={onLaunchTour}
+                className="rounded-full border border-white/20 bg-white/5 px-3 py-1.5 text-xs font-semibold text-white/80 transition hover:bg-white/10 hover:text-white"
+              >
+                Ver tutorial
+              </button>
+            )}
             {savedAtLabel ? (
               <span className="rounded-full bg-white/5 px-3 py-1 text-[11px] font-semibold uppercase tracking-wide text-white/60">
                 Preferencias guardadas {savedAtLabel}
               </span>
             ) : null}
+            </div>
           </header>
 
           {user ? (

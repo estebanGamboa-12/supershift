@@ -48,6 +48,8 @@ import { OfflineStatusBanner } from "@/components/pwa/offline-status-banner"
 import type { CalendarSummary } from "@/types/calendars"
 import { useShiftTemplates } from "@/lib/useShiftTemplates"
 import { openNoCreditsModal } from "@/components/dashboard/NoCreditsModalListener"
+import ScreenInfoIcon from "@/components/ui/ScreenInfoIcon"
+import OnboardingTour from "@/components/onboarding/OnboardingTour"
 
 type ApiShift = {
   id: number
@@ -462,6 +464,7 @@ export default function Home() {
   const [initialStartTime, setInitialStartTime] = useState<string | undefined>(undefined)
   const [initialEndTime, setInitialEndTime] = useState<string | undefined>(undefined)
   const [activeTab, setActiveTab] = useState<MobileTab>("calendar")
+  const [forceRunTour, setForceRunTour] = useState(false)
   const [calendarView, setCalendarView] = useState<"day" | "monthly">("day")
   const [isMobileAddOpen, setIsMobileAddOpen] = useState(false)
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false)
@@ -2429,6 +2432,21 @@ export default function Home() {
         className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_10%_0%,rgba(59,130,246,0.18),transparent_55%),_radial-gradient(circle_at_80%_105%,rgba(139,92,246,0.2),transparent_60%),_radial-gradient(circle_at_50%_50%,rgba(59,130,246,0.12),transparent_65%)]"
         aria-hidden
       />
+      <OnboardingTour
+        runInitially={!(currentUser?.onboardingCompleted === true)}
+        userId={currentUser?.id ?? null}
+        onComplete={async () => {
+          if (!currentUser?.id) return
+          try {
+            await fetch(`/api/users/${encodeURIComponent(currentUser.id)}/onboarding`, { method: "PATCH" })
+            setCurrentUser((prev) => (prev ? { ...prev, onboardingCompleted: true } : null))
+          } catch {
+            // ignore
+          }
+          setForceRunTour(false)
+        }}
+        forceRun={forceRunTour}
+      />
       <div className="relative z-10 min-h-screen w-full px-0 py-0">
         <div className="flex min-h-full w-full flex-col gap-1">
           <OfflineStatusBanner
@@ -2462,6 +2480,7 @@ export default function Home() {
                 {activeTab === "calendar" && (
                   <motion.section
                     key="desktop-calendar-content"
+                    data-tour="calendar"
                     initial={{ opacity: 0, y: 24 }}
                     animate={{ opacity: 1, y: 0 }}
                     exit={{ opacity: 0, y: -16 }}
@@ -2471,7 +2490,7 @@ export default function Home() {
                     <div className="relative">
                       <header className="flex items-center justify-between gap-2 mb-2">
                         <PlanLoopLogo size="sm" showText={true} className="hidden sm:flex" />
-                        <div className="flex gap-2">
+                        <div className="flex items-center gap-2">
                           <button
                             type="button"
                             onClick={() => setCalendarView("day")}
@@ -2494,12 +2513,23 @@ export default function Home() {
                           >
                             Mes
                           </button>
+                          <ScreenInfoIcon
+                            title="Vista del calendario"
+                            placement="bottom"
+                          >
+                            <p className="mb-2">Cambia entre dos formas de ver tu agenda:</p>
+                            <ul className="list-inside list-disc space-y-1 text-white/80">
+                              <li><strong>Día:</strong> un día a la vez. Ideal para ver horarios y tocar un turno para editarlo. Las flechas o el minicalendario a la izquierda cambian el día.</li>
+                              <li><strong>Mes:</strong> plan mensual. Ves todo el mes y puedes arrastrar y soltar turnos, aplicar plantillas o generar rotaciones.</li>
+                            </ul>
+                          </ScreenInfoIcon>
                         </div>
                         <div className="flex items-center gap-2">
                           <button
                             type="button"
                             onClick={handleOpenMobileAdd}
                             className="rounded-lg bg-sky-500 px-4 py-2 text-sm font-semibold text-white shadow-md shadow-sky-500/30 transition hover:bg-sky-400 hover:shadow-sky-400/40"
+                            data-tour="create-shift"
                           >
                             + Añadir Turno
                           </button>
@@ -2548,11 +2578,21 @@ export default function Home() {
                     </div>
                     <div className="relative">
                       <header className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
+                        <div className="flex items-center gap-2">
                         <div>
                           <h2 className="text-2xl font-semibold">Configuración</h2>
                           <p className="text-sm text-white/60">
                             Ajusta tus preferencias personales y la información de tu cuenta.
                           </p>
+                        </div>
+                        <ScreenInfoIcon title="Configuración" placement="right">
+                          <p>Desde aquí puedes:</p>
+                          <ul className="mt-2 list-inside list-disc space-y-1 text-white/80">
+                            <li>Cambiar nombre, zona horaria y avatar.</li>
+                            <li>Definir inicio de semana (lunes o domingo).</li>
+                            <li>Gestionar días festivos y exportar informes.</li>
+                          </ul>
+                        </ScreenInfoIcon>
                         </div>
                       </header>
 
@@ -2565,6 +2605,7 @@ export default function Home() {
                           isSaving={isSavingPreferences}
                           lastSavedAt={preferencesSavedAt}
                           onLogout={handleLogout}
+                          onLaunchTour={() => setForceRunTour(true)}
                         />
                       </div>
                     </div>
@@ -2596,6 +2637,7 @@ export default function Home() {
                     {activeTab === "calendar" && (
                       <motion.div
                         key="mobile-calendar"
+                        data-tour="calendar"
                         initial={{ opacity: 0, y: 24 }}
                         animate={{ opacity: 1, y: 0 }}
                         exit={{ opacity: 0, y: -16 }}
@@ -2626,6 +2668,17 @@ export default function Home() {
                           >
                             📅 Mes
                           </button>
+                          <ScreenInfoIcon
+                            title="Vista del calendario"
+                            placement="left"
+                            className="shrink-0"
+                          >
+                            <p className="mb-2">Cambia entre dos formas de ver tu agenda:</p>
+                            <ul className="list-inside list-disc space-y-1 text-white/80">
+                              <li><strong>Día:</strong> un día a la vez. Ideal para ver horarios y tocar un turno para editarlo.</li>
+                              <li><strong>Mes:</strong> plan mensual. Arrastra y suelta turnos, aplica plantillas o genera rotaciones.</li>
+                            </ul>
+                          </ScreenInfoIcon>
                         </div>
 
                         {availableCalendars.length > 0 && (
@@ -2690,6 +2743,7 @@ export default function Home() {
                           isSaving={isSavingPreferences}
                           lastSavedAt={preferencesSavedAt}
                           onLogout={handleLogout}
+                          onLaunchTour={() => setForceRunTour(true)}
                         />
                       </motion.div>
                     )}

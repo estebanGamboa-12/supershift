@@ -5,6 +5,8 @@ export type UserSummary = {
   calendarId: number | null
   avatarUrl: string | null
   timezone: string
+  /** Si el usuario ya completó o saltó el tour de bienvenida (persistido en Supabase). */
+  onboardingCompleted?: boolean
 }
 
 export type UserProfileHistoryEntry = {

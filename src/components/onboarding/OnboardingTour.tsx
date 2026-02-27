@@ -6,6 +6,12 @@ import "driver.js/dist/driver.css"
 
 const LOG_PREFIX = "[OnboardingTour]"
 
+declare global {
+  interface Window {
+    __startOnboardingTourDebug?: () => void
+  }
+}
+
 function getVisibleTourElement(selector: string): HTMLElement | null {
   if (typeof document === "undefined") return null
   const els = document.querySelectorAll<HTMLElement>(selector)
@@ -99,6 +105,36 @@ export default function OnboardingTour({
   const hasRunInitially = useRef(false)
   const forceRunConsumed = useRef(false)
   const driverRef = useRef<ReturnType<typeof driver> | null>(null)
+
+  // Exponer un helper global para poder disparar el tour desde la consola:
+  // window.__startOnboardingTourDebug()
+  useEffect(() => {
+    if (typeof window === "undefined") return
+
+    window.__startOnboardingTourDebug = () => {
+      console.log(LOG_PREFIX, "manual debug start")
+      const steps = buildSteps()
+      const config: Config = {
+        steps,
+        showProgress: true,
+        progressText: "{{current}} de {{total}}",
+        nextBtnText: "Siguiente",
+        prevBtnText: "Anterior",
+        doneBtnText: "Entendido",
+        allowClose: true,
+        overlayColor: "rgba(0,0,0,0.85)",
+        overlayOpacity: 0.95,
+        stagePadding: 8,
+        stageRadius: 8,
+        popoverClass: "driver-popover-custom",
+      }
+      console.log(LOG_PREFIX, "starting driver (manual debug)", {
+        stepsCount: steps.length,
+      })
+      const instance = driver(config)
+      instance.drive()
+    }
+  }, [])
 
   // Log básico cada vez que cambian las props clave
   useEffect(() => {

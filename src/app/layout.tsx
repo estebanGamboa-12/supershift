@@ -1,11 +1,11 @@
 import "./globals.css"
 
 import type { Metadata, Viewport } from "next"
-import { ReactNode } from "react"
+import type { ReactNode } from "react"
 
 import { AppProviders } from "@/components/providers/AppProviders"
-import { ServiceWorkerRegistration } from "@/components/pwa/service-worker-registration"
 import { InstallPromptBanner } from "@/components/pwa/install-prompt"
+import { ServiceWorkerRegistration } from "@/components/pwa/service-worker-registration"
 
 export const metadata: Metadata = {
   title: {

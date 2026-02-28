@@ -34,6 +34,8 @@ export async function POST(
     breakMinutes?: unknown
     alertMinutes?: unknown
     location?: unknown
+    defaultPluses?: { night?: number; holiday?: number; availability?: number; other?: number }
+    defaultExtras?: Record<string, number>
   }
   try {
     body = await request.json()
@@ -45,6 +47,15 @@ export async function POST(
   if (!title) {
     return NextResponse.json({ error: "title es obligatorio" }, { status: 400 })
   }
+
+  const defaultExtras =
+    body.defaultExtras && typeof body.defaultExtras === "object"
+      ? Object.fromEntries(
+          Object.entries(body.defaultExtras)
+            .filter(([, v]) => typeof v === "number")
+            .map(([k, v]) => [k, Math.max(0, Math.min(1, Math.round(v)))])
+        )
+      : {}
 
   // Priorizar JWT del usuario para que RLS vea auth.uid() y permita el INSERT
   const supabase = bearer
@@ -90,7 +101,7 @@ export async function POST(
     throw err
   }
 
-  const insertPayload = {
+  const baseInsert = {
     user_id: userId,
     title,
     icon: normalizeString(body.icon) ?? null,
@@ -102,21 +113,40 @@ export async function POST(
     location: normalizeString(body.location) ?? null,
   }
 
-  const { data, error } = await supabase
+  const insertWithDefaultExtras = { ...baseInsert, default_extras: defaultExtras }
+  const selectWithDefaultExtras =
+    "id, user_id, title, icon, color, start_time, end_time, break_minutes, alert_minutes, location, default_extras, created_at, updated_at"
+  const selectBase =
+    "id, user_id, title, icon, color, start_time, end_time, break_minutes, alert_minutes, location, created_at, updated_at"
+
+  let result = await supabase
     .from("shift_template_presets")
-    .insert(insertPayload)
-    .select("id, user_id, title, icon, color, start_time, end_time, break_minutes, alert_minutes, location, created_at, updated_at")
+    .insert(insertWithDefaultExtras)
+    .select(selectWithDefaultExtras)
     .single()
 
-  if (error) {
-    console.error("[shift-templates] Insert error", error)
+  if (result.error) {
+    const msg = String(result.error.message ?? "")
+    const code = String((result.error as { code?: string }).code ?? "")
+    const missingColumn = /column.*does not exist|does not exist|PGRST204/i.test(msg) || code === "PGRST204"
+    if (missingColumn) {
+      result = await supabase
+        .from("shift_template_presets")
+        .insert(baseInsert)
+        .select(selectBase)
+        .single()
+    }
+  }
+
+  if (result.error) {
+    console.error("[shift-templates] Insert error", result.error)
     return NextResponse.json(
       { error: "No se pudo crear la plantilla" },
       { status: 500 }
     )
   }
 
-  const row = data as {
+  const row = result.data as {
     id: number
     user_id: string
     title: string
@@ -127,9 +157,15 @@ export async function POST(
     break_minutes: number | null
     alert_minutes: number | null
     location: string | null
+    default_extras?: Record<string, number> | null
     created_at: string
     updated_at: string
   }
+
+  const outDefaultExtras =
+    row.default_extras && typeof row.default_extras === "object" && Object.keys(row.default_extras).length > 0
+      ? row.default_extras
+      : undefined
 
   return NextResponse.json({
     id: row.id,
@@ -142,6 +178,7 @@ export async function POST(
     breakMinutes: row.break_minutes,
     alertMinutes: row.alert_minutes,
     location: row.location,
+    defaultExtras: outDefaultExtras,
     createdAt: row.created_at,
     updatedAt: row.updated_at,
   }, { status: 201 })

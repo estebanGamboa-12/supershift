@@ -28,7 +28,7 @@ import type { RotationTemplate, ShiftTemplate } from "@/types/templates"
 import { loadUserPreferences } from "@/lib/user-preferences"
 import { DEFAULT_USER_PREFERENCES, type UserPreferences } from "@/types/preferences"
 import { isFestiveDate } from "@/lib/festive-dates"
-import { getTemplateDefaultPluses } from "@/lib/template-default-pluses"
+import { defaultExtrasToPluses, getTemplateDefaultPluses } from "@/lib/template-default-pluses"
 import { useConfirmDelete } from "@/lib/ConfirmDeleteContext"
 
 type PlannerPluses = {
@@ -203,6 +203,9 @@ export default function ShiftPlannerLab({
   const [toasts, setToasts] = useState<ToastMessage[]>([])
   const toastTimeoutsRef = useRef<Map<number, number>>(new Map())
   const [userPreferences, setUserPreferences] = useState<UserPreferences>(DEFAULT_USER_PREFERENCES)
+  const dragSourceDateRef = useRef<string | null>(null)
+  const [dragOverDate, setDragOverDate] = useState<string | null>(null)
+  const [draggingDate, setDraggingDate] = useState<string | null>(null)
 
   useEffect(() => {
     const loaded = loadUserPreferences()
@@ -222,19 +225,6 @@ export default function ShiftPlannerLab({
     error: rotationTemplatesError,
   } = useRotationTemplates(userId)
   const { confirmDelete } = useConfirmDelete()
-
-  // Debug: Log para verificar que las rotaciones se carguen
-  useEffect(() => {
-    if (userId) {
-      console.log("[ShiftPlannerLab] userId:", userId)
-      console.log("[ShiftPlannerLab] rotationTemplates count:", rotationTemplates.length)
-      console.log("[ShiftPlannerLab] rotationTemplates:", rotationTemplates)
-      console.log("[ShiftPlannerLab] isLoadingRotationTemplates:", isLoadingRotationTemplates)
-      console.log("[ShiftPlannerLab] rotationTemplatesError:", rotationTemplatesError)
-    } else {
-      console.warn("[ShiftPlannerLab] ⚠️ No userId provided! Las rotaciones no se cargarán.")
-    }
-  }, [userId, rotationTemplates, isLoadingRotationTemplates, rotationTemplatesError])
 
   useEffect(() => {
     if (
@@ -508,6 +498,52 @@ export default function ShiftPlannerLab({
     closeEditor()
   }
 
+  function handleDragStartShift(sourceDate: string, e: React.DragEvent) {
+    dragSourceDateRef.current = sourceDate
+    setDraggingDate(sourceDate)
+    e.dataTransfer.effectAllowed = "move"
+    e.dataTransfer.setData("text/plain", sourceDate)
+  }
+
+  function handleDragEndShift() {
+    dragSourceDateRef.current = null
+    setDraggingDate(null)
+    setDragOverDate(null)
+  }
+
+  function handleDragOverCell(e: React.DragEvent, dayIso: string) {
+    e.preventDefault()
+    e.stopPropagation()
+    e.dataTransfer.dropEffect = "move"
+    setDragOverDate(dayIso)
+  }
+
+  function handleDragLeaveCell() {
+    setDragOverDate(null)
+  }
+
+  function handleDropOnCell(targetDate: string) {
+    const sourceDate = dragSourceDateRef.current
+    setDragOverDate(null)
+    setDraggingDate(null)
+    dragSourceDateRef.current = null
+    if (!sourceDate || sourceDate === targetDate) return
+    const sourceEntry = entries[sourceDate]
+    if (!sourceEntry) return
+    const targetEntry = entries[targetDate]
+    updateEntries((prev) => {
+      const next = { ...prev }
+      if (!targetEntry) {
+        delete next[sourceDate]
+        next[targetDate] = { ...sourceEntry, date: targetDate }
+      } else {
+        next[sourceDate] = { ...targetEntry, date: sourceDate }
+        next[targetDate] = { ...sourceEntry, date: targetDate }
+      }
+      return next
+    })
+  }
+
   const handleApplyRotation = useCallback(() => {
     if (!selectedRotationTemplate) {
       pushToast("error", "Selecciona una plantilla de rotación antes de aplicarla.")
@@ -572,19 +608,23 @@ export default function ShiftPlannerLab({
             endTime: existing?.endTime ?? DEFAULT_PLANNER_END_TIME,
           }
         } else {
-          const defaultPluses = getTemplateDefaultPluses(template.id)
+          const shiftExtras = userPreferences.shiftExtras ?? []
+          const pluses =
+            template.defaultExtras && Object.keys(template.defaultExtras).length > 0
+              ? defaultExtrasToPluses(template.defaultExtras, shiftExtras)
+              : (template.defaultPluses ?? getTemplateDefaultPluses(template.id)) ?? null
           updates[iso] = {
             date: iso,
             type: "WORK",
             note: "",
             color: template.color ?? SHIFT_TYPES.find(({ value }) => value === "WORK")?.defaultColor ?? "#2563eb",
             label: template.title,
-            pluses: defaultPluses
+            pluses: pluses
               ? {
-                  night: defaultPluses.night ?? 0,
-                  holiday: defaultPluses.holiday ?? 0,
-                  availability: defaultPluses.availability ?? 0,
-                  other: defaultPluses.other ?? 0,
+                  night: Number(pluses.night) ?? 0,
+                  holiday: Number(pluses.holiday) ?? 0,
+                  availability: Number(pluses.availability) ?? 0,
+                  other: Number(pluses.other) ?? 0,
                 }
               : { ...INITIAL_PLUSES },
             startTime: template.startTime || existing?.startTime || DEFAULT_PLANNER_START_TIME,
@@ -620,6 +660,7 @@ export default function ShiftPlannerLab({
     selectedRotationTemplate,
     shiftTemplatesById,
     updateEntries,
+    userPreferences.shiftExtras,
   ])
 
   function confirmApplyRotation() {
@@ -1084,82 +1125,76 @@ export default function ShiftPlannerLab({
                         : null
                       const showFestive = (userPreferences.showFestiveDays ?? true) && isFestiveDate(day)
                       const festiveColor = userPreferences.festiveDayColor ?? DEFAULT_USER_PREFERENCES.festiveDayColor ?? "#dc2626"
+                      const isDropTarget = dragOverDate === dayIso
+                      const isDraggingFrom = draggingDate === dayIso
                       
                       return (
-                        <button
+                        <div
                           key={index}
-                          type="button"
-                          onClick={() => setSelectedDate(dayIso)}
-                          className={`relative flex flex-col items-stretch gap-1 rounded-lg transition hover:scale-[1.02] focus:outline-none min-h-[60px] sm:min-h-[70px] ${
-                            !isCurrentMonth
-                              ? "py-1 px-1 text-white/20"
-                              : isSelected
-                                ? "bg-sky-500/30 py-1.5 px-1.5 text-white ring-2 ring-sky-400/50"
-                                : isCurrentDay
-                                  ? "bg-white/10 py-1.5 px-1.5 text-white font-bold ring-1 ring-white/20"
-                                  : hasEntry
-                                    ? "py-1.5 px-1.5 text-white font-semibold hover:bg-white/10"
-                                    : "py-1.5 px-1.5 text-white/70 hover:bg-white/5 hover:text-white"
-                          }`}
+                          onDragOver={(e) => handleDragOverCell(e, dayIso)}
+                          onDragLeave={handleDragLeaveCell}
+                          onDrop={() => handleDropOnCell(dayIso)}
+                          className={`relative flex flex-col rounded-lg transition-all min-h-[60px] sm:min-h-[70px] ${
+                            isDropTarget ? "ring-2 ring-sky-400 ring-offset-2 ring-offset-slate-950 bg-sky-500/20 scale-[1.02]" : ""
+                          } ${!isCurrentMonth ? "opacity-50" : ""}`}
                           style={
                             showFestive && isCurrentMonth
                               ? { borderLeft: `3px solid ${festiveColor}` }
                               : undefined
                           }
                         >
-                          {/* Número del día */}
-                          <span className={`text-xs font-medium sm:text-sm ${isCurrentDay ? "text-white" : "text-white/90"}`}>
-                            {format(day, "d", { locale: es })}
-                          </span>
-                          
-                          {/* Barra de color y contenido */}
-                          {isCurrentMonth && (
-                            <div className="flex-1 flex flex-col gap-0.5">
-                              {hasEntry ? (
-                                <>
-                                  {/* Barra de color prominente */}
-                                  <div 
-                                    className="h-1.5 w-full rounded-sm shadow-sm"
-                                    style={{ 
-                                      backgroundColor: entry.color || "#3b82f6",
-                                      opacity: isRest || isVacation ? 0.7 : 1
-                                    }}
-                                  />
-                                  
-                                  {/* Información del turno */}
-                                  <div className="flex flex-col gap-0.5 min-h-0">
-                                    {shiftLabel && (
-                                      <span className="text-[8px] sm:text-[9px] font-semibold text-white/90 leading-tight truncate">
-                                        {shiftLabel}
-                                      </span>
-                                    )}
-                                    {timeRange && (
-                                      <span className="text-[7px] sm:text-[8px] text-white/70 leading-tight">
-                                        {timeRange}
-                                      </span>
-                                    )}
-                                    {isRest && (
-                                      <span className="text-[7px] sm:text-[8px] text-white/60 italic">
-                                        Libre
-                                      </span>
-                                    )}
-                                    {isVacation && (
-                                      <span className="text-[7px] sm:text-[8px] text-white/60 italic">
-                                        Vacaciones
-                                      </span>
-                                    )}
+                          <button
+                            type="button"
+                            onClick={() => setSelectedDate(dayIso)}
+                            className={`relative flex flex-1 flex-col items-stretch gap-1 rounded-lg transition hover:scale-[1.02] focus:outline-none min-h-[56px] sm:min-h-[66px] py-1.5 px-1.5 ${
+                              !isCurrentMonth
+                                ? "text-white/20"
+                                : isSelected
+                                  ? "bg-sky-500/30 text-white ring-2 ring-sky-400/50"
+                                  : isCurrentDay
+                                    ? "bg-white/10 text-white font-bold ring-1 ring-white/20"
+                                    : hasEntry
+                                      ? "text-white font-semibold hover:bg-white/10"
+                                      : "text-white/70 hover:bg-white/5 hover:text-white"
+                            } ${isDraggingFrom ? "opacity-50" : ""}`}
+                          >
+                            <span className={`text-xs font-medium sm:text-sm ${isCurrentDay ? "text-white" : "text-white/90"}`}>
+                              {format(day, "d", { locale: es })}
+                            </span>
+                            {isCurrentMonth && (
+                              <div className="flex-1 flex flex-col gap-0.5 min-h-0">
+                                {hasEntry ? (
+                                  <div
+                                    draggable
+                                    onDragStart={(e) => handleDragStartShift(dayIso, e)}
+                                    onDragEnd={handleDragEndShift}
+                                    className="cursor-grab active:cursor-grabbing touch-none rounded-md -m-0.5 p-0.5 border border-transparent hover:border-white/20 transition"
+                                    title="Arrastra a otro día para mover o intercambiar"
+                                  >
+                                    <div 
+                                      className="h-1.5 w-full rounded-sm shadow-sm"
+                                      style={{ backgroundColor: entry.color || "#3b82f6", opacity: isRest || isVacation ? 0.7 : 1 }}
+                                    />
+                                    <div className="flex flex-col gap-0.5 min-h-0">
+                                      {shiftLabel && (
+                                        <span className="text-[8px] sm:text-[9px] font-semibold text-white/90 leading-tight truncate">{shiftLabel}</span>
+                                      )}
+                                      {timeRange && (
+                                        <span className="text-[7px] sm:text-[8px] text-white/70 leading-tight">{timeRange}</span>
+                                      )}
+                                      {isRest && <span className="text-[7px] sm:text-[8px] text-white/60 italic">Libre</span>}
+                                      {isVacation && <span className="text-[7px] sm:text-[8px] text-white/60 italic">Vacaciones</span>}
+                                    </div>
                                   </div>
-                                </>
-                              ) : (
-                                <div className="flex-1 flex items-center justify-center">
-                                  <span className="text-[7px] sm:text-[8px] text-white/40 italic">
-                                    Libre
-                                  </span>
-                                </div>
-                              )}
-                            </div>
-                          )}
-                        </button>
+                                ) : (
+                                  <div className="flex-1 flex items-center justify-center">
+                                    <span className="text-[7px] sm:text-[8px] text-white/40 italic">Libre</span>
+                                  </div>
+                                )}
+                              </div>
+                            )}
+                          </button>
+                        </div>
                       )
                     })}
                 </motion.div>

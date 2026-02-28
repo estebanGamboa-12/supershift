@@ -3,17 +3,9 @@
 import { useEffect, useMemo, useState } from "react"
 import Link from "next/link"
 import { AnimatePresence, motion } from "framer-motion"
-import type { ShiftTemplate, ShiftTemplateInput } from "@/types/templates"
-import type { ShiftPluses } from "@/types/shifts"
+import type { ShiftTemplate, ShiftTemplateInput, DefaultExtrasMap } from "@/types/templates"
 import { loadUserPreferences } from "@/lib/user-preferences"
 import { DEFAULT_USER_PREFERENCES, type UserPreferences } from "@/types/preferences"
-
-const DEFAULT_PLUSES: ShiftPluses = {
-  night: 0,
-  holiday: 0,
-  availability: 0,
-  other: 0,
-}
 
 type CustomShiftTypeItem = {
   id: string
@@ -24,15 +16,15 @@ type CustomShiftTypeItem = {
   defaultEndTime?: string | null
 }
 
-export type ShiftTemplateSubmitPayload = ShiftTemplateInput & { defaultPluses?: ShiftPluses }
+export type ShiftTemplateSubmitPayload = ShiftTemplateInput & { defaultExtras?: DefaultExtrasMap }
 
 type ShiftTemplateModalProps = {
   open: boolean
   onClose: () => void
   onSubmit: (payload: ShiftTemplateSubmitPayload) => Promise<void>
   template?: ShiftTemplate | null
-  /** Extras por defecto para esta plantilla (p. ej. desde localStorage). */
-  initialDefaultPluses?: ShiftPluses | null
+  /** Extras por defecto por ID (para compat con plantillas sin defaultExtras aún). */
+  initialDefaultExtras?: DefaultExtrasMap | null
   title?: string
   customShiftTypes?: CustomShiftTypeItem[]
 }
@@ -42,7 +34,7 @@ export default function ShiftTemplateModal({
   onClose,
   onSubmit,
   template,
-  initialDefaultPluses,
+  initialDefaultExtras,
   title = "Nueva plantilla de turno",
   customShiftTypes = [],
 }: ShiftTemplateModalProps) {
@@ -52,7 +44,7 @@ export default function ShiftTemplateModal({
   const [startTime, setStartTime] = useState("09:00")
   const [endTime, setEndTime] = useState("17:00")
   const [location, setLocation] = useState("")
-  const [defaultPluses, setDefaultPluses] = useState<ShiftPluses>({ ...DEFAULT_PLUSES })
+  const [defaultExtras, setDefaultExtras] = useState<DefaultExtrasMap>({})
   const [userPreferences, setUserPreferences] = useState<UserPreferences>(DEFAULT_USER_PREFERENCES)
   const [error, setError] = useState<string | null>(null)
   const [isSubmitting, setIsSubmitting] = useState(false)
@@ -72,7 +64,24 @@ export default function ShiftTemplateModal({
       setStartTime(template.startTime)
       setEndTime(template.endTime)
       setLocation(template.location ?? "")
-      setDefaultPluses(initialDefaultPluses ?? { ...DEFAULT_PLUSES })
+      const extras = userPreferences.shiftExtras ?? []
+      const raw = template.defaultExtras && Object.keys(template.defaultExtras).length > 0 ? template.defaultExtras : initialDefaultExtras ?? {}
+      const byId: DefaultExtrasMap = {}
+      const rawKeys = Object.keys(raw)
+      const isByIndex = rawKeys.length > 0 && rawKeys.every((k) => /^[0-3]$/.test(String(k)))
+      if (isByIndex) {
+        for (let i = 0; i < Math.min(4, extras.length); i++) {
+          const extra = extras[i]
+          if (extra) byId[extra.id] = Number((raw as Record<string, number>)[String(i)]) > 0 ? 1 : 0
+        }
+      } else {
+        for (const extra of extras.slice(0, 4)) {
+          const id = extra.id
+          const val = (raw as Record<string, number>)[id] ?? (raw as Record<string, number>)[String(id)]
+          byId[id] = Number(val) > 0 ? 1 : 0
+        }
+      }
+      setDefaultExtras(byId)
     } else {
       setFormTitle("")
       setIcon("🗓️")
@@ -80,11 +89,11 @@ export default function ShiftTemplateModal({
       setStartTime("09:00")
       setEndTime("17:00")
       setLocation("")
-      setDefaultPluses({ ...DEFAULT_PLUSES })
+      setDefaultExtras({})
     }
     setError(null)
     setIsSubmitting(false)
-  }, [open, template, initialDefaultPluses])
+  }, [open, template, initialDefaultExtras, userPreferences.shiftExtras])
 
   const isValid = useMemo(() => {
     return formTitle.trim().length > 0 && startTime.trim() && endTime.trim()
@@ -109,7 +118,15 @@ export default function ShiftTemplateModal({
         breakMinutes: null,
         alertMinutes: null,
         location: location.trim() || null,
-        defaultPluses: Object.values(defaultPluses).some((v) => v > 0) ? defaultPluses : undefined,
+        defaultExtras: (() => {
+          const extras = userPreferences.shiftExtras ?? []
+          if (extras.length === 0) return undefined
+          const byId: DefaultExtrasMap = {}
+          for (const extra of extras.slice(0, 4)) {
+            if ((defaultExtras[extra.id] ?? 0) > 0) byId[extra.id] = 1
+          }
+          return Object.keys(byId).length > 0 ? byId : undefined
+        })(),
       }
 
       await onSubmit(payload)
@@ -284,10 +301,8 @@ export default function ShiftTemplateModal({
                   </p>
                 ) : (
                   <div className="grid grid-cols-2 gap-2 sm:grid-cols-3">
-                    {(userPreferences.shiftExtras ?? []).slice(0, 4).map((extra, index) => {
-                      const plusKeys: (keyof ShiftPluses)[] = ["night", "holiday", "availability", "other"]
-                      const key = plusKeys[index]
-                      const isSelected = (defaultPluses[key] ?? 0) > 0
+                    {(userPreferences.shiftExtras ?? []).slice(0, 4).map((extra) => {
+                      const isSelected = (defaultExtras[extra.id] ?? 0) > 0
                       return (
                         <label
                           key={extra.id}
@@ -302,7 +317,7 @@ export default function ShiftTemplateModal({
                             type="checkbox"
                             checked={isSelected}
                             onChange={(e) =>
-                              setDefaultPluses((prev) => ({ ...prev, [key]: e.target.checked ? 1 : 0 }))
+                              setDefaultExtras((prev) => ({ ...prev, [extra.id]: e.target.checked ? 1 : 0 }))
                             }
                             className="h-4 w-4 rounded border-2 border-white/30 bg-white/10 accent-sky-500"
                           />
@@ -312,6 +327,11 @@ export default function ShiftTemplateModal({
                       )
                     })}
                   </div>
+                )}
+                {(userPreferences.shiftExtras ?? []).length > 0 && (
+                  <p className="mt-2 text-[10px] text-white/40">
+                    Al guardar, estos extras se aplicarán automáticamente cuando selecciones esta plantilla al editar o crear turnos en el calendario.
+                  </p>
                 )}
               </div>
 

@@ -10,7 +10,7 @@ import { es } from "date-fns/locale"
 import { loadUserPreferences } from "@/lib/user-preferences"
 import { DEFAULT_USER_PREFERENCES, type UserPreferences } from "@/types/preferences"
 import type { ShiftTemplate } from "@/types/templates"
-import { getTemplateDefaultPluses } from "@/lib/template-default-pluses"
+import { defaultExtrasToPluses, getTemplateDefaultPluses, inferPlusesFromTemplateTitle } from "@/lib/template-default-pluses"
 import { useConfirmDelete } from "@/contexts/ConfirmDeleteContext"
 
 type Props = {
@@ -105,30 +105,49 @@ export default function EditShiftModal({ shift, dayShifts = [], onSave, onDelete
         const sameLabel = (t.title ?? "").trim() === (shift.label ?? "").trim()
         return sameLabel && norm(t.color) === shiftColor
       })
-      const hasPluses = shift.pluses && Object.values(shift.pluses).some((v) => v > 0)
-      if (hasPluses) {
-        setPluses(shift.pluses!)
+      const hasPluses = shift.pluses && Object.values(shift.pluses).some((v) => Number(v) > 0)
+      const basePluses: ShiftPluses = { night: 0, holiday: 0, availability: 0, other: 0 }
+      if (hasPluses && shift.pluses) {
+        // Normalizar a número por si vienen como string desde storage
+        setPluses({
+          night: Number(shift.pluses.night) || 0,
+          holiday: Number(shift.pluses.holiday) || 0,
+          availability: Number(shift.pluses.availability) || 0,
+          other: Number(shift.pluses.other) || 0,
+        })
       } else if (match) {
-        const defaultPluses = getTemplateDefaultPluses(match.id)
-        setPluses(
-          defaultPluses
-            ? {
-                night: defaultPluses.night ?? 0,
-                holiday: defaultPluses.holiday ?? 0,
-                availability: defaultPluses.availability ?? 0,
-                other: defaultPluses.other ?? 0,
-              }
-            : { night: 0, holiday: 0, availability: 0, other: 0 }
-        )
+        const extras = userPreferences.shiftExtras ?? []
+        const fromStorage = getTemplateDefaultPluses(match.id)
+        const fromTemplate = match.defaultExtras && Object.keys(match.defaultExtras).length > 0
+          ? defaultExtrasToPluses(match.defaultExtras, extras)
+          : null
+        const fromLegacy = match.defaultPluses && Object.values(match.defaultPluses).some((v) => Number(v) > 0)
+          ? { night: Number(match.defaultPluses.night) || 0, holiday: Number(match.defaultPluses.holiday) || 0, availability: Number(match.defaultPluses.availability) || 0, other: Number(match.defaultPluses.other) || 0 }
+          : null
+        let nextPluses: ShiftPluses
+        if (fromStorage && Object.values(fromStorage).some((v) => v > 0)) {
+          nextPluses = { night: fromStorage.night, holiday: fromStorage.holiday, availability: fromStorage.availability, other: fromStorage.other }
+        } else if (fromTemplate && Object.values(fromTemplate).some((v) => v > 0)) {
+          nextPluses = fromTemplate
+        } else if (fromLegacy && Object.values(fromLegacy).some((v) => v > 0)) {
+          nextPluses = fromLegacy
+        } else {
+          nextPluses = { ...basePluses, ...inferPlusesFromTemplateTitle(match.title ?? "") }
+        }
+        if (fromStorage) {
+          const keys: (keyof ShiftPluses)[] = ["night", "holiday", "availability", "other"]
+          keys.forEach((k) => { if (Number(fromStorage[k]) > 0) nextPluses[k] = 1 })
+        }
+        setPluses(nextPluses)
       } else {
-        setPluses({ night: 0, holiday: 0, availability: 0, other: 0 })
+        setPluses(basePluses)
       }
       setIsProcessingDelete(false)
       setSaveError("")
       setDeleteError("")
       setSelectedTemplateId(match?.id ?? null)
     }
-  }, [shift, shiftTemplates])
+  }, [shift, shiftTemplates, userPreferences.shiftExtras])
 
   useEffect(() => {
     const handleKey = (e: KeyboardEvent) => {
@@ -296,23 +315,37 @@ export default function EditShiftModal({ shift, dayShifts = [], onSave, onDelete
                             key={tpl.id}
                             type="button"
                             onClick={() => {
+                              const extras = userPreferences.shiftExtras ?? []
+                              // Origen 1: localStorage (si guardaste la plantilla con extras, está aquí)
+                              const fromStorage = getTemplateDefaultPluses(Number(tpl.id))
+                              const fromTemplate = tpl.defaultExtras && Object.keys(tpl.defaultExtras).length > 0
+                                ? defaultExtrasToPluses(tpl.defaultExtras, extras)
+                                : null
+                              const fromLegacy = tpl.defaultPluses && Object.values(tpl.defaultPluses).some((v) => Number(v) > 0)
+                                ? { night: Number(tpl.defaultPluses.night) || 0, holiday: Number(tpl.defaultPluses.holiday) || 0, availability: Number(tpl.defaultPluses.availability) || 0, other: Number(tpl.defaultPluses.other) || 0 }
+                                : null
+                              let nextPluses: ShiftPluses
+                              if (fromStorage && Object.values(fromStorage).some((v) => v > 0)) {
+                                nextPluses = { night: fromStorage.night, holiday: fromStorage.holiday, availability: fromStorage.availability, other: fromStorage.other }
+                              } else if (fromTemplate && Object.values(fromTemplate).some((v) => v > 0)) {
+                                nextPluses = fromTemplate
+                              } else if (fromLegacy && Object.values(fromLegacy).some((v) => v > 0)) {
+                                nextPluses = fromLegacy
+                              } else {
+                                nextPluses = { night: 0, holiday: 0, availability: 0, other: 0, ...inferPlusesFromTemplateTitle(tpl.title ?? "") }
+                              }
+                              // Mezclar con localStorage por si tiene más extras marcados
+                              if (fromStorage) {
+                                const keys: (keyof ShiftPluses)[] = ["night", "holiday", "availability", "other"]
+                                keys.forEach((k) => { if (Number(fromStorage[k]) > 0) nextPluses[k] = 1 })
+                              }
                               setSelectedTemplateId(tpl.id)
                               setType("CUSTOM")
                               setLabel(tpl.title)
                               setColor(tplColor)
                               setStartTime(tpl.startTime)
                               setEndTime(tpl.endTime)
-                              const defaultPluses = getTemplateDefaultPluses(tpl.id)
-                              setPluses(
-                                defaultPluses
-                                  ? {
-                                      night: defaultPluses.night ?? 0,
-                                      holiday: defaultPluses.holiday ?? 0,
-                                      availability: defaultPluses.availability ?? 0,
-                                      other: defaultPluses.other ?? 0,
-                                    }
-                                  : { night: 0, holiday: 0, availability: 0, other: 0 }
-                              )
+                              setPluses(nextPluses)
                             }}
                             className={`rounded-xl border-2 px-4 py-2.5 text-sm font-semibold transition focus:outline-none focus:ring-2 focus:ring-white/50 ${
                               isSelected
@@ -424,9 +457,12 @@ export default function EditShiftModal({ shift, dayShifts = [], onSave, onDelete
                 )}
               </div>
 
-              {/* Añadir extras a este turno (misma estructura que el sheet de nuevo turno) */}
+              {/* Añadir extras a este turno: checkboxes para marcar/desmarcar manualmente */}
               <div className="rounded-xl border border-white/10 bg-white/5 p-2.5">
                 <p className="mb-1.5 text-xs font-semibold uppercase tracking-wider text-white/50">Extras</p>
+                <p className="mb-2 text-[10px] text-white/40">
+                  Al elegir una plantilla arriba (ej. valencia, Nocturno) se cargan sus extras por defecto. Marca o desmarca aquí los que apliquen a este turno.
+                </p>
                 {(userPreferences.shiftExtras ?? []).length === 0 ? (
                   <p className="rounded-lg border border-dashed border-white/15 bg-white/5 px-3 py-3 text-[11px] text-white/50">
                     Si quieres añadir extras a este turno (nocturno, festivo, disponibilidad…), créalos en{" "}

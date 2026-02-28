@@ -8,7 +8,6 @@ import FloatingParticlesLoader from "@/components/FloatingParticlesLoader"
 import UserAuthPanel from "@/components/auth/UserAuthPanel"
 import ShiftTemplateCard from "@/components/dashboard/ShiftTemplateCard"
 import ShiftTemplateModal, { type ShiftTemplateSubmitPayload } from "@/components/ShiftTemplateModal"
-import { getTemplateDefaultPluses, setTemplateDefaultPluses } from "@/lib/template-default-pluses"
 import EditRotationModal from "@/components/EditRotationModal"
 import MobileNavigation, { type MobileTab } from "@/components/dashboard/MobileNavigation"
 import PlanLoopLogo from "@/components/PlanLoopLogo"
@@ -26,6 +25,8 @@ import CreditsBottomBar from "@/components/dashboard/CreditsBottomBar"
 import { runTemplatesTour } from "@/components/onboarding/TemplatesOnboarding"
 import { runRotationFormTour } from "@/components/onboarding/RotationFormOnboarding"
 import { loadUserPreferences } from "@/lib/user-preferences"
+import { setTemplateDefaultPluses } from "@/lib/template-default-pluses"
+import type { ShiftPluses } from "@/types/shifts"
 
 function sanitizeUserSummary(value: unknown): UserSummary | null {
   if (!value || typeof value !== "object") {
@@ -302,21 +303,51 @@ export default function TemplatesPage() {
   }
 
   const handleSubmitShiftTemplate = async (payload: ShiftTemplateSubmitPayload) => {
-    const { defaultPluses, ...input } = payload
+    let templateId: number
     if (shiftModalTemplate) {
-      const result = await updateShiftTemplate(shiftModalTemplate.id, input)
+      const result = await updateShiftTemplate(shiftModalTemplate.id, payload)
       if (!result) {
         throw new Error("No se pudo actualizar la plantilla de turno")
       }
-      setTemplateDefaultPluses(shiftModalTemplate.id, defaultPluses)
+      templateId = result.id
       showToast({ type: "update", message: "Plantilla modificada" })
     } else {
-      const result = await createShiftTemplate(input)
+      const result = await createShiftTemplate(payload)
       if (!result) {
         throw new Error("No se pudo crear la plantilla de turno")
       }
-      setTemplateDefaultPluses(result.id, defaultPluses)
+      templateId = result.id
       showToast({ type: "create", message: "Plantilla creada" })
+    }
+    if (payload.defaultExtras && Object.keys(payload.defaultExtras).length > 0) {
+      const pluses: ShiftPluses = { night: 0, holiday: 0, availability: 0, other: 0 }
+      const keys = Object.keys(payload.defaultExtras)
+      const byIndex = keys.length > 0 && keys.every((k) => /^[0-3]$/.test(k))
+      if (byIndex) {
+        pluses.night = Number(payload.defaultExtras["0"]) > 0 ? 1 : 0
+        pluses.holiday = Number(payload.defaultExtras["1"]) > 0 ? 1 : 0
+        pluses.availability = Number(payload.defaultExtras["2"]) > 0 ? 1 : 0
+        pluses.other = Number(payload.defaultExtras["3"]) > 0 ? 1 : 0
+      } else {
+        const prefs = loadUserPreferences()
+        const extras = prefs?.preferences?.shiftExtras ?? []
+        const slotKeys: (keyof ShiftPluses)[] = ["night", "holiday", "availability", "other"]
+        for (let i = 0; i < Math.min(4, extras.length); i++) {
+          const key = slotKeys[i]
+          const extra = extras[i]
+          if (!key || !extra?.id) continue
+          const id = String(extra.id).trim()
+          let val = payload.defaultExtras![id] ?? payload.defaultExtras![extra.id]
+          if (val === undefined) {
+            const matchKey = Object.keys(payload.defaultExtras!).find(
+              (k) => String(k).trim() === id || String(k).trim().toLowerCase() === id.toLowerCase()
+            )
+            if (matchKey != null) val = payload.defaultExtras![matchKey]
+          }
+          pluses[key] = Number(val) > 0 ? 1 : 0
+        }
+      }
+      setTemplateDefaultPluses(templateId, pluses)
     }
     setShiftModalTemplate(null)
   }
@@ -666,7 +697,7 @@ export default function TemplatesPage() {
         onClose={closeShiftModal}
         onSubmit={handleSubmitShiftTemplate}
         template={shiftModalTemplate}
-        initialDefaultPluses={shiftModalTemplate ? getTemplateDefaultPluses(shiftModalTemplate.id) : null}
+        initialDefaultExtras={shiftModalTemplate?.defaultExtras ?? null}
         title={shiftModalTemplate ? "Editar plantilla de turno" : "Nueva plantilla de turno"}
         customShiftTypes={shiftTemplates.map((t) => ({ id: String(t.id), name: t.title, color: t.color ?? "#3b82f6", defaultStartTime: t.startTime, defaultEndTime: t.endTime }))}
       />

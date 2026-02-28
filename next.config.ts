@@ -1,6 +1,8 @@
 import type { NextConfig } from "next";
 
 const nextConfig: NextConfig = {
+  // Mitiga ChunkLoadError (timeout) en dev/prod según reportes de la comunidad
+  expireTime: 0,
   experimental: {
     // Reduce bundle: solo se cargan los módulos usados (menos JS no usado en Lighthouse)
     optimizePackageImports: ["framer-motion"],

@@ -6,7 +6,7 @@ import { motion } from "framer-motion"
 import type { ShiftType, ShiftPluses } from "@/types/shifts"
 import type { ShiftTemplate } from "@/types/templates"
 import { loadUserPreferences } from "@/lib/user-preferences"
-import { getTemplateDefaultPluses } from "@/lib/template-default-pluses"
+import { defaultExtrasToPluses, getTemplateDefaultPluses, inferPlusesFromTemplateTitle } from "@/lib/template-default-pluses"
 
 const DEFAULT_PLUSES: ShiftPluses = {
   night: 0,
@@ -56,6 +56,16 @@ export default function MobileAddShiftSheet({
   const [submitError, setSubmitError] = useState("")
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [pluses, setPluses] = useState<ShiftPluses>({ ...DEFAULT_PLUSES })
+  const [hourlyRate, setHourlyRate] = useState(0)
+  const [shiftExtras, setShiftExtras] = useState<{ id: string; name: string; value: number; color?: string }[]>([])
+
+  useEffect(() => {
+    const loaded = loadUserPreferences()
+    if (loaded?.preferences) {
+      if (loaded.preferences.hourlyRate != null) setHourlyRate(loaded.preferences.hourlyRate)
+      setShiftExtras(loaded.preferences.shiftExtras ?? [])
+    }
+  }, [open])
 
   useEffect(() => {
     if (!open) {
@@ -77,10 +87,17 @@ export default function MobileAddShiftSheet({
       setSelectedTemplateId(first.id)
       if (!initialStartTime) setStartTime(first.startTime)
       if (!initialEndTime) setEndTime(first.endTime)
-      const defaultPluses = getTemplateDefaultPluses(first.id)
-      setPluses(defaultPluses ? { ...defaultPluses } : { ...DEFAULT_PLUSES })
+      const nextPluses =
+        first.defaultExtras && Object.keys(first.defaultExtras).length > 0
+          ? defaultExtrasToPluses(first.defaultExtras, shiftExtras)
+          : first.defaultPluses
+            ? { ...first.defaultPluses }
+            : getTemplateDefaultPluses(first.id)
+              ? { ...getTemplateDefaultPluses(first.id)! }
+              : { ...DEFAULT_PLUSES, ...inferPlusesFromTemplateTitle(first.title ?? "") }
+      setPluses(nextPluses)
     }
-  }, [open, selectedDate, initialStartTime, initialEndTime, onDateConsumed, shiftTemplates, selectedTemplateId])
+  }, [open, selectedDate, initialStartTime, initialEndTime, onDateConsumed, shiftTemplates, selectedTemplateId, shiftExtras])
 
   useEffect(() => {
     if (!open) {
@@ -108,16 +125,6 @@ export default function MobileAddShiftSheet({
       return "Selecciona una fecha válida"
     }
   }, [date])
-
-  const [hourlyRate, setHourlyRate] = useState(0)
-  const [shiftExtras, setShiftExtras] = useState<{ id: string; name: string; value: number; color?: string }[]>([])
-  useEffect(() => {
-    const loaded = loadUserPreferences()
-    if (loaded?.preferences) {
-      if (loaded.preferences.hourlyRate != null) setHourlyRate(loaded.preferences.hourlyRate)
-      setShiftExtras(loaded.preferences.shiftExtras ?? [])
-    }
-  }, [open])
 
   const plusKeys: (keyof ShiftPluses)[] = ["night", "holiday", "availability", "other"]
   const { durationLabel, estimatedEur, extrasEur } = useMemo(() => {
@@ -256,9 +263,15 @@ export default function MobileAddShiftSheet({
                         setSelectedTemplateId(tpl.id)
                         setStartTime(tpl.startTime)
                         setEndTime(tpl.endTime)
-                        const defaultPluses = getTemplateDefaultPluses(tpl.id)
-                        if (defaultPluses) setPluses({ ...defaultPluses })
-                        else setPluses({ ...DEFAULT_PLUSES })
+                        const nextPluses =
+                          tpl.defaultExtras && Object.keys(tpl.defaultExtras).length > 0
+                            ? defaultExtrasToPluses(tpl.defaultExtras, shiftExtras)
+                            : tpl.defaultPluses
+                              ? { ...tpl.defaultPluses }
+                              : getTemplateDefaultPluses(tpl.id)
+                                ? { ...getTemplateDefaultPluses(tpl.id)! }
+                                : { ...DEFAULT_PLUSES, ...inferPlusesFromTemplateTitle(tpl.title ?? "") }
+                        setPluses(nextPluses)
                       }}
                       className={`rounded-xl border-2 px-3 py-2 text-xs font-semibold transition touch-manipulation ${
                         isSelected ? "border-white/40 text-white" : "border-white/15 bg-white/5 text-white/80 hover:bg-white/10"

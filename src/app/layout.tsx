@@ -2,10 +2,20 @@ import "./globals.css"
 
 import type { Metadata, Viewport } from "next"
 import type { ReactNode } from "react"
+import dynamic from "next/dynamic"
 
-import { AppProviders } from "@/components/providers/AppProviders"
-import { InstallPromptBanner } from "@/components/pwa/install-prompt"
-import { ServiceWorkerRegistration } from "@/components/pwa/service-worker-registration"
+const AppProviders = dynamic(
+  () => import("@/components/providers/AppProviders").then((m) => ({ default: m.AppProviders })),
+  { ssr: true },
+)
+const InstallPromptBanner = dynamic(
+  () => import("@/components/pwa/install-prompt").then((m) => ({ default: m.InstallPromptBanner })),
+  { ssr: true },
+)
+const ServiceWorkerRegistration = dynamic(
+  () => import("@/components/pwa/service-worker-registration").then((m) => ({ default: m.ServiceWorkerRegistration })),
+  { ssr: true },
+)
 
 export const metadata: Metadata = {
   title: {

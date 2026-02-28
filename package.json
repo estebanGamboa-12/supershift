@@ -7,7 +7,9 @@
     "url": "https://github.com/estebanGamboa-12/supershift.git"
   },
   "scripts": {
-    "dev": "next dev",
+    "dev": "next dev --turbo",
+    "dev:clean": "npm run clean && next dev --turbo",
+    "dev:webpack": "next dev",
     "build": "next build",
     "start": "next start",
     "lint": "eslint",

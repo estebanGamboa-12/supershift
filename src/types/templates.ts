@@ -1,3 +1,8 @@
+import type { ShiftPluses } from "./shifts"
+
+/** Mapa extraId -> 0|1 (los extras los crea el usuario en Extras). */
+export type DefaultExtrasMap = Record<string, number>
+
 export type ShiftTemplate = {
   id: number
   userId: string
@@ -9,6 +14,10 @@ export type ShiftTemplate = {
   breakMinutes?: number | null
   alertMinutes?: number | null
   location?: string | null
+  /** Extras por defecto por ID de extra (usuario los crea). En BBDD como default_extras JSONB. */
+  defaultExtras?: DefaultExtrasMap | null
+  /** @deprecated Usar defaultExtras; se deriva en cliente para compat. */
+  defaultPluses?: ShiftPluses | null
   createdAt: string
   updatedAt: string
 }
@@ -22,6 +31,10 @@ export type ShiftTemplateInput = {
   breakMinutes?: number | null
   alertMinutes?: number | null
   location?: string | null
+  /** Extras por defecto por ID de extra. */
+  defaultExtras?: DefaultExtrasMap | null
+  /** @deprecated Enviar defaultExtras en su lugar. */
+  defaultPluses?: ShiftPluses | null
 }
 
 export type RotationTemplateAssignment = {

@@ -50,6 +50,8 @@ import { useShiftTemplates } from "@/lib/useShiftTemplates"
 import { openNoCreditsModal } from "@/components/dashboard/NoCreditsModalListener"
 import ScreenInfoIcon from "@/components/ui/ScreenInfoIcon"
 import OnboardingTour from "@/components/onboarding/OnboardingTour"
+import { runConfigurationTour } from "@/components/onboarding/ConfigurationOnboarding"
+import CreditsBottomBar from "@/components/dashboard/CreditsBottomBar"
 
 type ApiShift = {
   id: number
@@ -151,6 +153,11 @@ function sanitizeUserSummary(value: unknown): UserSummary | null {
       ? rawTimezone
       : "Europe/Madrid"
 
+  const onboardingCompleted =
+    typeof (candidate as { onboardingCompleted?: unknown }).onboardingCompleted === "boolean"
+      ? (candidate as { onboardingCompleted?: boolean }).onboardingCompleted
+      : undefined
+
   return {
     id,
     name,
@@ -158,6 +165,7 @@ function sanitizeUserSummary(value: unknown): UserSummary | null {
     calendarId,
     avatarUrl,
     timezone,
+    onboardingCompleted,
   }
 }
 
@@ -521,33 +529,47 @@ export default function Home() {
   const { templates: shiftTemplates } = useShiftTemplates(currentUser?.id)
 
   useEffect(() => {
-    if (!currentUser?.id) {
+    if (!currentUser?.id || !supabase) {
       setCreditBalance(null)
       return
     }
     let isMounted = true
-    fetch(`/api/users/${encodeURIComponent(currentUser.id)}/credits`, { cache: "no-store" })
-      .then((res) => res.json().catch(() => null))
-      .then((data) => {
-        if (isMounted && typeof data?.balance === "number") {
-          setCreditBalance(data.balance)
-        }
+    supabase.auth.getSession().then(({ data }) => {
+      const token = data.session?.access_token
+      if (!token || !isMounted) return
+      fetch(`/api/users/${encodeURIComponent(currentUser.id)}/credits`, {
+        cache: "no-store",
+        headers: { Authorization: `Bearer ${token}` },
       })
-      .catch(() => {})
+        .then((res) => res.json().catch(() => null))
+        .then((data) => {
+          if (isMounted && typeof data?.balance === "number") {
+            setCreditBalance(data.balance)
+          }
+        })
+        .catch(() => {})
+    })
     return () => {
       isMounted = false
     }
-  }, [currentUser?.id])
+  }, [currentUser?.id, supabase])
 
-  const refreshCreditBalance = useCallback(() => {
-    if (!currentUser?.id) return
-    fetch(`/api/users/${encodeURIComponent(currentUser.id)}/credits`, { cache: "no-store" })
-      .then((res) => res.json().catch(() => null))
-      .then((data) => {
-        if (typeof data?.balance === "number") setCreditBalance(data.balance)
+  const refreshCreditBalance = useCallback(async () => {
+    if (!currentUser?.id || !supabase) return
+    const { data } = await supabase.auth.getSession()
+    const token = data.session?.access_token
+    if (!token) return
+    try {
+      const res = await fetch(`/api/users/${encodeURIComponent(currentUser.id)}/credits`, {
+        cache: "no-store",
+        headers: { Authorization: `Bearer ${token}` },
       })
-      .catch(() => {})
-  }, [currentUser?.id])
+      const json = await res.json().catch(() => null)
+      if (typeof json?.balance === "number") setCreditBalance(json.balance)
+    } catch {
+      // ignore
+    }
+  }, [currentUser?.id, supabase])
 
   const {
     email: notificationEmailEnabled,
@@ -2433,17 +2455,26 @@ export default function Home() {
         aria-hidden
       />
       <OnboardingTour
-        runInitially={!(currentUser?.onboardingCompleted === true)}
+        runInitially={currentUser?.onboardingCompleted !== true}
         userId={currentUser?.id ?? null}
-        onComplete={async () => {
-          if (!currentUser?.id) return
+        onComplete={async (completedUserId: string | null) => {
+          const uid = completedUserId ?? currentUser?.id
+          if (!uid) return
           try {
-            await fetch(`/api/users/${encodeURIComponent(currentUser.id)}/onboarding`, { method: "PATCH" })
-            setCurrentUser((prev) => (prev ? { ...prev, onboardingCompleted: true } : null))
-          } catch {
-            // ignore
+            await fetch(`/api/users/${encodeURIComponent(uid)}/onboarding`, {
+              method: "PATCH",
+            })
+            setCurrentUser((prev) =>
+              prev ? { ...prev, onboardingCompleted: true } : null,
+            )
+          } catch (error) {
+            console.error(
+              "No se pudo guardar el estado del onboarding en la DB:",
+              error,
+            )
+          } finally {
+            setForceRunTour(false)
           }
-          setForceRunTour(false)
         }}
         forceRun={forceRunTour}
       />
@@ -2515,16 +2546,22 @@ export default function Home() {
                           >
                             Mes
                           </button>
-                          <ScreenInfoIcon
-                            title="Vista del calendario"
-                            placement="bottom"
-                          >
-                            <p className="mb-2">Cambia entre dos formas de ver tu agenda:</p>
-                            <ul className="list-inside list-disc space-y-1 text-white/80">
-                              <li><strong>Día:</strong> un día a la vez. Ideal para ver horarios y tocar un turno para editarlo. Las flechas o el minicalendario a la izquierda cambian el día.</li>
-                              <li><strong>Mes:</strong> plan mensual. Ves todo el mes y puedes arrastrar y soltar turnos, aplicar plantillas o generar rotaciones.</li>
-                            </ul>
-                          </ScreenInfoIcon>
+                          {(userPreferences.showInfoIcon ?? true) && (
+                            <ScreenInfoIcon
+                              title="Vista del calendario"
+                              placement="bottom"
+                              onLaunchTour={() => {
+                                setActiveTab("calendar")
+                                setForceRunTour(true)
+                              }}
+                            >
+                              <p className="mb-2">Cambia entre dos formas de ver tu agenda:</p>
+                              <ul className="list-inside list-disc space-y-1 text-white/80">
+                                <li><strong>Día:</strong> un día a la vez. Ideal para ver horarios y tocar un turno para editarlo. Las flechas o el minicalendario a la izquierda cambian el día.</li>
+                                <li><strong>Mes:</strong> plan mensual. Ves todo el mes y puedes arrastrar y soltar turnos, aplicar plantillas o generar rotaciones.</li>
+                              </ul>
+                            </ScreenInfoIcon>
+                          )}
                         </div>
                         <div className="flex items-center gap-2">
                           <button
@@ -2587,14 +2624,17 @@ export default function Home() {
                             Ajusta tus preferencias personales y la información de tu cuenta.
                           </p>
                         </div>
-                        <ScreenInfoIcon title="Configuración" placement="right">
-                          <p>Desde aquí puedes:</p>
-                          <ul className="mt-2 list-inside list-disc space-y-1 text-white/80">
-                            <li>Cambiar nombre, zona horaria y avatar.</li>
-                            <li>Definir inicio de semana (lunes o domingo).</li>
-                            <li>Gestionar días festivos y exportar informes.</li>
-                          </ul>
-                        </ScreenInfoIcon>
+                        {(userPreferences.showInfoIcon ?? true) && (
+                          <ScreenInfoIcon title="Configuración" placement="right" onLaunchTour={() => setTimeout(runConfigurationTour, 300)}>
+                            <p>Desde aquí puedes:</p>
+                            <ul className="mt-2 list-inside list-disc space-y-1 text-white/80">
+                              <li>Cambiar nombre, zona horaria y avatar.</li>
+                              <li>Definir inicio de semana (lunes o domingo).</li>
+                              <li>Gestionar días festivos y exportar informes.</li>
+                            </ul>
+                            <p className="mt-2 text-white/70">Pulsa <strong>Ver tutorial</strong> para un recorrido por esta pantalla.</p>
+                          </ScreenInfoIcon>
+                        )}
                         </div>
                       </header>
 
@@ -2675,17 +2715,23 @@ export default function Home() {
                           >
                             📅 Mes
                           </button>
-                          <ScreenInfoIcon
-                            title="Vista del calendario"
-                            placement="left"
-                            className="shrink-0"
-                          >
-                            <p className="mb-2">Cambia entre dos formas de ver tu agenda:</p>
-                            <ul className="list-inside list-disc space-y-1 text-white/80">
-                              <li><strong>Día:</strong> un día a la vez. Ideal para ver horarios y tocar un turno para editarlo.</li>
-                              <li><strong>Mes:</strong> plan mensual. Arrastra y suelta turnos, aplica plantillas o genera rotaciones.</li>
-                            </ul>
-                          </ScreenInfoIcon>
+                          {(userPreferences.showInfoIcon ?? true) && (
+                            <ScreenInfoIcon
+                              title="Vista del calendario"
+                              placement="left"
+                              className="shrink-0"
+                              onLaunchTour={() => {
+                                setActiveTab("calendar")
+                                setForceRunTour(true)
+                              }}
+                            >
+                              <p className="mb-2">Cambia entre dos formas de ver tu agenda:</p>
+                              <ul className="list-inside list-disc space-y-1 text-white/80">
+                                <li><strong>Día:</strong> un día a la vez. Ideal para ver horarios y tocar un turno para editarlo.</li>
+                                <li><strong>Mes:</strong> plan mensual. Arrastra y suelta turnos, aplica plantillas o genera rotaciones.</li>
+                              </ul>
+                            </ScreenInfoIcon>
+                          )}
                         </div>
 
                         {availableCalendars.length > 0 && (
@@ -2772,6 +2818,10 @@ export default function Home() {
         onNavigateLink={handleNavigateLink}
         creditBalance={creditBalance}
       />
+
+      {currentUser && (
+        <CreditsBottomBar creditBalance={creditBalance} />
+      )}
 
       {currentUser && (
         <MobileSideMenu

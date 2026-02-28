@@ -121,10 +121,30 @@ function normalizePreferences(raw: unknown): UserPreferences {
     ? (shiftExtrasRaw.map(normalizeShiftExtra).filter((e): e is ShiftExtra => e != null) as UserPreferences["shiftExtras"])
     : (DEFAULT_USER_PREFERENCES.shiftExtras ?? [])
 
-  const hourlyRate =
+  const remunerationType =
+    candidate.remunerationType === "salary" || candidate.remunerationType === "hourly"
+      ? candidate.remunerationType
+      : (DEFAULT_USER_PREFERENCES.remunerationType ?? "hourly")
+
+  const monthlySalary =
+    typeof candidate.monthlySalary === "number" && !Number.isNaN(candidate.monthlySalary) && candidate.monthlySalary >= 0
+      ? candidate.monthlySalary
+      : DEFAULT_USER_PREFERENCES.monthlySalary
+
+  const hoursPerWeek =
+    typeof candidate.hoursPerWeek === "number" && !Number.isNaN(candidate.hoursPerWeek) && candidate.hoursPerWeek > 0
+      ? candidate.hoursPerWeek
+      : DEFAULT_USER_PREFERENCES.hoursPerWeek
+
+  let hourlyRate =
     typeof candidate.hourlyRate === "number" && !Number.isNaN(candidate.hourlyRate)
       ? candidate.hourlyRate
-      : DEFAULT_USER_PREFERENCES.hourlyRate ?? 0
+      : (DEFAULT_USER_PREFERENCES.hourlyRate ?? 0)
+
+  if (remunerationType === "salary" && typeof monthlySalary === "number" && typeof hoursPerWeek === "number" && hoursPerWeek > 0) {
+    const hoursPerMonth = hoursPerWeek * (52 / 12)
+    hourlyRate = monthlySalary / hoursPerMonth
+  }
 
   const showFestiveDays =
     typeof candidate.showFestiveDays === "boolean"
@@ -138,6 +158,10 @@ function normalizePreferences(raw: unknown): UserPreferences {
     typeof candidate.showDayColors === "boolean"
       ? candidate.showDayColors
       : (DEFAULT_USER_PREFERENCES.showDayColors ?? true)
+  const showInfoIcon =
+    typeof candidate.showInfoIcon === "boolean"
+      ? candidate.showInfoIcon
+      : (DEFAULT_USER_PREFERENCES.showInfoIcon ?? true)
 
   return {
     startOfWeek: normalizeStartOfWeek(candidate.startOfWeek),
@@ -153,10 +177,14 @@ function normalizePreferences(raw: unknown): UserPreferences {
       ),
     },
     shiftExtras,
+    remunerationType,
+    monthlySalary,
+    hoursPerWeek,
     hourlyRate,
     showFestiveDays,
     festiveDayColor,
     showDayColors,
+    showInfoIcon,
     customShiftTypes: candidate.customShiftTypes ?? DEFAULT_USER_PREFERENCES.customShiftTypes ?? [],
   }
 }

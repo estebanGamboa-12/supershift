@@ -29,13 +29,22 @@ export type UserPreferences = {
   notifications: NotificationPreferences
   shiftExtras?: ShiftExtra[] // Extras personalizados del usuario
   customShiftTypes?: CustomShiftType[] // Tipos de turnos personalizados del usuario
-  hourlyRate?: number // Tarifa por hora base
+  /** Tipo de remuneración: por horas o sueldo base mensual */
+  remunerationType?: "hourly" | "salary"
+  /** Tarifa por hora (€/h). Si remunerationType es "salary", se calcula a partir de monthlySalary/hoursPerMonth. */
+  hourlyRate?: number
+  /** Sueldo base mensual (€/mes). Solo usado si remunerationType === "salary". */
+  monthlySalary?: number
+  /** Horas trabajadas por semana para calcular tarifa equivalente desde sueldo base. Solo usado si remunerationType === "salary". */
+  hoursPerWeek?: number
   /** Mostrar días festivos en calendario (mes y día) */
   showFestiveDays?: boolean
   /** Color para resaltar días festivos (hex) */
   festiveDayColor?: string
   /** Mostrar colores por tipo de día en el calendario */
   showDayColors?: boolean
+  /** Mostrar icono de información (ℹ️) en las pantallas para ver ayuda y "Ver tutorial" */
+  showInfoIcon?: boolean
 }
 
 export const DEFAULT_USER_PREFERENCES: UserPreferences = {
@@ -48,8 +57,12 @@ export const DEFAULT_USER_PREFERENCES: UserPreferences = {
   },
   shiftExtras: [],
   customShiftTypes: [],
+  remunerationType: "hourly",
   hourlyRate: 0,
+  monthlySalary: undefined,
+  hoursPerWeek: undefined,
   showFestiveDays: true,
   festiveDayColor: "#dc2626",
   showDayColors: true,
+  showInfoIcon: true,
 }

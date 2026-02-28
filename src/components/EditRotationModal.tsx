@@ -8,6 +8,7 @@ import type {
   RotationTemplateInput,
   ShiftTemplate,
 } from "@/types/templates"
+import ScreenInfoIcon from "@/components/ui/ScreenInfoIcon"
 
 type EditRotationModalProps = {
   open: boolean
@@ -16,6 +17,8 @@ type EditRotationModalProps = {
   template?: RotationTemplate | null
   shiftTemplates: ShiftTemplate[]
   onUpdateShiftTemplate?: (id: number, payload: { icon?: string | null; color?: string | null }) => Promise<void>
+  /** Lanza el tour de onboarding del formulario (desde el botón Ver tutorial del popover) */
+  onLaunchTour?: () => void
 }
 
 const MAX_ROTATION_DAYS_DESKTOP = 31
@@ -37,6 +40,7 @@ export default function EditRotationModal({
   template,
   shiftTemplates,
   onUpdateShiftTemplate,
+  onLaunchTour,
 }: EditRotationModalProps) {
   const isEditing = Boolean(template && template.id > 0)
   const [name, setName] = useState("")
@@ -248,7 +252,18 @@ export default function EditRotationModal({
               <h2 className="text-sm font-semibold tracking-tight sm:text-base">
                 {isEditing ? "Editar rotación" : "Nueva rotación"}
               </h2>
-              <button
+              <div className="flex items-center gap-2">
+                {onLaunchTour ? (
+                  <ScreenInfoIcon
+                    title="Nueva rotación"
+                    placement="bottom"
+                    onLaunchTour={onLaunchTour}
+                  >
+                    <p className="mb-2">Define una rotación: nombre, número de días y qué plantilla de turno corresponde a cada día. Luego la aplicas en el calendario al mes.</p>
+                    <p className="text-white/80">Pulsa <strong>Ver tutorial</strong> para un recorrido paso a paso.</p>
+                  </ScreenInfoIcon>
+                ) : null}
+                <button
                 type="button"
                 onClick={onClose}
                 className="flex h-6 w-6 flex-shrink-0 items-center justify-center rounded-full border border-white/10 bg-white/5 text-base text-white/70 transition hover:bg-white/10 hover:text-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/70 sm:h-7 sm:w-7"
@@ -256,6 +271,7 @@ export default function EditRotationModal({
               >
                 ×
               </button>
+              </div>
             </header>
 
             <div className="flex flex-1 flex-col px-3 py-2 sm:px-4 sm:py-3">
@@ -263,7 +279,7 @@ export default function EditRotationModal({
               {/* Layout dividido: círculo a la izquierda, formulario a la derecha */}
               <div className="grid min-h-0 flex-1 gap-3 sm:gap-4 lg:grid-cols-[1fr_1fr]">
                 {/* Mitad izquierda: Círculo de días. En móvil mismo círculo perfecto en caja fija 268px */}
-                <div className="flex flex-col items-center justify-center min-h-0 order-2 lg:order-1 overflow-visible">
+                <div className="flex flex-col items-center justify-center min-h-0 order-2 lg:order-1 overflow-visible" data-tour="rotation-circle">
                   <div
                     className="relative flex-shrink-0 mx-auto"
                     style={{
@@ -355,7 +371,7 @@ export default function EditRotationModal({
                 <div className="flex flex-col gap-2 overflow-hidden min-h-0 order-1 lg:order-2">
                   {/* Formulario de información básica */}
                   <div className="flex-shrink-0 space-y-2">
-                    <div className="flex items-center gap-2">
+                    <div className="flex items-center gap-2" data-tour="rotation-name">
                       <label className="flex h-8 w-8 items-center justify-center rounded-lg border border-white/10 bg-white/5 text-lg shadow-inner shadow-black/30 sm:h-10 sm:w-10 sm:text-xl">
                         <input
                           type="text"
@@ -377,7 +393,7 @@ export default function EditRotationModal({
                         />
                       </label>
                     </div>
-                    <div className="flex items-center gap-2">
+                    <div className="flex items-center gap-2" data-tour="rotation-days">
                       <label className="flex-1 flex flex-col gap-0.5">
                         <span className="text-[10px] text-white/60 sm:text-xs">Días</span>
                         <div className="flex items-center gap-1 rounded-lg border border-white/15 bg-white/5 focus-within:border-sky-400 focus-within:ring-1 focus-within:ring-sky-400/40">
@@ -415,7 +431,7 @@ export default function EditRotationModal({
                         </div>
                       </label>
                     </div>
-                    <label className="flex flex-col gap-0.5">
+                    <label className="flex flex-col gap-0.5" data-tour="rotation-description">
                       <span className="text-[10px] text-white/60 sm:text-xs">Descripción</span>
                       <textarea
                         value={description}
@@ -428,7 +444,7 @@ export default function EditRotationModal({
                   </div>
 
                   {/* Selector de plantillas y colores */}
-                  <div className="flex flex-col gap-1.5 overflow-hidden min-h-0 flex-1">
+                  <div className="flex flex-col gap-1.5 overflow-hidden min-h-0 flex-1" data-tour="rotation-day-selector">
                     <div className="flex items-center justify-between">
                       <h3 className="text-xs font-semibold sm:text-sm">Día {activeAssignment.dayIndex + 1}</h3>
                       <button
@@ -598,6 +614,7 @@ export default function EditRotationModal({
                 <button
                   type="submit"
                   disabled={isSubmitting}
+                  data-tour="rotation-submit"
                   className="inline-flex items-center justify-center rounded-lg bg-gradient-to-r from-emerald-500 via-sky-500 to-indigo-500 px-4 py-1.5 text-xs font-semibold uppercase tracking-wide text-white shadow-lg transition hover:brightness-110 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-300 disabled:cursor-not-allowed disabled:opacity-50 sm:rounded-xl sm:px-5 sm:py-2 sm:text-sm"
                 >
                   {isSubmitting ? "Guardando..." : isEditing ? "Actualizar" : "Crear rotación"}
@@ -626,6 +643,7 @@ export default function EditRotationModal({
                       form.requestSubmit()
                     }
                   }}
+                  data-tour="rotation-submit"
                   className="flex-1 rounded-lg bg-gradient-to-r from-emerald-500 via-sky-500 to-indigo-500 px-3 py-2.5 text-sm font-semibold uppercase tracking-wide text-white shadow-lg transition hover:brightness-110 disabled:cursor-not-allowed disabled:opacity-50"
                 >
                   {isSubmitting ? "Guardando..." : isEditing ? "Actualizar" : "Crear"}

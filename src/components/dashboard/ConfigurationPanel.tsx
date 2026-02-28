@@ -236,6 +236,14 @@ const ConfigurationPanel: FC<ConfigurationPanelProps> = ({
     }))
   }
 
+  function handleShowInfoIconChange(showInfoIcon: boolean) {
+    resetPreferenceFeedback()
+    setPreferences((current) => ({
+      ...current,
+      showInfoIcon,
+    }))
+  }
+
   async function handlePreferencesSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault()
     if (!onSave) {
@@ -621,15 +629,6 @@ const ConfigurationPanel: FC<ConfigurationPanelProps> = ({
               </h2>
             </div>
             <div className="flex flex-wrap items-center gap-2">
-            {onLaunchTour && (
-              <button
-                type="button"
-                onClick={onLaunchTour}
-                className="rounded-full border border-white/20 bg-white/5 px-3 py-1.5 text-xs font-semibold text-white/80 transition hover:bg-white/10 hover:text-white"
-              >
-                Ver tutorial
-              </button>
-            )}
             {savedAtLabel ? (
               <span className="rounded-full bg-white/5 px-3 py-1 text-[11px] font-semibold uppercase tracking-wide text-white/60">
                 Preferencias guardadas {savedAtLabel}
@@ -641,7 +640,7 @@ const ConfigurationPanel: FC<ConfigurationPanelProps> = ({
           {user ? (
             <>
               <div className="grid gap-7 lg:grid-cols-[1.05fr_0.95fr]">
-                <div className="space-y-5">
+                <div className="space-y-5" data-tour="config-profile">
                   <label className="block">
                     <span className="text-xs uppercase tracking-wide text-white/40">
                       Nombre completo
@@ -683,7 +682,7 @@ const ConfigurationPanel: FC<ConfigurationPanelProps> = ({
                   </p>
                 </div>
 
-                <div className="flex flex-col items-center gap-5 rounded-2xl bg-slate-950/50 p-4 sm:p-5">
+                <div className="flex flex-col items-center gap-5 rounded-2xl bg-slate-950/50 p-4 sm:p-5" data-tour="config-avatar">
                   {renderAvatar(
                     avatarPreview,
                     profileForm.name || user.name || user.email,
@@ -724,6 +723,7 @@ const ConfigurationPanel: FC<ConfigurationPanelProps> = ({
                       <button
                         type="button"
                         onClick={onLogout}
+                        data-tour="config-logout"
                         className="inline-flex w-full items-center justify-center gap-2 rounded-xl border-2 border-red-500/50 bg-red-500/20 px-4 py-3 text-sm font-bold text-red-200 transition hover:border-red-400 hover:bg-red-500/30 hover:text-red-100 active:scale-95 shadow-lg shadow-red-500/20"
                       >
                         <span className="text-lg">🚪</span>
@@ -801,7 +801,7 @@ const ConfigurationPanel: FC<ConfigurationPanelProps> = ({
               ) : null}
             </header>
 
-            <div className="space-y-1 rounded-2xl bg-slate-950/50 p-2">
+            <div className="space-y-1 rounded-2xl bg-slate-950/50 p-2" data-tour="config-preferences">
               <p className="px-2 py-2 text-xs uppercase tracking-wide text-white/40">
                 Calendario
               </p>
@@ -849,6 +849,18 @@ const ConfigurationPanel: FC<ConfigurationPanelProps> = ({
                   Afecta al orden en el calendario.
                 </p>
               </div>
+              <label className="flex items-center justify-between gap-4 rounded-xl bg-white/5 px-4 py-3">
+                <span className="font-semibold text-white">Mostrar icono de información</span>
+                <input
+                  type="checkbox"
+                  checked={preferences.showInfoIcon ?? true}
+                  onChange={() => handleShowInfoIconChange(!(preferences.showInfoIcon ?? true))}
+                  className="h-6 w-11 cursor-pointer rounded-full bg-slate-900/60 transition-all checked:bg-sky-500"
+                />
+              </label>
+              <p className="text-xs text-white/50">
+                Si está activado, verás el icono ℹ️ en calendario, plantillas, extras y configuración para abrir la ayuda y «Ver tutorial».
+              </p>
             </div>
 
             {showFestiveDaysModal && (
@@ -905,7 +917,7 @@ const ConfigurationPanel: FC<ConfigurationPanelProps> = ({
             )}
           </section>
 
-          <aside className="space-y-5 rounded-2xl bg-slate-950/50 p-4 sm:p-5">
+          <aside className="space-y-5 rounded-2xl bg-slate-950/50 p-4 sm:p-5" data-tour="config-integrations">
             <section className="space-y-4">
               <header>
                 <p className="text-xs uppercase tracking-[0.35em] text-white/40">

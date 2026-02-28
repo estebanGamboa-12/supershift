@@ -22,6 +22,10 @@ import { useConfirmDelete } from "@/lib/ConfirmDeleteContext"
 import { useToast } from "@/lib/ToastContext"
 import { openNoCreditsModal } from "@/components/dashboard/NoCreditsModalListener"
 import ScreenInfoIcon from "@/components/ui/ScreenInfoIcon"
+import CreditsBottomBar from "@/components/dashboard/CreditsBottomBar"
+import { runTemplatesTour } from "@/components/onboarding/TemplatesOnboarding"
+import { runRotationFormTour } from "@/components/onboarding/RotationFormOnboarding"
+import { loadUserPreferences } from "@/lib/user-preferences"
 
 function sanitizeUserSummary(value: unknown): UserSummary | null {
   if (!value || typeof value !== "object") {
@@ -104,6 +108,7 @@ export default function TemplatesPage() {
   }, [router])
 
   const [currentUser, setCurrentUser] = useState<UserSummary | null>(null)
+  const [creditBalance, setCreditBalance] = useState<number | null>(null)
   const [isCheckingSession, setIsCheckingSession] = useState(false)
   const [users, setUsers] = useState<UserSummary[]>([])
   const [isLoadingUsers, setIsLoadingUsers] = useState(true)
@@ -114,6 +119,12 @@ export default function TemplatesPage() {
   const [shiftModalTemplate, setShiftModalTemplate] = useState<ShiftTemplate | null>(null)
   const [isRotationModalOpen, setIsRotationModalOpen] = useState(false)
   const [rotationModalTemplate, setRotationModalTemplate] = useState<RotationTemplate | null>(null)
+  const [showInfoIcon, setShowInfoIcon] = useState(true)
+
+  useEffect(() => {
+    const loaded = loadUserPreferences()
+    if (loaded?.preferences?.showInfoIcon === false) setShowInfoIcon(false)
+  }, [])
 
   useEffect(() => {
     if (!supabase) {
@@ -167,6 +178,33 @@ export default function TemplatesPage() {
       subscription?.subscription.unsubscribe()
     }
   }, [supabase])
+
+  // Cargar saldo de créditos cuando hay usuario
+  useEffect(() => {
+    if (!currentUser?.id || !supabase) {
+      setCreditBalance(null)
+      return
+    }
+    let isMounted = true
+    supabase.auth.getSession().then(({ data }) => {
+      const token = data.session?.access_token
+      if (!token || !isMounted) return
+      fetch(`/api/users/${encodeURIComponent(currentUser.id)}/credits`, {
+        cache: "no-store",
+        headers: { Authorization: `Bearer ${token}` },
+      })
+        .then((res) => res.json().catch(() => null))
+        .then((data) => {
+          if (isMounted && typeof data?.balance === "number") {
+            setCreditBalance(data.balance)
+          }
+        })
+        .catch(() => {})
+    })
+    return () => {
+      isMounted = false
+    }
+  }, [currentUser?.id, supabase])
 
   useEffect(() => {
     let isMounted = true
@@ -402,24 +440,47 @@ export default function TemplatesPage() {
   return (
     <div className="relative min-h-screen bg-slate-950 text-white pb-[calc(7rem+env(safe-area-inset-bottom))] lg:pb-[calc(5rem+env(safe-area-inset-bottom))]">
       <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_10%_0%,rgba(59,130,246,0.18),transparent_55%),_radial-gradient(circle_at_80%_105%,rgba(139,92,246,0.2),transparent_60%),_radial-gradient(circle_at_50%_50%,rgba(59,130,246,0.12),transparent_65%)]" aria-hidden />
-      <main className="relative z-10 mx-auto max-w-6xl px-4 py-2 pb-20 sm:px-6 sm:pb-24 lg:px-8">
-        <div className="mb-3 flex items-center justify-between">
+      <main className="relative z-10 mx-auto max-w-6xl px-4 pt-4 pb-20 sm:px-6 sm:pb-24 sm:pt-4 lg:px-8 lg:pt-6">
+        <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
           <PlanLoopLogo size="sm" showText={true} />
-          <Link
-            href="/"
-            className="rounded-lg border border-white/10 bg-white/5 px-3 py-1.5 text-xs font-semibold text-white/70 transition hover:bg-white/10 hover:text-white"
-          >
-            ← Panel
-          </Link>
+          <div className="flex items-center gap-2">
+            <Link
+              href="/"
+              className="rounded-lg border border-white/10 bg-white/5 px-3 py-1.5 text-xs font-semibold text-white/70 transition hover:bg-white/10 hover:text-white"
+            >
+              ← Panel
+            </Link>
+            {showInfoIcon && (
+              <ScreenInfoIcon
+                title="Plantillas"
+                placement="bottom"
+                className="shrink-0"
+                onLaunchTour={() => {
+                  setActiveTab("shifts")
+                  setTimeout(() => runTemplatesTour(), 400)
+                }}
+              >
+                <p className="mb-2">Aquí creas y guardas plantillas para reutilizar en el calendario.</p>
+                <ul className="list-inside list-disc space-y-1 text-white/80">
+                  <li><strong>Plantillas de turnos:</strong> horarios base (ej. mañana, tarde, noche). Crea una y úsala en muchas fechas.</li>
+                  <li><strong>Rotaciones:</strong> secuencias de varios días (ej. 5 laborables + 2 libres). Así defines patrones que luego aplicas al mes.</li>
+                </ul>
+                <p className="mt-2 text-white/70">Los botones de abajo llevan tus plantillas al panel para aplicarlas al mes o generar una rotación.</p>
+              </ScreenInfoIcon>
+            )}
+          </div>
         </div>
 
-        <div className="mb-4 flex flex-wrap gap-2 rounded-xl border border-white/10 bg-white/5 p-1.5 text-xs font-semibold uppercase tracking-wide text-white/60">
-          <div className="flex flex-1 flex-wrap items-center gap-2">
+        {/* Tabs: Plantillas de turnos / Rotaciones */}
+        <div className="sticky top-2 z-20 mb-6 flex flex-wrap gap-3">
           <button
             type="button"
             onClick={() => setActiveTab("shifts")}
-            className={`rounded-full px-3 py-1 transition ${
-              activeTab === "shifts" ? "bg-sky-500 text-white shadow shadow-sky-500/30" : "bg-white/5 hover:bg-white/10"
+            data-tour="templates-tab-shifts"
+            className={`rounded-xl px-4 py-3 text-sm font-bold transition sm:px-5 sm:py-3 sm:text-base ${
+              activeTab === "shifts"
+                ? "bg-sky-500 text-white shadow-lg shadow-sky-500/30 hover:bg-sky-400"
+                : "border-2 border-white/20 bg-white/5 text-white/80 hover:border-white/30 hover:bg-white/10"
             }`}
           >
             Plantillas de turnos
@@ -427,42 +488,15 @@ export default function TemplatesPage() {
           <button
             type="button"
             onClick={() => setActiveTab("rotations")}
-            className={`rounded-full px-3 py-1 transition ${
-              activeTab === "rotations" ? "bg-sky-500 text-white shadow shadow-sky-500/30" : "bg-white/5 hover:bg-white/10"
+            data-tour="templates-tab-rotations"
+            className={`rounded-xl px-4 py-3 text-sm font-bold transition sm:px-5 sm:py-3 sm:text-base ${
+              activeTab === "rotations"
+                ? "bg-sky-500 text-white shadow-lg shadow-sky-500/30 hover:bg-sky-400"
+                : "border-2 border-white/20 bg-white/5 text-white/80 hover:border-white/30 hover:bg-white/10"
             }`}
           >
             Rotaciones
           </button>
-          </div>
-          <ScreenInfoIcon
-            title="Plantillas"
-            placement="left"
-            className="shrink-0"
-          >
-            <p className="mb-2">Aquí creas y guardas plantillas para reutilizar en el calendario.</p>
-            <ul className="list-inside list-disc space-y-1 text-white/80">
-              <li><strong>Plantillas de turnos:</strong> horarios base (ej. mañana, tarde, noche). Crea una y úsala en muchas fechas.</li>
-              <li><strong>Rotaciones:</strong> secuencias de varios días (ej. 5 laborables + 2 libres). Así defines patrones que luego aplicas al mes.</li>
-            </ul>
-            <p className="mt-2 text-white/70">Los botones de arriba llevan tus plantillas al panel para aplicarlas al mes o generar una rotación.</p>
-          </ScreenInfoIcon>
-        </div>
-
-        {/* CTA fijo: llevar al "aha" rápido */}
-        <div className="sticky top-2 z-20 mb-6 flex flex-wrap items-center gap-2 rounded-2xl border border-sky-400/30 bg-sky-500/15 px-4 py-3 shadow-lg backdrop-blur-sm">
-          <span className="text-xs font-semibold text-white/80">Lleva tus plantillas al calendario:</span>
-          <Link
-            href="/"
-            className="inline-flex items-center gap-1.5 rounded-xl bg-sky-500 px-4 py-2 text-sm font-bold text-white shadow-md shadow-sky-500/30 transition hover:bg-sky-400 hover:shadow-sky-400/40"
-          >
-            Aplicar plantilla al mes
-          </Link>
-          <Link
-            href="/"
-            className="inline-flex items-center gap-1.5 rounded-xl border-2 border-emerald-400/50 bg-emerald-500/20 px-4 py-2 text-sm font-bold text-emerald-100 transition hover:bg-emerald-500/30 hover:border-emerald-400/70"
-          >
-            Generar rotación
-          </Link>
         </div>
 
         <section className="mt-8 mb-12 space-y-8">
@@ -473,13 +507,14 @@ export default function TemplatesPage() {
                 <button
                   type="button"
                   onClick={openNewShiftModal}
+                  data-tour="templates-new-shift"
                   className="rounded-lg bg-sky-500 px-3 py-1.5 text-xs font-semibold text-white transition hover:bg-sky-400"
                 >
                   + Nueva
                 </button>
               </div>
 
-              <div className="flex flex-wrap items-center gap-2">
+              <div className="flex flex-wrap items-center gap-2" data-tour="templates-presets">
                 <span className="text-xs text-white/50">Crear con un clic:</span>
                 {SHIFT_PRESETS.map((preset) => {
                   const exists = shiftTemplates.some((t) => t.title === preset.title)
@@ -513,11 +548,11 @@ export default function TemplatesPage() {
                   <FloatingParticlesLoader />
                 </div>
               ) : shiftTemplates.length === 0 ? (
-                <div className="rounded-3xl border border-dashed border-white/20 bg-white/5 p-8 text-center text-sm text-white/60">
+                <div className="rounded-3xl border border-dashed border-white/20 bg-white/5 p-8 text-center text-sm text-white/60" data-tour="templates-cards">
                   Aún no tienes plantillas guardadas. Crea tu primera plantilla para reutilizarla en rotaciones y agenda.
                 </div>
               ) : (
-                <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
+                <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3" data-tour="templates-cards">
                   {shiftTemplates.map((template) => (
                     <ShiftTemplateCard
                       key={template.id}
@@ -642,6 +677,7 @@ export default function TemplatesPage() {
         onSubmit={handleSubmitRotationTemplate}
         template={rotationModalTemplate ?? undefined}
         shiftTemplates={shiftTemplates}
+        onLaunchTour={showInfoIcon ? () => setTimeout(runRotationFormTour, 350) : undefined}
         onUpdateShiftTemplate={async (id, payload) => {
           const template = shiftTemplates.find((t) => t.id === id)
           if (!template) return
@@ -666,7 +702,10 @@ export default function TemplatesPage() {
         active="templates"
         onChange={handleNavigateTab}
         onNavigateLink={handleNavigateLink}
+        creditBalance={creditBalance}
       />
+
+      <CreditsBottomBar creditBalance={creditBalance} />
     </div>
   )
 }

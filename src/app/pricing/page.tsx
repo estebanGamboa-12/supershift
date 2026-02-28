@@ -5,6 +5,18 @@ import Link from "next/link"
 import { useRouter } from "next/navigation"
 import PlanLoopLogo from "@/components/PlanLoopLogo"
 import { getSupabaseBrowserClient } from "@/lib/supabase"
+import {
+  FREE_TIER_CREDITS,
+  PLAN_PRO_MONTHLY_CREDITS,
+  PLAN_PRO_ANNUAL_CREDITS,
+} from "@/lib/credits"
+import {
+  PRO_MONTHLY_EUR,
+  PRO_ANNUAL_EUR,
+  UNLIMITED_MONTHLY_EUR,
+  UNLIMITED_ANNUAL_EUR,
+  monthlyEquivalentFromAnnual,
+} from "@/lib/pricing"
 
 type BillingInterval = "monthly" | "annual"
 
@@ -65,12 +77,12 @@ export default function PricingPage() {
         </div>
       </header>
 
-      <main className="mx-auto max-w-4xl px-4 py-12">
+      <main className="mx-auto max-w-5xl px-4 py-12">
         <h1 className="text-3xl font-bold tracking-tight sm:text-4xl">
           Planes
         </h1>
         <p className="mt-2 text-slate-400">
-          Elige mensual o anual. Más créditos y ventajas con el plan de pago.
+          Elige mensual o anual. Más créditos con Pro, o ilimitado con el plan superior. Facturación anual = 2 meses gratis.
         </p>
 
         <div className="mt-8 flex justify-center gap-2 rounded-xl bg-white/5 p-1">
@@ -97,37 +109,86 @@ export default function PricingPage() {
             Anual
           </button>
         </div>
+        {interval === "annual" && (
+          <p className="mt-2 text-center text-xs text-emerald-400">
+            Pagas 10 meses, tienes 12. Ahorro de 2 meses.
+          </p>
+        )}
 
-        <div className="mt-10 grid gap-6 sm:grid-cols-2">
+        <div className="mt-10 grid gap-6 sm:grid-cols-3">
+          {/* Gratis */}
           <div className="rounded-2xl border border-white/10 bg-white/5 p-6 backdrop-blur-sm">
             <h2 className="text-xl font-semibold text-white">Gratis</h2>
-            <p className="mt-1 text-3xl font-bold text-white">0 €<span className="text-base font-normal text-slate-400">/mes</span></p>
-            <p className="mt-3 text-sm text-slate-400">
-              100 créditos al mes. Calendario, plantillas y reportes.
+            <p className="mt-1 text-3xl font-bold text-white">
+              0 €<span className="text-base font-normal text-slate-400">/mes</span>
+            </p>
+            <p className="mt-2 text-sm text-slate-400">
+              {FREE_TIER_CREDITS} créditos al mes. Calendario, plantillas y reportes.
             </p>
             <Link
               href="/"
-              className="mt-6 block w-full rounded-xl border border-white/20 bg-white/5 py-3 text-center text-sm font-semibold text-white transition hover:bg-white/10"
+              className="mt-6 block w-full rounded-xl border border-white/20 bg-white/5 py-3 text-center text-sm font-semibold text-white/80 transition hover:bg-white/10"
             >
               Ya lo tienes
             </Link>
           </div>
 
-          <div className="rounded-2xl border border-sky-500/40 bg-sky-500/10 p-6 backdrop-blur-sm">
-            <h2 className="text-xl font-semibold text-white">Pro</h2>
-            <p className="mt-1 text-3xl font-bold text-white">
-              {interval === "annual" ? "8 €" : "10 €"}
-              <span className="text-base font-normal text-slate-400">/mes</span>
-            </p>
-            {interval === "annual" && (
-              <p className="mt-1 text-sm text-emerald-400">2 meses gratis al año</p>
+          {/* Pro (medio) */}
+          <div className="rounded-2xl border-2 border-sky-500/40 bg-sky-500/10 p-6 backdrop-blur-sm">
+            <p className="text-xs font-semibold uppercase tracking-wider text-sky-300">Recomendado</p>
+            <h2 className="mt-1 text-xl font-semibold text-white">Pro</h2>
+            {interval === "monthly" ? (
+              <>
+                <p className="mt-1 text-3xl font-bold text-white">
+                  {PRO_MONTHLY_EUR} €<span className="text-base font-normal text-slate-400">/mes</span>
+                </p>
+                <p className="mt-1 text-sm text-sky-200">{PLAN_PRO_MONTHLY_CREDITS} créditos/mes</p>
+              </>
+            ) : (
+              <>
+                <p className="mt-1 text-3xl font-bold text-white">
+                  {PRO_ANNUAL_EUR} €<span className="text-base font-normal text-slate-400">/año</span>
+                </p>
+                <p className="mt-1 text-sm text-sky-200">{PLAN_PRO_ANNUAL_CREDITS.toLocaleString("es-ES")} créditos/año</p>
+                <p className="mt-0.5 text-xs text-slate-400">{monthlyEquivalentFromAnnual(PRO_ANNUAL_EUR)} €/mes</p>
+              </>
             )}
             <p className="mt-3 text-sm text-slate-300">
-              Créditos ilimitados. Prioridad y soporte.
+              Plantillas, rotaciones y más margen para planificar.
             </p>
             <a
               href="#checkout"
               className="mt-6 block w-full rounded-xl bg-sky-500 py-3 text-center text-sm font-semibold text-white shadow-lg shadow-sky-500/25 transition hover:bg-sky-400"
+            >
+              Ir al checkout
+            </a>
+          </div>
+
+          {/* Ilimitado */}
+          <div className="rounded-2xl border border-emerald-400/30 bg-emerald-500/5 p-6 backdrop-blur-sm">
+            <h2 className="text-xl font-semibold text-white">Ilimitado</h2>
+            {interval === "monthly" ? (
+              <>
+                <p className="mt-1 text-3xl font-bold text-white">
+                  {UNLIMITED_MONTHLY_EUR} €<span className="text-base font-normal text-slate-400">/mes</span>
+                </p>
+                <p className="mt-1 text-sm text-emerald-300">Créditos ilimitados</p>
+              </>
+            ) : (
+              <>
+                <p className="mt-1 text-3xl font-bold text-white">
+                  {UNLIMITED_ANNUAL_EUR} €<span className="text-base font-normal text-slate-400">/año</span>
+                </p>
+                <p className="mt-1 text-sm text-emerald-300">Créditos ilimitados</p>
+                <p className="mt-0.5 text-xs text-slate-400">{monthlyEquivalentFromAnnual(UNLIMITED_ANNUAL_EUR)} €/mes</p>
+              </>
+            )}
+            <p className="mt-3 text-sm text-slate-400">
+              Sin límite. Prioridad y uso intensivo.
+            </p>
+            <a
+              href="#checkout"
+              className="mt-6 block w-full rounded-xl border-2 border-emerald-400/50 bg-emerald-500/20 py-3 text-center text-sm font-semibold text-emerald-100 transition hover:bg-emerald-500/30"
             >
               Ir al checkout
             </a>

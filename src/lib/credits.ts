@@ -3,13 +3,20 @@
  * Solo para uso en servidor (API routes).
  */
 
-export const FREE_TIER_CREDITS = 100
+/** Créditos que tiene un usuario free cada mes (o al no tener saldo en BD). */
+export const FREE_TIER_CREDITS = 80
+
+/** Créditos que recibe un usuario Pro al renovar cada mes (suscripción mensual). */
+export const PLAN_PRO_MONTHLY_CREDITS = 500
+
+/** Créditos que recibe un usuario Pro al renovar cada año (suscripción anual). */
+export const PLAN_PRO_ANNUAL_CREDITS = 6_000
 
 export const CREDIT_COSTS = {
-  create_shift: 10,
-  create_shift_template: 20,
-  create_rotation_template: 20,
-  add_extra: 10,
+  create_shift: 1,
+  create_shift_template: 8,
+  create_rotation_template: 12,
+  add_extra: 3,
 } as const
 
 export type CreditActionType = keyof typeof CREDIT_COSTS

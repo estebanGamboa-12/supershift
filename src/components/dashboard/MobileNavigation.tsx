@@ -3,7 +3,6 @@
 import type { FC } from "react"
 import { useRouter } from "next/navigation"
 import PlanLoopLogo from "../PlanLoopLogo"
-import CreditsCircle from "./CreditsCircle"
 
 const NAV_ITEMS = [
   {
@@ -70,9 +69,6 @@ const MobileNavigation: FC<MobileNavigationProps> = ({
         <div className="relative flex items-center gap-2">
           <div className="flex-shrink-0">
             <PlanLoopLogo size="sm" showText={false} />
-          </div>
-          <div className="flex-shrink-0">
-            <CreditsCircle creditBalance={creditBalance} href="/pricing" size="sm" showHoverTooltip />
           </div>
           <div className="flex-1 grid grid-cols-4 gap-1.5 py-1">
             {NAV_ITEMS.map((item) => {

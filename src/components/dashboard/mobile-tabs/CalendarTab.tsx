@@ -183,9 +183,12 @@ const CalendarTab: FC<CalendarTabProps> = ({
 
   useEffect(() => {
     const checkMobile = () => {
-      setIsMobile(window.innerWidth < 1024)
+      const mobile = window.innerWidth < 1024
+      setIsMobile(mobile)
+      // En móvil, sidebar cerrado por defecto; en desktop, abierto.
+      setIsSidebarOpen(!mobile)
     }
-    
+
     checkMobile()
     window.addEventListener("resize", checkMobile)
     return () => window.removeEventListener("resize", checkMobile)
@@ -213,8 +216,9 @@ const CalendarTab: FC<CalendarTabProps> = ({
         <button
           type="button"
           onClick={() => setIsSidebarOpen(true)}
+          data-tour="sidebar-toggle"
           className={`fixed z-50 flex h-10 w-10 items-center justify-center rounded-lg border border-white/20 bg-white/10 text-white/80 shadow-lg transition hover:bg-white/20 hover:text-white active:scale-95 ${
-            isMobile ? "right-2 top-16" : "left-2 top-4"
+            isMobile ? "left-2 top-16" : "left-2 top-4"
           }`}
           aria-label="Abrir menú lateral"
         >

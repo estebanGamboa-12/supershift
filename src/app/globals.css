@@ -2,13 +2,89 @@
 @tailwind components;
 @tailwind utilities;
 
-/* driver.js: overlay y popover por encima de todo (las clases las inyecta la lib) */
+/* driver.js: overlay y popover por encima de todo + tema oscuro */
 .driver-overlay {
   z-index: 2147483646 !important;
 }
 .driver-popover,
 .driver-active-element {
   z-index: 2147483647 !important;
+}
+/* Popover del tour en tema oscuro (evitar caja blanca) */
+.driver-popover.driver-popover-custom,
+.driver-popover-custom {
+  background: var(--brand-surface, #121c30) !important;
+  color: var(--brand-text, #f1f5f9) !important;
+  border: 1px solid var(--brand-border-soft, rgba(255, 255, 255, 0.12)) !important;
+  border-radius: 1rem !important;
+  box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.5) !important;
+}
+.driver-popover.driver-popover-custom .driver-popover-title,
+.driver-popover-custom .driver-popover-title {
+  color: var(--brand-accent, #60a5fa) !important;
+  font-weight: 600 !important;
+}
+.driver-popover.driver-popover-custom .driver-popover-description,
+.driver-popover-custom .driver-popover-description {
+  color: var(--brand-muted, #d1d5db) !important;
+}
+.driver-popover.driver-popover-custom .driver-popover-prev-btn,
+.driver-popover.driver-popover-custom .driver-popover-next-btn,
+.driver-popover.driver-popover-custom .driver-popover-close-btn,
+.driver-popover-custom .driver-popover-prev-btn,
+.driver-popover-custom .driver-popover-next-btn,
+.driver-popover-custom .driver-popover-close-btn {
+  background: rgba(255, 255, 255, 0.1) !important;
+  color: var(--brand-text, #f1f5f9) !important;
+  border: 1px solid var(--brand-border-soft, rgba(255, 255, 255, 0.12)) !important;
+  border-radius: 0.75rem !important;
+}
+.driver-popover.driver-popover-custom .driver-popover-next-btn,
+.driver-popover-custom .driver-popover-next-btn {
+  background: var(--brand-primary, #3b82f6) !important;
+  border-color: var(--brand-primary, #3b82f6) !important;
+}
+.driver-popover.driver-popover-custom .driver-popover-progress-text,
+.driver-popover-custom .driver-popover-progress-text {
+  color: var(--brand-muted, #d1d5db) !important;
+}
+/* Borde del spotlight (elemento resaltado) */
+.driver-active-element {
+  border-radius: 12px !important;
+  box-shadow: 0 0 0 4px rgba(59, 130, 246, 0.5) !important;
+  pointer-events: auto !important;
+}
+.driver-active-element * {
+  pointer-events: auto !important;
+}
+
+/* Móvil: popover y botones siempre visibles y clickeables */
+@media (max-width: 1023px) {
+  .driver-popover.driver-popover-custom,
+  .driver-popover-custom {
+    max-width: calc(100vw - 2rem) !important;
+    left: 1rem !important;
+    right: 1rem !important;
+    margin-left: 0 !important;
+    padding-bottom: calc(1rem + env(safe-area-inset-bottom)) !important;
+  }
+  .driver-popover.driver-popover-custom .driver-popover-footer,
+  .driver-popover-custom .driver-popover-footer {
+    padding-top: 0.75rem !important;
+    gap: 0.5rem !important;
+    flex-wrap: wrap !important;
+  }
+  .driver-popover.driver-popover-custom .driver-popover-prev-btn,
+  .driver-popover.driver-popover-custom .driver-popover-next-btn,
+  .driver-popover.driver-popover-custom .driver-popover-close-btn,
+  .driver-popover-custom .driver-popover-prev-btn,
+  .driver-popover-custom .driver-popover-next-btn,
+  .driver-popover-custom .driver-popover-close-btn {
+    min-height: 44px !important;
+    min-width: 44px !important;
+    padding: 0.5rem 1rem !important;
+    font-size: 0.9375rem !important;
+  }
 }
 
 :root {

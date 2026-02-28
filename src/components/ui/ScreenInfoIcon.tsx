@@ -55,12 +55,12 @@ const ScreenInfoIcon: FC<ScreenInfoIconProps> = ({
       top = rect.bottom + gap
     } else {
       left = Math.max(padding, Math.min(rect.left + rect.width / 2 - popoverMaxWidth / 2, maxLeft))
-      bottom = window.innerHeight - rect.top + gap
+      bottom = Math.max(padding, window.innerHeight - rect.top + gap)
     }
     setPopoverStyle({
       position: "fixed",
       left,
-      ...(top !== undefined ? { top: Math.max(padding, top) } : { bottom: Math.max(padding, bottom) }),
+      ...(top !== undefined ? { top } : { bottom: bottom ?? padding }),
       zIndex: 99999,
       minWidth: 240,
       maxWidth: popoverMaxWidth,

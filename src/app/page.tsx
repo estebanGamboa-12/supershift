@@ -2787,7 +2787,22 @@ export default function Home() {
                         animate={{ opacity: 1, y: 0 }}
                         exit={{ opacity: 0, y: -16 }}
                         transition={{ duration: 0.18, ease: "easeOut" }}
+                        className="w-full"
                       >
+                        <div className="mb-4 flex items-center justify-between gap-2">
+                          <h2 className="text-lg font-bold text-white">Configuración</h2>
+                          {(userPreferences.showInfoIcon ?? true) && (
+                            <ScreenInfoIcon
+                              title="Configuración"
+                              placement="left"
+                              className="shrink-0"
+                              onLaunchTour={() => setTimeout(runConfigurationTour, 300)}
+                            >
+                              <p>Desde aquí puedes cambiar nombre, zona horaria, avatar, preferencias de calendario e integraciones.</p>
+                              <p className="mt-2 text-white/70">Pulsa <strong>Ver tutorial</strong> para un recorrido por esta pantalla.</p>
+                            </ScreenInfoIcon>
+                          )}
+                        </div>
                         <SettingsTab
                           user={currentUser}
                           preferences={userPreferences}
